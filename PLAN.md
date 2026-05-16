@@ -1277,3 +1277,99 @@ Before flipping the repo public (tracked in §17 Milestone 3.5):
 - `SECURITY.md` at repo root with a vulnerability-disclosure email.
 - `CONTRIBUTING.md` light-touch: how to run locally, how to open a PR. No CLA required.
 - `README.md` at repo root that points to the live demo, the hackathon writeup, the `SKILL.md` install command, and the MCP config snippet.
+
+## 24. Monetization & Business Model
+
+This section is the canonical product-strategy companion to §23. `§23` declares the open-source posture; `§24` declares how Sniffy makes money on top of that posture. `docs/business-model.md` mirrors this section with operational detail (pricing-table mockup, unit-economics spreadsheet structure, metrics to track). Phase docs that touch pricing or distribution (`docs/01`, `02`, `04`, `05`, `06`, `09`) cross-link here.
+
+### 24.1 Revenue Thesis
+
+Pay-per-sniff is the wedge; agent-native metered billing is the durable revenue model.
+
+The thesis is the inverse of the ASO incumbents. AppTweak, MobileAction, Appfigures, Asolytics, and ASOZen are subscription dashboards optimized for a human analyst with a seat and a monthly purchase order. Sniffy is optimized for a *call* — one ASO question, one HTTP request, one settled x402 payment. The buyer can be an indie hacker pasting an App Store URL into the demo, or an AI agent inside Claude Code, Cursor, or an n8n workflow that just needs structured market intelligence to finish its job. Both pay the same way, on the same endpoint, with the same JSON contract.
+
+This is the difference that makes the business interesting: the cost of selling another sniff is dominated by an OpenAI synthesis call and a Redis read, not by a sales motion or an onboarding flow. There is no seat to provision, no contract to negotiate, and no account to create. The agent surface in §22 is therefore not a marketing channel — it *is* the sales channel.
+
+### 24.2 Pricing Strategy (Hackathon → Mainnet → Credits)
+
+Pricing has three eras, in order:
+
+- **Hackathon (now, Hoodi testnet)** — Granular pricing per §12: base diagnosis $0.03 + add-on per keyword + add-on per country + add-on for competitor depth. The point is judge clarity and a visible spend trail in the demo, not revenue. Hoodi USDC-equivalent test token is the asset; the official Morph facilitator settles.
+- **Mainnet demo (optional, §6)** — A single ~$0.01 USDC transaction on Morph mainnet, recorded for the submission video, that proves the same code path works against `eip155:2818`. Not a pricing decision; a proof-of-portability decision.
+- **Post-hackathon, public (~Q3 2026)** — Real USDC settlement on Morph mainnet. Public pricing page at sniffy.io/pricing. Target price band $0.05–$0.50 per diagnosis, scaling with keyword count, country count, and competitor depth. Same `pricing.breakdown` wire format as the hackathon API, just with mainnet amounts.
+- **Post-PMF (~Q4 2026+)** — Pre-funded credit balances. The friction reducer §5A acknowledges is real: most indie hackers will not stand up a wallet to spend $0.10. Credit balances funded via Reown AppKit on-ramp (card → USDC → Sniffy account credit) keep the agent-native x402 backend intact while making the front door card-payable. Team plans / metered API keys for agencies layer on top.
+
+Every era keeps the same wire format. The `pricing.breakdown` field in §9 is forward-compatible with every pricing era; nothing about the API needs to change as pricing evolves.
+
+### 24.3 Unit Economics
+
+Variable cost per paid diagnosis call:
+
+| Component | Cost | Notes |
+|---|---|---|
+| Apple iTunes Search API | $0 | Free, public, rate-limited |
+| App Store page sampling | $0 (amortized via Redis) | Public scraping; cache eats repeat cost |
+| Android preview (when used) | $0 (amortized) | Public Play Store sampling; preview-quality only |
+| Redis read/write | < $0.0001 | Upstash or Railway Redis pricing |
+| **OpenAI synthesis** | **$0.005–$0.02** | **Dominant variable cost.** Depends on model and prompt size |
+| Morph x402 facilitator settlement | $0 (Hoodi) / negligible (mainnet) | Settlement fee passed through; not a Sniffy cost |
+| Infra (Railway dyno + Vercel build minutes) | Fixed | Not per-call |
+
+Cache hit ratio is the most important lever. A repeated query against the same `(store, country, appId, keywordSet)` tuple hits Redis and costs effectively zero on the data provider side. The OpenAI cost only drops if the *report* is also cached for that tuple, which is appropriate for short-lived reports but risks staleness; the report-version cache key in §10 handles this by invalidating reports when scoring/prompt logic changes.
+
+Target gross margin: **60–80%** at the $0.05–$0.50 price band. This sits well below the unit economics of seat-based ASO incumbents (~95% software margin) but well above the unit economics of human-delivered consulting (often negative for indie work). It is the right margin for a metered API: cheap enough to be impulsively purchasable by an agent, expensive enough to fund the OpenAI bill and the Morph wallet that receives it.
+
+### 24.4 Customer Segments & Willingness to Pay
+
+| Segment | Frequency | Price sensitivity | Notes |
+|---|---|---|---|
+| Indie hackers (primary, §3) | Low — a few sniffs per app launch | High | Sticky if first paid sniff produces a concrete metadata win that converts on App Store |
+| AI agents (secondary today, dominant volume long-term) | Potentially very high — every release pipeline call | Low (their owner pays) | x402 friction is the lowest of any payment mechanism for an agent |
+| ASO agencies / growth teams | Low — supplemental at most | Mixed | Not a target. They have AppTweak/Sensor Tower seats and will not switch |
+| App-store hobbyists / students | Sporadic | Very high | Free `/sample` endpoint serves this segment; not a paying audience |
+
+The agent-volume bet is the durable bet. Indie hackers will fund the brand and provide qualitative feedback; agents will fund the runway. The MCP/CLI/SDK install paths in §22 are the agent acquisition funnel.
+
+### 24.5 Distribution → Revenue Funnel
+
+Each agent surface in §22 maps to a distinct revenue path:
+
+- **`SKILL.md` install** (`npx skills add asosniffy/asosniffy-com`) → agent reads spec → agent calls `/quote` (free, returns `shallowScan`) → if user wants the full plan, agent calls `/diagnose` → x402 payment → paid report.
+- **`@sniffy/mcp` install** (Claude Desktop, Cursor config) → user asks agent "should I rename my app?" or "what keywords am I missing?" → agent calls `sniffy_quote` (free) → if the shallow scan is promising, agent calls `sniffy_diagnose` → x402 wallet on the user's machine pays → paid report.
+- **`@sniffy/cli`** (`npx sniffy quote ...`) → script in a release pipeline calls quote, then diagnose, on every CI run that ships an App Store metadata update.
+- **`@sniffy/sdk`** → embedded directly in custom indie-hacker workflows (Vercel AI SDK apps, n8n flows once §22.7 ships).
+- **Web demo** (`landing/`) → judge or curious indie hacker arrives, sees the free shallow scan, runs `/diagnose` via the in-browser wallet flow.
+
+The MIT license is explicitly a revenue-funnel investment. Closed source would foreclose `npx skills add`, npm distribution of SDK/CLI/MCP, and the social trust loop that makes agents trust an installable tool. The hosted `api.sniffy.io` is the wallet — that is the part that does not open-source.
+
+### 24.6 Roadmap to Sustainable Revenue
+
+| Horizon | Milestone | Revenue posture |
+|---|---|---|
+| 2026-05 (hackathon) | Hoodi testnet flow proves end-to-end | $0 revenue; demo validation |
+| Q3 2026 | Mainnet cut, public pricing page, first non-judge paying agents | First paid dollars |
+| Q4 2026 | Card-funded credit-balance UX via Reown on-ramp | Indie-hacker conversion friction drops; ARPU rises |
+| 2027 | Agency/enterprise metered API-key tier; possible BSL/SSPL relicense of `scraper/` if cloud-hosting clones appear (option preserved per §23.1) | Second revenue product on top of the same API |
+
+The relicense option in §23.1 is load-bearing here: it lets Sniffy capture cloud-hosting margin in a future where competitors fork `scraper/` and undercut hosted pricing. MIT today does not foreclose that move.
+
+### 24.7 What Sniffy Is NOT (as a Business)
+
+Stating the negatives explicitly because they shape every product decision below:
+
+- **Not a subscription dashboard.** Recurring seat revenue is the incumbent model; Sniffy does not compete on it.
+- **Not freemium-with-paywall-everywhere.** The free `/sample` and `/quote` endpoints are real free value, not nag screens.
+- **Not enterprise sales-led.** No sales motion, no demos-on-Zoom, no signed contracts in the MVP era.
+- **Not a SaaS clone of AppTweak/Sensor Tower.** §5A is explicit: data depth is not the moat.
+- **Not dependent on a free-tier-to-paid-tier conversion funnel.** Every paid call stands alone. Sniffy does not need a user to "convert" — it needs them to call `/diagnose` once.
+
+### 24.8 Brand & Trademark as Moat
+
+The durable moat is the combination, not any one piece:
+
+- **Code** (MIT) is the adoption funnel, not the moat (§23).
+- **Hosted `api.sniffy.io`** receives the x402 payments and is monitored/maintained — that is the production service customers pay for.
+- **Accumulated Redis cache + report history** become richer with every paid call; a fork of the open-source code starts cold.
+- **"Sniffy" / "ASOSniffy" wordmark and the pixel-detective mascot** are reserved as trademarks (filing post-hackathon, per §23). Even with MIT code, no fork can ship a "Sniffy"-branded competitor.
+
+Acquirers and public-market investors price businesses like this on hosted revenue, customer book, brand, and accumulated data — not on code obfuscation. The strategy is the same shape that took HashiCorp, MongoDB, Confluent, Supabase, and Vercel to venture-scale outcomes (§23.3).
