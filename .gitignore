@@ -1,0 +1,81 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/cache/
+.yarn/install-state.gz
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+.vercel/
+.nuxt/
+.svelte-kit/
+.output/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment / secrets — never commit these
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+wallet.json
+wallet.*.json
+*.wallet
+private-key.txt
+
+# Test / coverage
+coverage/
+.nyc_output/
+*.lcov
+.vitest/
+playwright-report/
+test-results/
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+# IDE / editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+.cursor/
+.zed/
+*.swp
+*.swo
+*~
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Local Claude / agent tooling
+.claude/settings.local.json
+.claude/cache/
+.claude/projects/
+.agents/cache/
+
+# Misc
+*.tgz
+.pnp.*
+.eslintcache
+.stylelintcache
+.parcel-cache/
