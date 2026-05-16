@@ -1,0 +1,104 @@
+{
+  "requestId": "req_sample_2026_05_mvp",
+  "sniffId": "sniff_sample_001",
+  "reportVersion": "2026-05-mvp",
+  "receipt": {
+    "network": "eip155:2910",
+    "facilitator": "fixture-receipt",
+    "facilitatorMode": "fixture-receipt",
+    "amount": "0.05",
+    "atomicAmount": "50000000000000000",
+    "asset": "0xEcF966Cc754BC411E1F1106fbb4e343b835E85E4",
+    "transactionHash": "0x5a991e00000000000000000000000000000000000000000000000000000001",
+    "settledAt": "2026-05-17T10:00:00.000Z"
+  },
+  "dataProvenance": {
+    "appMetadata": "fixture",
+    "keywordRank": "fixture",
+    "competitors": "fixture",
+    "recommendations": "fixture"
+  },
+  "summary": "Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has two low-value slots that should be reclaimed.",
+  "keywordDiagnosis": [
+    {
+      "keyword": "habit tracker",
+      "rankBucket": "11-30",
+      "intentScore": 0.82,
+      "confidence": "medium",
+      "provenance": "fixture",
+      "recommendation": "Move 'habit tracker' from the keywords field into the subtitle — high intent, currently ranking below the fold."
+    },
+    {
+      "keyword": "daily routine",
+      "rankBucket": "31-100",
+      "intentScore": 0.61,
+      "confidence": "medium",
+      "provenance": "fixture",
+      "recommendation": "Keep in the keywords field; pair with 'streaks' in the next screenshot caption to reinforce intent."
+    }
+  ],
+  "competitorTrail": [
+    {
+      "appId": "1000000101",
+      "name": "Streakly",
+      "overlapKeywords": ["habit tracker", "daily routine"],
+      "notes": "Outranks Pawprint Habits on both shared keywords. Subtitle leads with 'Habit Tracker', which Pawprint Habits buries.",
+      "provenance": "fixture"
+    },
+    {
+      "appId": "1000000102",
+      "name": "RoutineLab",
+      "overlapKeywords": ["daily routine"],
+      "notes": "Lower ratings volume but tighter keyword field — three high-intent terms, no filler.",
+      "provenance": "fixture"
+    }
+  ],
+  "metadataScore": {
+    "overall": 62,
+    "title": {
+      "score": 70,
+      "notes": "Strong brand recall, but doesn't carry a category keyword."
+    },
+    "subtitle": {
+      "score": 55,
+      "notes": "'Daily Routine & Streaks' uses one medium-intent term — leaves the highest-intent keyword on the table."
+    },
+    "keywords": {
+      "score": 48,
+      "notes": "Two of ten slots spent on near-duplicates of words already in the subtitle."
+    },
+    "screenshots": {
+      "score": 72,
+      "notes": "Captions are readable and benefit-led; first frame buries the streak feature below the fold."
+    }
+  },
+  "recommendations": [
+    {
+      "rank": 1,
+      "action": "Rewrite subtitle to lead with 'Habit Tracker'.",
+      "impact": "high",
+      "effort": "low",
+      "rationale": "Highest-intent keyword is currently in the keywords field where it competes for surface area. Moving it to the subtitle is a one-character-budget change."
+    },
+    {
+      "rank": 2,
+      "action": "Reclaim two filler keyword slots.",
+      "impact": "medium",
+      "effort": "low",
+      "rationale": "Two slots duplicate words already in the title/subtitle and yield no additional rank coverage."
+    },
+    {
+      "rank": 3,
+      "action": "Promote the streak feature to screenshot frame 1.",
+      "impact": "medium",
+      "effort": "medium",
+      "rationale": "Streakly's lead with streaks correlates with its higher conversion on shared keywords; first-frame promotion is the cheapest test."
+    }
+  ],
+  "readyToPaste": {
+    "title": "Pawprint Habits",
+    "subtitle": "Habit Tracker · Streaks & Routines",
+    "keywordsField": "daily,routine,streak,morning,evening,checklist,journal,calendar",
+    "shortDescription": "Pawprint Habits is a friendly habit tracker that turns daily routines into streaks you actually want to keep."
+  }
+}

@@ -31,7 +31,7 @@ Phase 00 (foundation) ──┬─► Phase 01 (payment)    ──┐
 | Phase | Title | Status |
 |---|---|---|
 | [00](./00-foundation.md) | Foundation — workspace, shared Zod schemas, fixtures | not-started |
-| [01](./01-payment-adapter.md) | Payment adapter — Morph x402 facilitator, HMAC, receipts | not-started |
+| [01](./01-payment-adapter.md) | Payment adapter — Morph x402 facilitator, HMAC, receipts | done |
 | [02](./02-core-api.md) | Core API — Hono server, `/quote`, `/diagnose`, `/sample` | not-started |
 | [03](./03-data-providers.md) | Data providers — Apple, App Store sampling, Android preview, Redis | not-started |
 | [04](./04-scoring-and-synthesis.md) | Scoring & synthesis — deterministic scoring, OpenAI, template fallback | not-started |

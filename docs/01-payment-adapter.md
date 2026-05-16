@@ -8,7 +8,7 @@ Implement the Morph x402 payment adapter inside `scraper/`: validate Morph's off
 
 ## Status & Dependencies
 
-- **Status**: not-started
+- **Status**: done
 - **Depends on**: Phase 00 (specifically: `@sniffy/scraper` schemas — the `DiagnoseUnpaidResponse` and `receipt` shape are encoded there)
 - **Blocks**: Phase 02 (`/diagnose` route needs payment requirements + receipt assembly); Phase 07 (deployment needs the facilitator HMAC creds in Railway env)
 - **Can run in parallel with**: Phases 03 (data providers), 05 (frontend), 06 (distribution kit — SDK can use the typed `PaymentRequiredError` already in 00.p4)
@@ -32,10 +32,11 @@ This is **`PLAN.md` §21 open question #1** as a deliverable. Until it resolves,
     - Whether `eip155:2910` (Hoodi) is listed
     - If yes: the token asset address, decimals, EIP-712 `name`, EIP-712 `version`, and which payment scheme is used (EIP-3009 `transferWithAuthorization`, Permit2, or Morph-specific exact transfer)
     - If no: the recommended fallback (request access from Morph, or use the Morph self-hosted facilitator path from `PLAN.md` §12)
-    - HMAC header format: which headers Morph expects, the signing canonicalization (sorted-keys JSON per `morph-network` skill), and an example signed request
-  - Updated `.env.example` at repo root with `MORPH_X402_ACCESS_KEY`, `MORPH_X402_SECRET_KEY`, `MORPH_X402_FACILITATOR_URL` (default `https://morph-rails.morph.network/x402`)
+    - HMAC header format: which headers Morph expects, the signing canonicalization (recursively-sorted-keys JSON per `morph-network` skill), and an example signed request
+  - `.env.example` at repo root carries `MORPH_X402_ACCESS_KEY`, `MORPH_X402_SECRET_KEY`, `MORPH_X402_FACILITATOR_MODE` (`live` | `fixture`), `SNIFFY_PAYMENT_ASSET_ADDRESS`, `SNIFFY_PAYMENT_ASSET_DECIMALS`, `SNIFFY_PAYMENT_ASSET_EIP712_NAME`, `SNIFFY_PAYMENT_ASSET_EIP712_VERSION`. (`MORPH_FACILITATOR_URL` and `MORPH_NETWORK` already land in Phase 00.)
 - **Acceptance**:
   - The research doc unambiguously answers: token asset, decimals, EIP-712 fields, payment scheme. Subsequent tasks in this phase can wire to it without further investigation.
+- **Live-state caveat**: as of 2026-05-16 the `morph-network` skill notes `GET /v2/supported` advertises **only mainnet `eip155:2818`** — Hoodi is not listed. Morph's official Go example settles against Hoodi using token `0xEcF966Cc754BC411E1F1106fbb4e343b835E85E4` (`HoodiTestToken`, 18 decimals, EIP-712 `name=HoodiTestToken`, `version=1.0`). The research task re-curls and documents current state; if Hoodi is still not advertised, proceed against Hoodi using the Go example values (canonical) and flag the listing gap.
 - **Out of scope**: do not start coding the HMAC client until this lands; do not pick a fallback unless `/v2/supported` confirms Hoodi is missing
 - **References**: `PLAN.md` §12, §21; `morph-network` skill
 
@@ -56,9 +57,10 @@ Run only after 01.s1 completes. Each task is independent.
     - `verify(payload: VerifyRequest): Promise<VerifyResponse>` → `POST /v2/verify`
     - `settle(payload: SettleRequest): Promise<SettleResponse>` → `POST /v2/settle`
   - `scraper/src/payment/facilitator/hmac.ts` — HMAC-SHA256 signer that:
-    - Sorts JSON keys recursively (per Morph's canonicalization rule)
-    - Computes the signature over `{method}{path}{timestamp}{sorted-body}`
-    - Attaches the headers Morph expects (per the research doc)
+    - Builds a sign map containing `MORPH-ACCESS-KEY`, `MORPH-ACCESS-TIMESTAMP` (milliseconds as string), `MORPH-ACCESS-METHOD` (uppercase), `MORPH-ACCESS-PATH` (full path including `/x402` prefix, no query string), and `MORPH-ACCESS-BODY` (parsed JSON; omit the field entirely when there is no body). Query-param keys are flattened into the sign map as `string[]` values.
+    - Recursively sorts the sign map keys lexicographically, compact-stringifies with `JSON.stringify`, computes HMAC-SHA256 with the secret key, Base64-encodes the digest.
+    - Attaches `MORPH-ACCESS-KEY`, `MORPH-ACCESS-TIMESTAMP`, `MORPH-ACCESS-SIGN` as request headers.
+    - Mirrors the TS reference at `.claude/skills/morph-network/references/x402-facilitator.md` lines 66–136.
   - `scraper/src/payment/facilitator/types.ts` — Zod-validated request/response shapes for verify/settle (do **not** redefine the `DiagnosePaidResponse` receipt — that's in `@sniffy/scraper` schemas)
   - `scraper/tests/payment/facilitator.test.ts`:
     - Unit test: HMAC signature matches a known input/output pair (use the Morph docs example if provided in research)
@@ -80,19 +82,25 @@ Run only after 01.s1 completes. Each task is independent.
   - `PLAN.md` §9 (unpaid response example), §12 (network, asset, payTo)
   - `business-model.md` §2.1 (pricing breakdown)
 - **Deliverables**:
-  - `buildPaymentRequirements({ sniffId, pricing })` → `DiagnoseUnpaidResponse` with:
-    - `x402Version: 2`
-    - `network: 'eip155:2910'` (configurable via env for mainnet later)
-    - `facilitator: 'https://morph-rails.morph.network/x402'`
-    - `amount`: derived from `pricing.estimatedTotal` (USDC-equivalent on Hoodi)
-    - `asset`: token contract address from research doc (env var, with the contract address as a default constant)
-    - `payTo`: merchant wallet from env (`SNIFFY_PAYTO_ADDRESS`)
-    - `scheme`: the payment scheme name from the research doc (`exact`, `permit2`, etc.)
+  - `buildPaymentRequirements({ sniffId, pricing, resourceUrl })` → `DiagnoseUnpaidResponse` with the **dual-shape** body: a §9-compatible `payment` object AND a canonical x402 v2 `accepts[]` array. Both reference the same Hoodi requirement.
+    - `x402Version: 2` (both top-level and inside `payment`)
+    - `scheme: 'exact'` (Hoodi advertises `exact` only)
+    - `network: 'eip155:2910'` (configurable via `MORPH_NETWORK` for mainnet later)
+    - `facilitator: 'https://morph-rails.morph.network/x402'` (from `MORPH_FACILITATOR_URL`)
+    - `amount`: decimal display (e.g. `"0.05"`), derived from `pricing.estimatedTotal`
+    - `atomicAmount`: integer wei units, derived as `parseUnits(amount, decimals)` using viem
+    - `decimals`: from `SNIFFY_PAYMENT_ASSET_DECIMALS` (18 for HoodiTestToken)
+    - `asset`: HoodiTestToken `0xEcF966Cc754BC411E1F1106fbb4e343b835E85E4` on Hoodi (env-driven; mainnet TBD)
+    - `payTo`: merchant wallet from env (`SNIFFY_MERCHANT_ADDRESS`)
+    - `maxTimeoutSeconds`: default `60`
+    - `extra`: `{ name, version }` for EIP-712 domain — `HoodiTestToken` / `1.0` on Hoodi
+    - `accepts[0]` mirrors `payment` but with `amount` in atomic units only (canonical x402 v2 shape)
   - `scraper/src/payment/pricing.ts` — `computePricing({ keywords, countries, competitorDepth })` returning the `pricing` block from `PLAN.md` §9 with `breakdown[]` items matching `business-model.md` §2.1 numbers
-  - Unit tests for both
+  - Unit tests for both, including a dual-shape consistency check: `accepts[0].amount === payment.atomicAmount`
 - **Acceptance**:
-  - `buildPaymentRequirements()` output parses as `DiagnoseUnpaidResponse` schema
+  - `buildPaymentRequirements()` output parses as `DiagnoseUnpaidResponse` schema (dual-shape: both `payment` and `accepts[]`)
   - `computePricing({ keywords: ['a', 'b'] })` returns `estimatedTotal: '0.05'` with two breakdown items totaling correctly
+  - `accepts[0].amount === payment.atomicAmount` (dual-shape stays in sync)
 - **Out of scope**: do not wire this into a route (Phase 02); do not handle mainnet pricing yet (post-MVP)
 - **References**: `PLAN.md` §9, §12; `business-model.md` §2.1
 
@@ -123,8 +131,8 @@ Run only after 01.s1 completes. Each task is independent.
   - `PLAN.md` §12 (x402 v2 protocol)
   - `x402-payments` skill (PAYMENT-SIGNATURE header format)
 - **Deliverables**:
-  - `parsePaymentHeader(raw: string): ParsedPayment | null` — parses the `PAYMENT-SIGNATURE` header (x402 v2 format), validates network matches expected `eip155:2910`, returns typed payload or `null` for missing/malformed
-  - Specific error types for: missing header, wrong network, malformed signature, expired authorization
+  - `parsePaymentHeader(raw: string | undefined, expectedNetwork: CAIP2): ParsedPayment | null` — parses the `PAYMENT-SIGNATURE` header (x402 v2 format: header value is `base64(JSON(PaymentPayload))`). Base64-decodes → JSON.parses → Zod-validates the `PaymentPayload` v2 shape (`x402Version: 2`, `scheme`, `network`, `payload: { signature, authorization: { from, to, value, validAfter, validBefore, nonce } }`). Returns `null` for missing/empty header; throws typed errors otherwise.
+  - Specific error types: `MalformedHeaderError` (base64 / JSON / schema fail), `WrongNetworkError` (network ≠ `expectedNetwork`), `ExpiredAuthorizationError` (`validBefore < now`).
   - Unit tests covering each failure mode
 - **Acceptance**:
   - `parsePaymentHeader('')` → `null`
@@ -155,10 +163,15 @@ pnpm --filter @sniffy/scraper test -- payment.requirements
 Manual smoke (if access keys are provisioned):
 
 ```bash
-curl -X GET https://morph-rails.morph.network/x402/v2/supported \
-  -H "X-Morph-Access-Key: $MORPH_X402_ACCESS_KEY" \
-  -H "X-Morph-Signature: $(node scraper/scripts/sign-supported.mjs)"
-# Should return a JSON body listing networks including eip155:2910
+# /v2/supported is unauthenticated — no HMAC needed.
+curl -sS https://morph-rails.morph.network/x402/v2/supported | jq .
+# Should return { "kinds": [...], "signers": {...} }. As of 2026-05-16 only eip155:2818 is advertised.
+
+# /v2/verify and /v2/settle require HMAC. Headers:
+#   MORPH-ACCESS-KEY:       $MORPH_X402_ACCESS_KEY
+#   MORPH-ACCESS-TIMESTAMP: <Date.now() in ms, as string>
+#   MORPH-ACCESS-SIGN:      base64(HMAC-SHA256(secret, JSON.stringify(sortObject(signMap))))
+# See .claude/skills/morph-network/references/x402-facilitator.md for the canonical sign-map shape.
 ```
 
 ## References

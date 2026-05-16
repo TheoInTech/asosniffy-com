@@ -1,0 +1,42 @@
+export {
+  SCHEMA_VERSION,
+  Provenance,
+  Confidence,
+  Store,
+  CountryCode,
+  CAIP2,
+  SniffId,
+  RequestId,
+  Coverage,
+  RankBucket,
+  AppIdentifier,
+  QuoteRequest,
+  QuoteResponse,
+  DetectedApp,
+  Pricing,
+  PricingBreakdownItem,
+  RatingsSummary,
+  PreviewKeyword,
+  ShallowScan,
+  DiagnoseRequest,
+  DiagnoseUnpaidResponse,
+  DiagnosePaidResponse,
+  PaymentRequirement,
+  Receipt,
+  DataProvenance,
+  KeywordDiagnosisItem,
+  CompetitorTrailItem,
+  MetadataScore,
+  MetadataSubscore,
+  RecommendationItem,
+  ReadyToPaste,
+  SampleResponse,
+} from "@sniffy/scraper/schemas";
+
+export { PaymentRequiredError } from "./errors.js";
+export { createSniffy } from "./client.js";
+export type {
+  CreateSniffyOptions,
+  SignerLike,
+  SniffyClient,
+} from "./client.js";

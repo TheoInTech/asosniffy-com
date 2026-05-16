@@ -1,0 +1,116 @@
+import { parseUnits } from "viem";
+import {
+  type AcceptsItem,
+  type CAIP2,
+  DiagnoseUnpaidResponse,
+  type DiagnoseUnpaidResponse as DiagnoseUnpaidResponseType,
+  type PaymentRequirement,
+  type Pricing,
+  type SniffId,
+} from "../schemas/index.js";
+
+export interface PaymentEnv {
+  MORPH_NETWORK?: string;
+  MORPH_FACILITATOR_URL?: string;
+  SNIFFY_MERCHANT_ADDRESS?: string;
+  SNIFFY_PAYMENT_ASSET_ADDRESS?: string;
+  SNIFFY_PAYMENT_ASSET_DECIMALS?: string;
+  SNIFFY_PAYMENT_ASSET_EIP712_NAME?: string;
+  SNIFFY_PAYMENT_ASSET_EIP712_VERSION?: string;
+}
+
+export interface BuildPaymentRequirementsInput {
+  sniffId: SniffId;
+  pricing: Pricing;
+  resourceUrl: string;
+  resourceDescription?: string;
+  resourceMimeType?: string;
+  maxTimeoutSeconds?: number;
+  env?: PaymentEnv;
+}
+
+const DEFAULTS = {
+  network: "eip155:2910" as CAIP2,
+  facilitatorUrl: "https://morph-rails.morph.network/x402",
+  // From Morph's official Go example. PLAN.md §21 / Phase 01.s1 documents this.
+  assetAddress: "0xEcF966Cc754BC411E1F1106fbb4e343b835E85E4",
+  assetDecimals: 18,
+  eip712Name: "HoodiTestToken",
+  eip712Version: "1.0",
+  maxTimeoutSeconds: 60,
+} as const;
+
+function requireEnv<T extends string>(value: T | undefined, name: string): T {
+  if (!value) {
+    throw new Error(`Missing required env var: ${name}`);
+  }
+  return value;
+}
+
+export function buildPaymentRequirements(
+  input: BuildPaymentRequirementsInput,
+): DiagnoseUnpaidResponseType {
+  const env = input.env ?? (process.env as PaymentEnv);
+
+  const network = (env.MORPH_NETWORK ?? DEFAULTS.network) as CAIP2;
+  const facilitator = env.MORPH_FACILITATOR_URL ?? DEFAULTS.facilitatorUrl;
+  const asset = env.SNIFFY_PAYMENT_ASSET_ADDRESS ?? DEFAULTS.assetAddress;
+  const decimals = env.SNIFFY_PAYMENT_ASSET_DECIMALS
+    ? Number.parseInt(env.SNIFFY_PAYMENT_ASSET_DECIMALS, 10)
+    : DEFAULTS.assetDecimals;
+  const eip712Name = env.SNIFFY_PAYMENT_ASSET_EIP712_NAME ?? DEFAULTS.eip712Name;
+  const eip712Version =
+    env.SNIFFY_PAYMENT_ASSET_EIP712_VERSION ?? DEFAULTS.eip712Version;
+
+  // Merchant address has no safe default — fail loudly if missing in prod.
+  const payTo = requireEnv(env.SNIFFY_MERCHANT_ADDRESS, "SNIFFY_MERCHANT_ADDRESS");
+
+  const amount = input.pricing.estimatedTotal;
+  // parseUnits handles fixed-point decimal → atomic conversion (no float math).
+  const atomicAmount = parseUnits(amount, decimals).toString();
+
+  const extra = { name: eip712Name, version: eip712Version };
+  const maxTimeoutSeconds = input.maxTimeoutSeconds ?? DEFAULTS.maxTimeoutSeconds;
+
+  const payment: PaymentRequirement = {
+    x402Version: 2,
+    scheme: "exact",
+    network,
+    facilitator,
+    amount,
+    atomicAmount,
+    decimals,
+    asset,
+    payTo,
+    maxTimeoutSeconds,
+    extra,
+  };
+
+  const accepts: AcceptsItem[] = [
+    {
+      scheme: "exact",
+      network,
+      // Canonical x402 v2 amount in accepts[] is atomic units.
+      amount: atomicAmount,
+      asset,
+      payTo,
+      maxTimeoutSeconds,
+      extra,
+    },
+  ];
+
+  const response: DiagnoseUnpaidResponseType = {
+    x402Version: 2,
+    error: "payment_required",
+    sniffId: input.sniffId,
+    resource: {
+      url: input.resourceUrl,
+      ...(input.resourceDescription ? { description: input.resourceDescription } : {}),
+      ...(input.resourceMimeType ? { mimeType: input.resourceMimeType } : {}),
+    },
+    payment,
+    accepts,
+  };
+
+  return DiagnoseUnpaidResponse.parse(response);
+}

@@ -1,0 +1,41 @@
+{
+  "requestId": "req_sample_2026_05_mvp_quote",
+  "sniffId": "sniff_sample_001",
+  "store": "ios",
+  "country": "US",
+  "detectedApp": {
+    "id": "1000000001",
+    "name": "Pawprint Habits",
+    "developer": "Sample Studio LLC"
+  },
+  "pricing": {
+    "currency": "USDC",
+    "network": "morph-hoodi",
+    "estimatedTotal": "0.05",
+    "breakdown": [
+      { "label": "base diagnosis", "amount": "0.03" },
+      { "label": "2 keywords", "amount": "0.02" }
+    ]
+  },
+  "coverage": {
+    "appMetadata": "high",
+    "keywordRank": "medium",
+    "competitorTrail": "medium",
+    "reviews": "low"
+  },
+  "shallowScan": {
+    "title": "Pawprint Habits",
+    "subtitle": "Daily Routine & Streaks",
+    "primaryCategory": "Productivity",
+    "ratingsSummary": { "average": 4.5, "count": 1287 },
+    "previewKeyword": {
+      "keyword": "habit tracker",
+      "rankBucket": "11-30",
+      "confidence": "medium",
+      "provenance": "fixture"
+    }
+  },
+  "next": {
+    "paidEndpoint": "/api/v1/aso/diagnose"
+  }
+}

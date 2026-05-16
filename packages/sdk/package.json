@@ -1,0 +1,39 @@
+{
+  "name": "@sniffy/sdk",
+  "version": "0.0.0",
+  "description": "Typed TypeScript client for the Sniffy ASO API (x402-paywalled on Morph).",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'lint: configured in Phase 06'",
+    "test": "echo 'tests: added in Phase 06'"
+  },
+  "dependencies": {
+    "@sniffy/scraper": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "peerDependencies": {
+    "viem": "^2.21.0"
+  },
+  "peerDependenciesMeta": {
+    "viem": { "optional": true }
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "viem": "^2.21.55"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
