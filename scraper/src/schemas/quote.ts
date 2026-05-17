@@ -10,7 +10,12 @@ import {
   Store,
 } from "./shared.js";
 
+// Accept either a flat string (URL / numeric app ID / app name — auto-detected
+// downstream in lib/app-identifier.ts) or the explicit tagged form. The flat
+// form keeps the surface agent-friendly: callers can just paste an App Store
+// URL without learning the tagged union.
 export const AppIdentifier = z.union([
+  z.string().min(1),
   z.object({ kind: z.literal("appId"), value: z.string().min(1) }),
   z.object({ kind: z.literal("url"), value: z.string().url() }),
   z.object({ kind: z.literal("name"), value: z.string().min(1) }),

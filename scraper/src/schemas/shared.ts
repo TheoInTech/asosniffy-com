@@ -33,7 +33,14 @@ export const Coverage = z.object({
 });
 export type Coverage = z.infer<typeof Coverage>;
 
-export const RankBucket = z.enum(["1-10", "11-30", "31-100", "100+", "unranked"]);
+export const RankBucket = z.enum([
+  "1-10",
+  "11-30",
+  "31-50",
+  "51-100",
+  "100+",
+  "not_found",
+]);
 export type RankBucket = z.infer<typeof RankBucket>;
 
 export const FacilitatorMode = z.enum([

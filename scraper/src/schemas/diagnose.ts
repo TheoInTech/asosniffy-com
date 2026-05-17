@@ -2,16 +2,27 @@ import { z } from "zod";
 import {
   CAIP2,
   Confidence,
+  CountryCode,
   FacilitatorMode,
   PaymentScheme,
   Provenance,
   RankBucket,
   RequestId,
   SniffId,
+  Store,
 } from "./shared.js";
+import { AppIdentifier } from "./quote.js";
 
+// Diagnose request carries the full context inline (sniffId references a prior
+// quote for funnel analytics; store/app/country/keywords let the server run
+// statelessly without a quote-lookup store). Keyword cap is 5 here, while
+// /quote allows up to 10 — keeps paid runtime bounded.
 export const DiagnoseRequest = z.object({
   sniffId: SniffId,
+  store: Store,
+  app: AppIdentifier,
+  country: CountryCode,
+  keywords: z.array(z.string().min(1)).min(1).max(5),
 });
 export type DiagnoseRequest = z.infer<typeof DiagnoseRequest>;
 

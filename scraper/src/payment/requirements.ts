@@ -8,7 +8,11 @@ import {
   type Pricing,
   type SniffId,
 } from "../schemas/index.js";
+import { env as appEnv } from "../env.js";
 
+// Tests can still inject a full PaymentEnv inline; production code reads from
+// the central env.ts singleton (decision #14). All fields are optional so
+// tests can pass partial overrides.
 export interface PaymentEnv {
   MORPH_NETWORK?: string;
   MORPH_FACILITATOR_URL?: string;
@@ -17,6 +21,18 @@ export interface PaymentEnv {
   SNIFFY_PAYMENT_ASSET_DECIMALS?: string;
   SNIFFY_PAYMENT_ASSET_EIP712_NAME?: string;
   SNIFFY_PAYMENT_ASSET_EIP712_VERSION?: string;
+}
+
+function fromAppEnv(): PaymentEnv {
+  return {
+    MORPH_NETWORK: appEnv.MORPH_NETWORK,
+    MORPH_FACILITATOR_URL: appEnv.MORPH_FACILITATOR_URL,
+    SNIFFY_MERCHANT_ADDRESS: appEnv.SNIFFY_MERCHANT_ADDRESS,
+    SNIFFY_PAYMENT_ASSET_ADDRESS: appEnv.SNIFFY_PAYMENT_ASSET_ADDRESS,
+    SNIFFY_PAYMENT_ASSET_DECIMALS: String(appEnv.SNIFFY_PAYMENT_ASSET_DECIMALS),
+    SNIFFY_PAYMENT_ASSET_EIP712_NAME: appEnv.SNIFFY_PAYMENT_ASSET_EIP712_NAME,
+    SNIFFY_PAYMENT_ASSET_EIP712_VERSION: appEnv.SNIFFY_PAYMENT_ASSET_EIP712_VERSION,
+  };
 }
 
 export interface BuildPaymentRequirementsInput {
@@ -50,7 +66,7 @@ function requireEnv<T extends string>(value: T | undefined, name: string): T {
 export function buildPaymentRequirements(
   input: BuildPaymentRequirementsInput,
 ): DiagnoseUnpaidResponseType {
-  const env = input.env ?? (process.env as PaymentEnv);
+  const env = input.env ?? fromAppEnv();
 
   const network = (env.MORPH_NETWORK ?? DEFAULTS.network) as CAIP2;
   const facilitator = env.MORPH_FACILITATOR_URL ?? DEFAULTS.facilitatorUrl;

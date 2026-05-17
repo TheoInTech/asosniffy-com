@@ -10,11 +10,20 @@ import {
   type RequestId,
 } from "../schemas/index.js";
 import type { SettleResponse } from "./facilitator/index.js";
+import { env as appEnv } from "../env.js";
 
 export interface ReceiptEnv {
   MORPH_NETWORK?: string;
   SNIFFY_PAYMENT_ASSET_ADDRESS?: string;
   SNIFFY_PAYMENT_ASSET_DECIMALS?: string;
+}
+
+function fromAppEnv(): ReceiptEnv {
+  return {
+    MORPH_NETWORK: appEnv.MORPH_NETWORK,
+    SNIFFY_PAYMENT_ASSET_ADDRESS: appEnv.SNIFFY_PAYMENT_ASSET_ADDRESS,
+    SNIFFY_PAYMENT_ASSET_DECIMALS: String(appEnv.SNIFFY_PAYMENT_ASSET_DECIMALS),
+  };
 }
 
 export interface AssembleReceiptInput {
@@ -59,7 +68,7 @@ function fabricateTxHash(random: () => Buffer): string {
 }
 
 export function assembleReceipt(input: AssembleReceiptInput): Receipt {
-  const env = input.env ?? (process.env as ReceiptEnv);
+  const env = input.env ?? fromAppEnv();
   const network = (env.MORPH_NETWORK ?? DEFAULTS.network) as CAIP2;
   const asset = env.SNIFFY_PAYMENT_ASSET_ADDRESS ?? DEFAULTS.assetAddress;
   const decimals = env.SNIFFY_PAYMENT_ASSET_DECIMALS
