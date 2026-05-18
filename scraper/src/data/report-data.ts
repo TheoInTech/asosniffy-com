@@ -9,6 +9,7 @@ import {
   type Store,
 } from "../schemas/index.js";
 import { searchApps } from "../providers/apple/itunes.js";
+import type { AppRecord } from "../providers/apple/types.js";
 import {
   sampleKeywordRank,
   type KeywordRankOutcome,
@@ -37,6 +38,10 @@ export interface CompetitorCandidate {
   appId: string;
   name: string;
   provenance: Provenance;
+  // Phase 04 scoring needs the competitor's title/subtitle/description for
+  // unique-token diffing. Populated when Phase 03 already has the full record
+  // from `searchApps`; absent otherwise (fixture path).
+  record?: AppRecord;
 }
 
 export interface ReportData {
@@ -163,5 +168,6 @@ async function collectCompetitors(
       appId: r.id,
       name: r.name,
       provenance: r.provenance,
+      record: r,
     }));
 }

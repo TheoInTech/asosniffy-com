@@ -4,27 +4,46 @@ import {
   type CompetitorTrailItem,
   type CountryCode,
   type DataProvenance,
-  type DetectedApp,
   type DiagnosePaidResponse,
   type KeywordDiagnosisItem,
   type MetadataScore,
-  type ReadyToPaste,
-  type RecommendationItem,
   type RequestId,
   type SniffId,
   type Store,
 } from "../schemas/index.js";
-import { sampleReport } from "../data/fixtures.js";
+import type { AppRecord } from "../providers/apple/types.js";
 import {
   getFullReportData,
-  type KeywordRankDatum,
   type CompetitorCandidate,
   type ReportData,
 } from "../data/report-data.js";
+import {
+  analyzeCompetitors,
+  diagnoseKeywords,
+  scoreMetadataFull,
+  type CompetitorAnalysis,
+  type KeywordDiagnosis,
+  type MetadataScoringResult,
+} from "../scoring/index.js";
+import {
+  buildCompetitorNotes,
+  buildKeywordRecommendation,
+  buildMetadataNotes,
+  synthesizeReportOpenAi,
+  type SynthesisInput,
+  type SynthesisOutput,
+} from "../synthesis/index.js";
 
-// Phase 03: ReportPayload now includes dataProvenance — the orchestrator is
-// the source of truth for which provenance label each section earned. Phase
-// 02 had this field hardcoded in the diagnose route.
+// Phase 04: the orchestrator owns the full pipeline.
+//   1) Phase 03 data layer (live → cached → fixture)
+//   2) Deterministic scoring (metadata + keyword diagnosis + competitors)
+//   3) AI synthesis with template fallback (summary, recommendations,
+//      readyToPaste)
+//   4) Assembly into the schema-defined ReportPayload with honest provenance.
+//
+// Everything synthesized (AI or template) gets `provenance: 'inferred'` on
+// the `recommendations` slot of dataProvenance.
+
 export type ReportPayload = Omit<
   DiagnosePaidResponse,
   "requestId" | "sniffId" | "receipt"
@@ -39,10 +58,6 @@ export interface GenerateReportInput {
   keywords: readonly string[];
 }
 
-// Fixture-overlay strategy still applies for the free-text fields (summary,
-// recommendation prose, ready-to-paste copy) — Phase 04 replaces those with
-// AI synthesis. Phase 03 wires up the structural fields (rankBucket,
-// confidence, competitor IDs) to real provider data.
 export async function generateReport(
   input: GenerateReportInput,
 ): Promise<ReportPayload> {
@@ -53,166 +68,117 @@ export async function generateReport(
     keywords: input.keywords,
   });
 
-  const userKeywords = [...input.keywords];
-  const firstKeyword = userKeywords[0] ?? "your keyword";
+  // ---------- Scoring (deterministic) ----------
+  const metadataScoring = scoreMetadataFull({
+    app: data.detect.appRecord,
+    detectedApp: data.detectedApp,
+    keywords: input.keywords,
+  });
 
+  const keywordScoring = diagnoseKeywords({
+    keywords: input.keywords,
+    ranks: data.keywordRanks,
+    app: data.detect.appRecord,
+  });
+
+  const candidateRecords = buildCandidateRecordsMap(data.competitors);
+  const competitorScoring = analyzeCompetitors({
+    target: data.detect.appRecord,
+    targetKeywords: input.keywords,
+    candidates: data.competitors,
+    candidateRecords,
+  });
+
+  // ---------- Synthesis (AI with template fallback) ----------
+  const synthesisInput: SynthesisInput = {
+    scoring: {
+      metadata: metadataScoring,
+      keywords: keywordScoring,
+      competitors: competitorScoring,
+    },
+    context: {
+      detectedApp: data.detectedApp,
+      appRecord: data.detect.appRecord,
+      keywords: input.keywords,
+    },
+  };
+
+  const synthesis = await synthesizeReportOpenAi(synthesisInput, {
+    requestId: input.requestId,
+  });
+
+  // ---------- Assembly ----------
   return {
     reportVersion: SCHEMA_VERSION,
-    dataProvenance: data.dataProvenance,
-    summary: buildSummary(data.detectedApp, firstKeyword),
-    keywordDiagnosis: buildKeywordDiagnosis(userKeywords, data.keywordRanks),
-    competitorTrail: buildCompetitorTrail(
-      data.detectedApp,
-      data.competitors,
-      userKeywords,
-    ),
-    metadataScore: overlayMetadataScore(data.detectedApp, firstKeyword),
-    recommendations: overlayRecommendations(data.detectedApp, firstKeyword),
-    readyToPaste: overlayReadyToPaste(data.detectedApp, userKeywords),
+    dataProvenance: assembleProvenance(data.dataProvenance),
+    summary: synthesis.summary,
+    keywordDiagnosis: assembleKeywordDiagnosis(keywordScoring),
+    competitorTrail: assembleCompetitorTrail(competitorScoring),
+    metadataScore: assembleMetadataScore(metadataScoring),
+    recommendations: synthesis.recommendations,
+    readyToPaste: synthesis.readyToPaste,
   };
 }
 
-function buildSummary(app: DetectedApp, firstKeyword: string): string {
-  return `${app.name} ranks mid-pack for "${firstKeyword}" and is losing surface area to two competitors with tighter subtitles. The fastest unlock is a subtitle rewrite that pulls "${firstKeyword}" to the front; the keywords field has two filler slots worth reclaiming.`;
+function buildCandidateRecordsMap(
+  candidates: readonly CompetitorCandidate[],
+): Map<string, AppRecord> {
+  const map = new Map<string, AppRecord>();
+  for (const c of candidates) {
+    if (c.record) map.set(c.appId, c.record);
+  }
+  return map;
 }
 
-function buildKeywordDiagnosis(
-  keywords: readonly string[],
-  ranks: KeywordRankDatum[],
+function assembleProvenance(base: DataProvenance): DataProvenance {
+  // Phase 04: synthesis runs unconditionally (AI succeeds OR template
+  // fallback fires), so the recommendations slot is always 'inferred'.
+  return {
+    ...base,
+    recommendations: "inferred",
+  };
+}
+
+function assembleKeywordDiagnosis(
+  scoring: readonly KeywordDiagnosis[],
 ): KeywordDiagnosisItem[] {
-  const fixture = sampleReport.keywordDiagnosis;
-  if (keywords.length === 0) return [];
-
-  return keywords.map((keyword, index) => {
-    const template = fixture[index % fixture.length] as KeywordDiagnosisItem;
-    const real = ranks[index];
-    return {
-      keyword,
-      // Real rank + confidence + provenance when present; fixture otherwise.
-      rankBucket: real?.rankBucket ?? template.rankBucket,
-      intentScore: template.intentScore,
-      confidence: real?.confidence ?? template.confidence,
-      provenance: real?.provenance ?? "fixture",
-      recommendation: rewriteKeywordRecommendation(
-        template.recommendation,
-        keyword,
-      ),
-    };
-  });
-}
-
-function rewriteKeywordRecommendation(
-  templateText: string,
-  keyword: string,
-): string {
-  const replaced = templateText.replace(/['"][^'"]+['"]/, `"${keyword}"`);
-  if (replaced === templateText) {
-    return `Action for "${keyword}": ${templateText}`;
-  }
-  return replaced;
-}
-
-function buildCompetitorTrail(
-  app: DetectedApp,
-  competitors: CompetitorCandidate[],
-  keywords: readonly string[],
-): CompetitorTrailItem[] {
-  if (competitors.length > 0) {
-    const overlap = keywords.slice(0, 2);
-    return competitors.slice(0, 2).map((competitor, index) => {
-      const template =
-        sampleReport.competitorTrail[index % sampleReport.competitorTrail.length]!;
-      return {
-        appId: competitor.appId,
-        name: competitor.name,
-        overlapKeywords: overlap.length > 0 ? [...overlap] : template.overlapKeywords,
-        notes: template.notes
-          .replace(/Pawprint Habits/g, app.name)
-          .replace(/Streakly|RoutineLab/g, competitor.name),
-        provenance: competitor.provenance,
-      };
-    });
-  }
-
-  // No live competitors — fall back to fixture overlay.
-  const overlap = keywords.slice(0, 2);
-  return sampleReport.competitorTrail.map((entry) => ({
-    appId: entry.appId,
-    name: entry.name,
-    overlapKeywords: overlap.length > 0 ? [...overlap] : entry.overlapKeywords,
-    notes: entry.notes.replace(/Pawprint Habits/g, app.name),
-    provenance: "fixture",
+  return scoring.map((d) => ({
+    keyword: d.keyword,
+    rankBucket: d.rankBucket,
+    intentScore: d.intentScore,
+    confidence: d.confidence,
+    provenance: d.provenance,
+    recommendation: buildKeywordRecommendation(d),
   }));
 }
 
-function overlayMetadataScore(
-  app: DetectedApp,
-  firstKeyword: string,
+function assembleCompetitorTrail(
+  scoring: readonly CompetitorAnalysis[],
+): CompetitorTrailItem[] {
+  return scoring.map((c) => ({
+    appId: c.appId,
+    name: c.name,
+    overlapKeywords: c.overlapKeywords,
+    notes: buildCompetitorNotes(c),
+    provenance: c.provenance,
+  }));
+}
+
+function assembleMetadataScore(
+  scoring: MetadataScoringResult,
 ): MetadataScore {
-  const base = sampleReport.metadataScore;
+  const notes = buildMetadataNotes(scoring);
   return {
-    overall: base.overall,
-    title: {
-      score: base.title.score,
-      notes: `${app.name}'s title has strong brand recall but doesn't carry a category keyword for "${firstKeyword}".`,
-    },
-    subtitle: {
-      score: base.subtitle.score,
-      notes: `Subtitle uses adjacent terms but leaves "${firstKeyword}" — the highest-intent term — on the table.`,
-    },
-    keywords: base.keywords,
-    screenshots: base.screenshots,
+    overall: scoring.overall,
+    title: { score: scoring.title.score, notes: notes.title },
+    subtitle: { score: scoring.subtitle.score, notes: notes.subtitle },
+    keywords: { score: scoring.keywordsField.score, notes: notes.keywordsField },
+    // Schema field name preserved for SDK compatibility; populated with
+    // description-density score per Phase 04 decision.
+    screenshots: { score: scoring.description.score, notes: notes.description },
   };
-}
-
-function overlayRecommendations(
-  app: DetectedApp,
-  firstKeyword: string,
-): RecommendationItem[] {
-  return sampleReport.recommendations.map((rec, index) => {
-    if (index === 0) {
-      return {
-        rank: rec.rank,
-        impact: rec.impact,
-        effort: rec.effort,
-        action: `Rewrite ${app.name}'s subtitle to lead with "${firstKeyword}".`,
-        rationale: `"${firstKeyword}" is currently buried in the keywords field where it competes for surface area. Moving it to the subtitle is the cheapest rank-coverage win available.`,
-      };
-    }
-    return {
-      rank: rec.rank,
-      impact: rec.impact,
-      effort: rec.effort,
-      action: rec.action.replace(/Pawprint Habits/g, app.name),
-      rationale: rec.rationale.replace(/Pawprint Habits/g, app.name),
-    };
-  });
-}
-
-function overlayReadyToPaste(
-  app: DetectedApp,
-  keywords: readonly string[],
-): ReadyToPaste {
-  const firstKeyword = keywords[0] ?? "habit tracker";
-  const keywordsField =
-    keywords.length > 0
-      ? keywords.join(",").toLowerCase()
-      : sampleReport.readyToPaste.keywordsField;
-  return {
-    title: app.name,
-    subtitle: `${capitalize(firstKeyword)} · Streaks & Routines`,
-    keywordsField,
-    shortDescription: `${app.name} is a focused ${firstKeyword} app that turns daily routines into streaks you actually want to keep.`,
-  };
-}
-
-function capitalize(text: string): string {
-  if (text.length === 0) return text;
-  return text
-    .split(" ")
-    .map((word) => (word ? word[0]!.toUpperCase() + word.slice(1) : word))
-    .join(" ");
 }
 
 // Re-export ReportData for downstream tests/utilities.
 export type { ReportData };
+export type { SynthesisOutput };

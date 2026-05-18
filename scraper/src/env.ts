@@ -67,6 +67,21 @@ const EnvSchema = z.object({
   CACHE_TTL_KEYWORD_RANK: z.coerce.number().int().positive().default(21600),
   CACHE_TTL_ANDROID_PREVIEW: z.coerce.number().int().positive().default(43200),
   CACHE_TTL_FULL_REPORT: z.coerce.number().int().positive().default(3600),
+
+  // OpenAI synthesis (Phase 04). Both optional — when OPENAI_API_KEY is unset
+  // (or empty, e.g. `OPENAI_API_KEY= pnpm test`), the orchestrator falls
+  // through to the template synthesizer (PLAN.md §14 reliability guarantee).
+  // Default model honors business-model.md §3 unit economics: gpt-4o-mini at
+  // ~$0.15/1M input + $0.60/1M output tokens.
+  OPENAI_API_KEY: z.preprocess(
+    (v) => (typeof v === "string" && v.trim().length === 0 ? undefined : v),
+    z.string().min(1).optional(),
+  ),
+  OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  OPENAI_BASE_URL: z.preprocess(
+    (v) => (typeof v === "string" && v.trim().length === 0 ? undefined : v),
+    z.string().url().optional(),
+  ),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
