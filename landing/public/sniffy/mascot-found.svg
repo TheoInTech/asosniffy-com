@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="160" height="160" shape-rendering="crispEdges" aria-label="Sniffy with magnifier raised, tail wagging, exclamation — found the trail">
+  <rect width="32" height="32" fill="none" />
+
+  <!-- Hat -->
+  <rect x="13" y="2" width="4" height="1" fill="#3A322A" />
+  <rect x="12" y="3" width="6" height="1" fill="#3A322A" />
+  <rect x="14" y="3" width="2" height="1" fill="#F7D43A" />
+  <rect x="11" y="4" width="8" height="2" fill="#3A322A" />
+  <rect x="9"  y="6" width="12" height="1" fill="#15110D" />
+  <rect x="19" y="7" width="2"  height="2" fill="#3A322A" />
+
+  <!-- Head -->
+  <rect x="11" y="7" width="10" height="7" fill="#15110D" />
+  <rect x="20" y="7" width="2"  height="4" fill="#15110D" />
+  <rect x="20" y="11" width="2" height="2" fill="#3A322A" />
+  <!-- Snout -->
+  <rect x="21" y="11" width="4" height="3" fill="#15110D" />
+  <rect x="25" y="12" width="1" height="1" fill="#F7D43A" />
+  <!-- Open smile -->
+  <rect x="22" y="14" width="3" height="1" fill="#3A322A" />
+  <rect x="23" y="15" width="1" height="1" fill="#E5532D" />
+  <!-- Cheek -->
+  <rect x="14" y="13" width="4" height="1" fill="#3A322A" />
+  <!-- Eyes wide / star-like -->
+  <rect x="16" y="9"  width="3" height="2" fill="#F7D43A" />
+  <rect x="17" y="10" width="1" height="1" fill="#15110D" />
+
+  <!-- Tail wagging high -->
+  <rect x="19" y="13" width="2" height="1" fill="#15110D" />
+  <rect x="20" y="9"  width="1" height="4" fill="#15110D" />
+  <rect x="19" y="8"  width="2" height="1" fill="#15110D" />
+
+  <!-- Body -->
+  <rect x="11" y="15" width="9" height="7" fill="#15110D" />
+  <rect x="11" y="15" width="9" height="1" fill="#21C2B6" />
+  <rect x="14" y="16" width="2" height="1" fill="#F7D43A" />
+  <rect x="12" y="19" width="7" height="2" fill="#3A322A" />
+
+  <!-- Arm raised holding magnifier above head -->
+  <rect x="22" y="6" width="2" height="1" fill="#15110D" />
+  <rect x="23" y="4" width="2" height="3" fill="#15110D" />
+
+  <!-- Magnifier raised above the head, right side -->
+  <rect x="24" y="0" width="5" height="1" fill="#21C2B6" />
+  <rect x="23" y="1" width="1" height="3" fill="#21C2B6" />
+  <rect x="29" y="1" width="1" height="3" fill="#21C2B6" />
+  <rect x="24" y="4" width="5" height="1" fill="#21C2B6" />
+  <rect x="24" y="1" width="5" height="3" fill="#F7F4EC" />
+  <rect x="25" y="1" width="1" height="1" fill="#F7D43A" opacity="0.65" />
+  <rect x="24" y="2" width="1" height="1" fill="#F7D43A" opacity="0.65" />
+
+  <!-- Exclamation mark beside the magnifier -->
+  <rect x="30" y="1" width="1" height="3" fill="#E5532D" />
+  <rect x="30" y="5" width="1" height="1" fill="#E5532D" />
+
+  <!-- Legs (sitting, paws together) -->
+  <rect x="13" y="22" width="2" height="4" fill="#15110D" />
+  <rect x="12" y="26" width="4" height="1" fill="#3A322A" />
+  <rect x="16" y="22" width="2" height="4" fill="#15110D" />
+  <rect x="15" y="26" width="4" height="1" fill="#3A322A" />
+  <rect x="18" y="20" width="3" height="5" fill="#15110D" />
+  <rect x="19" y="24" width="3" height="1" fill="#3A322A" />
+</svg>

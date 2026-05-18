@@ -5,12 +5,88 @@
 :root {
   --background: #f7f4ec;
   --foreground: #15110d;
+  --accent-signal: #f7d43a;
+  --accent-teal: #21c2b6;
+  --accent-warn: #e5532d;
+  --rule: #d9d1bd;
 }
 
 html,
 body {
   background: var(--background);
   color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-inconsolata), ui-monospace, monospace;
+  font-feature-settings: "ss01" on, "ss02" on;
+  letter-spacing: 0;
+}
+
+::selection {
+  background: var(--accent-signal);
+  color: var(--foreground);
+}
+
+@keyframes pixel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes pixel-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes pixel-unlock-tilt {
+  0% {
+    transform: rotate(0deg) translateY(0);
+    opacity: 1;
+  }
+  60% {
+    transform: rotate(-22deg) translateY(-6px);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-22deg) translateY(-12px);
+    opacity: 0;
+  }
+}
+
+@keyframes pixel-receipt-rise {
+  0% {
+    transform: translateY(28px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pixel-card-slide {
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

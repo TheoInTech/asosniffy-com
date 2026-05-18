@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 32" width="168" height="32" aria-label="Sniffy">
+  <!-- Teal pixel pawprint accent, vertically centered to the left of the S -->
+  <g shape-rendering="crispEdges">
+    <rect x="2"  y="10" width="2" height="2" fill="#21C2B6" />
+    <rect x="6"  y="10" width="2" height="2" fill="#21C2B6" />
+    <rect x="0"  y="14" width="2" height="2" fill="#21C2B6" />
+    <rect x="8"  y="14" width="2" height="2" fill="#21C2B6" />
+    <rect x="3"  y="17" width="4" height="3" fill="#21C2B6" />
+  </g>
+  <!-- "Sniffy" in Space Grotesk with system-ui fallback. When the SVG is
+       viewed in a browser that ships system-ui, the word still reads cleanly;
+       when Space Grotesk is loaded (as in the deployed landing app), it
+       matches the in-header <Wordmark> component exactly. -->
+  <text
+    x="16"
+    y="25"
+    fill="#15110D"
+    font-family="'Space Grotesk', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-weight="600"
+    font-size="26"
+    letter-spacing="-0.6"
+  >Sniffy</text>
+</svg>

@@ -2,3 +2,10 @@ packages:
   - landing
   - scraper
   - packages/*
+
+# Reown AppKit + Wagmi v2 share peers across many transitive packages
+# (valtio, walletconnect connectors) that haven't tagged React 19 yet. The
+# warnings are non-runtime so we let pnpm auto-install peers; the explicit
+# direct dep versions in landing/package.json still pin the ones that matter.
+autoInstallPeers: true
+strictPeerDependencies: false

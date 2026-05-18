@@ -1,16 +1,38 @@
 import type { Metadata } from "next";
+import { Inconsolata, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
+import { Providers } from "@/components/providers/Providers";
 import "./globals.css";
 
+const inconsolata = Inconsolata({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inconsolata",
+  weight: ["400", "500", "600", "700"],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-space-grotesk",
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "Sniffy",
-  description: "x402-paywalled ASO intelligence for indie founders and agents.",
+  title: "Sniffy — agent-buyable ASO intelligence",
+  description:
+    "Run a free sniff test on any iOS app, then pay per request over x402 on Morph Hoodi for a full ASO trail.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html
+      lang="en"
+      className={`${inconsolata.variable} ${spaceGrotesk.variable}`}
+    >
+      <body className="min-h-screen bg-sniffy-paper text-sniffy-ink antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
