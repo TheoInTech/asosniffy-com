@@ -5,6 +5,8 @@ import { cn } from "@/lib/cn";
 const LABELS: Record<Provenance, string> = {
   live: "Live — fetched in real time from the store",
   cached: "Cached — recent live data, served from cache",
+  degraded:
+    "Degraded — provider returned an error; row is intentionally empty (never fabricated)",
   fixture: "Fixture — fallback when live providers are down",
   inferred: "Inferred — model-derived (no direct ground truth)",
 };
@@ -12,6 +14,7 @@ const LABELS: Record<Provenance, string> = {
 const SHORT: Record<Provenance, string> = {
   live: "live",
   cached: "cached",
+  degraded: "degraded",
   fixture: "fixture",
   inferred: "inferred",
 };

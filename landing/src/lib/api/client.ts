@@ -16,6 +16,14 @@ import {
 
 const DEFAULT_BASE_URL = "http://localhost:3001";
 
+// Identifies this surface to the scraper's soft attestation middleware so
+// the per-request audit log carries clientSurface=landing. Bump the version
+// manually in sync with package.json on minor releases — drift is a logging
+// concern, not a protocol one.
+// Exported so sibling modules (history.ts) can share the same client ID
+// without duplicating the version string.
+export const SNIFFY_CLIENT_ID = "@sniffy/landing@0.0.0";
+
 export function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_SCRAPER_BASE_URL ?? DEFAULT_BASE_URL;
 }
@@ -43,6 +51,7 @@ async function postJSON<T>(
   const url = `${getBaseUrl()}${path}`;
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
+    "X-Sniffy-Client": SNIFFY_CLIENT_ID,
     ...(options.paymentHeader ? { "PAYMENT-SIGNATURE": options.paymentHeader } : {}),
   };
   const startedAt = new Date().toISOString();
@@ -169,7 +178,11 @@ async function getJSON<T>(
   const url = `${getBaseUrl()}${path}`;
   let res: Response;
   try {
-    res = await fetch(url, { method: "GET", signal: options.signal });
+    res = await fetch(url, {
+      method: "GET",
+      headers: { "X-Sniffy-Client": SNIFFY_CLIENT_ID },
+      signal: options.signal,
+    });
   } catch (err) {
     throw new ApiNetworkError(
       `Request to ${path} failed before reaching the server`,

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import type { CoverageProviderError } from "@sniffy/scraper/schemas";
 import type { NoScentReason } from "./triggers";
 
 const COPY: Record<
@@ -44,15 +45,34 @@ const COPY: Record<
       "Use the free sample report for a fully populated example.",
     ],
   },
+  "coverage-degraded": {
+    title: "Sniffy hit a provider snag mid-trail",
+    description:
+      "Every live provider returned an error on this run. Sniffy will never substitute fake data — the rows are intentionally empty until they recover.",
+    suggestions: [
+      "Retry in 30–60 seconds — most provider errors clear quickly.",
+      "Check status.sniffy.io for a known incident.",
+      "Try a different country to confirm whether the issue is region-specific.",
+    ],
+  },
 };
 
 interface Props {
   reason: NoScentReason;
   recommendations?: string[];
+  // Phase 1 — when reason === "coverage-degraded", render the actual
+  // provider error reasons (kind + message) so users see "Apple rate-
+  // limited /lookup" instead of the generic copy alone.
+  providerErrors?: readonly CoverageProviderError[];
   onReset?: () => void;
 }
 
-export function NoScent({ reason, recommendations, onReset }: Props) {
+export function NoScent({
+  reason,
+  recommendations,
+  providerErrors,
+  onReset,
+}: Props) {
   const copy = COPY[reason];
   return (
     <section className="border-2 border-sniffy-ink bg-sniffy-paper p-5">
@@ -82,6 +102,32 @@ export function NoScent({ reason, recommendations, onReset }: Props) {
               <li key={s}>{s}</li>
             ))}
           </ul>
+          {reason === "coverage-degraded" &&
+          providerErrors &&
+          providerErrors.length > 0 ? (
+            <div className="mt-4 border-2 border-sniffy-warn bg-sniffy-paper-2 px-3 py-2 font-mono text-xs">
+              <p className="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-sniffy-warn">
+                Provider errors observed
+              </p>
+              <ul className="mt-1 space-y-1 text-sniffy-ink-2">
+                {providerErrors.slice(0, 5).map((e, idx) => (
+                  <li key={`${e.provider}-${idx}`}>
+                    <span className="font-semibold text-sniffy-ink">
+                      {e.provider}
+                    </span>{" "}
+                    <span className="text-sniffy-ink-mute">({e.kind})</span>{" "}
+                    {e.message}
+                    {e.retryAfterSec !== undefined ? (
+                      <span className="text-sniffy-ink-mute">
+                        {" "}
+                        · retry in {e.retryAfterSec}s
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {onReset ? (
             <button
               type="button"

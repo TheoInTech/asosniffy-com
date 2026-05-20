@@ -4,7 +4,8 @@ export type NoScentReason =
   | "app-not-found"
   | "all-keywords-missing"
   | "country-unsupported"
-  | "all-fixture";
+  | "all-fixture"
+  | "coverage-degraded";
 
 export interface NoScentInputs {
   quote: QuoteResponse;
@@ -29,6 +30,14 @@ export function shouldShowNoScent({
     !knownCountries.includes(quote.country)
   ) {
     return "country-unsupported";
+  }
+
+  // Phase 1 — coverage.status === "degraded" means every live provider
+  // returned a classified error (rate-limited / network / schema-drift).
+  // Surface this BEFORE the all-keywords-missing branch so users see the
+  // actual provider error reason instead of the generic "trail cold" copy.
+  if (quote.coverage.status === "degraded") {
+    return "coverage-degraded";
   }
 
   const preview = quote.shallowScan.previewKeyword;

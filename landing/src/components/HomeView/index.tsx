@@ -74,13 +74,28 @@ export function HomeView() {
 
       {quote && noScentReason ? (
         <div className="mt-8">
-          <NoScent reason={noScentReason} onReset={reset} />
+          <NoScent
+            reason={noScentReason}
+            providerErrors={quote.coverage.providerErrors}
+            onReset={reset}
+          />
         </div>
       ) : null}
 
       {quote && !noScentReason && !paidReport ? (
         <div className="mt-8 space-y-6">
-          <QuoteResponseView quote={quote} onUnlock={() => undefined} />
+          <QuoteResponseView
+            quote={quote}
+            onUnlock={() => undefined}
+            isReQuoting={quoteMutation.isPending}
+            onSelectCandidate={(appId) => {
+              if (!lastRequest) return;
+              // Re-run the quote with the picked candidate's appId. Keep
+              // store/country/keywords the same.
+              const next: QuoteRequest = { ...lastRequest, app: appId };
+              handleSubmit(next);
+            }}
+          />
           {diagnoseRequest ? (
             <UnlockTrail
               quote={quote}
@@ -96,7 +111,30 @@ export function HomeView() {
 
       {paidReport ? (
         <div className="mt-8">
-          <Report report={paidReport} protocolTrace={protocolTrace} />
+          <Report
+            report={paidReport}
+            protocolTrace={protocolTrace}
+            {...(quote && lastRequest
+              ? {
+                  scope: {
+                    store: lastRequest.store,
+                    country: lastRequest.country,
+                    // detectedApp.id is the canonical id post-detection
+                    // (Phase 1 disambiguation may have replaced the
+                    // user-supplied identifier).
+                    appId: quote.detectedApp.id,
+                  },
+                }
+              : {})}
+            onAddKeyword={(keyword) => {
+              if (!lastRequest) return;
+              if (lastRequest.keywords.includes(keyword)) return;
+              // Pre-fill the next sniff with the existing keywords plus
+              // the suggestion. Capped at 10 per QuoteRequest schema.
+              const nextKeywords = [...lastRequest.keywords, keyword].slice(0, 10);
+              handleSubmit({ ...lastRequest, keywords: nextKeywords });
+            }}
+          />
         </div>
       ) : null}
     </div>

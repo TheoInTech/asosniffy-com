@@ -20,6 +20,8 @@ function makeQuote(overrides: Partial<QuoteResponse> = {}): QuoteResponse {
       keywordRank: "medium",
       competitorTrail: "medium",
       reviews: "low",
+      status: "ok",
+      providerErrors: [],
     },
     shallowScan: {
       title: "TestApp",
@@ -32,6 +34,9 @@ function makeQuote(overrides: Partial<QuoteResponse> = {}): QuoteResponse {
         confidence: "medium",
         provenance: "live",
       },
+      detectionConfidence: "high",
+      candidates: [],
+      localizationAvailable: true,
     },
     next: { paidEndpoint: "/api/v1/aso/diagnose" },
   };
@@ -86,6 +91,8 @@ describe("shouldShowNoScent", () => {
         keywordRank: "low",
         competitorTrail: "low",
         reviews: "low",
+        status: "fixture_only",
+        providerErrors: [],
       },
       shallowScan: {
         ...makeQuote().shallowScan,

@@ -10,6 +10,11 @@ import type {
 } from "@sniffy/scraper/schemas";
 import { getQuote, getSample, postDiagnose } from "./client";
 import type { ProtocolTraceEntry } from "./errors";
+import {
+  getHistory,
+  type GetHistoryInput,
+  type HistoryResponse,
+} from "./history";
 
 export function useQuote() {
   return useMutation<QuoteResponse, Error, QuoteRequest>({
@@ -41,5 +46,34 @@ export function useDiagnose() {
         ...(paymentHeader ? { paymentHeader } : {}),
         ...(onProtocolTrace ? { onProtocolTrace } : {}),
       }),
+  });
+}
+
+// Phase 4 — lazy fetch of per-keyword rank history. Disabled by default;
+// the consumer (the expandable keyword row) flips `enabled` when the user
+// expands a keyword. Only fires when the paid /diagnose response carried
+// a non-empty historySignature.
+export function useKeywordHistory(
+  input: GetHistoryInput | null,
+  enabled: boolean,
+) {
+  return useQuery<HistoryResponse, Error>({
+    queryKey: input
+      ? [
+          "history",
+          input.sniffId,
+          input.store,
+          input.country,
+          input.appId,
+          input.keyword.toLowerCase(),
+          input.window ?? "30d",
+        ]
+      : ["history", "disabled"],
+    queryFn: () => {
+      if (!input) throw new Error("useKeywordHistory called without input");
+      return getHistory(input);
+    },
+    enabled: enabled && input !== null && input.signature.length > 0,
+    staleTime: 60_000,
   });
 }

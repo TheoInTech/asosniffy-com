@@ -1,6 +1,7 @@
 import type { QuoteResponse } from "@sniffy/scraper/schemas";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Candidates } from "./Candidates";
 import { CoverageHints } from "./CoverageHints";
 import { DetectedApp } from "./DetectedApp";
 import { PreviewKeywordCard } from "./PreviewKeyword";
@@ -12,9 +13,20 @@ interface Props {
   onUnlock: () => void;
   isUnlocking?: boolean;
   unlockError?: string | null;
+  // Phase 1 — invoked when the user picks a candidate from the
+  // "did you mean…?" panel. Parent re-runs the quote with that appId.
+  onSelectCandidate?: (appId: string) => void;
+  isReQuoting?: boolean;
 }
 
-export function QuoteResponseView({ quote, onUnlock, isUnlocking, unlockError }: Props) {
+export function QuoteResponseView({
+  quote,
+  onUnlock,
+  isUnlocking,
+  unlockError,
+  onSelectCandidate,
+  isReQuoting,
+}: Props) {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -25,6 +37,14 @@ export function QuoteResponseView({ quote, onUnlock, isUnlocking, unlockError }:
       </div>
 
       <DetectedApp app={quote.detectedApp} shallowScan={quote.shallowScan} />
+      {onSelectCandidate ? (
+        <Candidates
+          shallowScan={quote.shallowScan}
+          detectedAppId={quote.detectedApp.id}
+          onSelect={onSelectCandidate}
+          {...(isReQuoting !== undefined ? { disabled: isReQuoting } : {})}
+        />
+      ) : null}
       <PreviewKeywordCard value={quote.shallowScan.previewKeyword} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
