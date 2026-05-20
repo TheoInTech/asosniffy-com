@@ -48,6 +48,24 @@ export async function synthesizeReportOpenAi(
   input: SynthesisInput,
   options: OpenAiSynthesisOptions,
 ): Promise<SynthesisOutput> {
+  // Phase 1: refuse to spend OpenAI tokens generating concrete recommendations
+  // when the underlying data is fixture or degraded. The template path
+  // emits clearly-labeled sample-disclaimer copy in those cases — see
+  // synthesizeReportTemplate.
+  if (input.inputProvenance === "fixture" || input.inputProvenance === "degraded") {
+    logOpenAiCost({
+      kind: "openai_cost",
+      requestId: options.requestId,
+      model: env.OPENAI_MODEL,
+      outcome: "synth_fallback",
+      modelInputTokens: 0,
+      modelOutputTokens: 0,
+      costUsd: 0,
+      fallbackReason: `input_provenance_${input.inputProvenance}`,
+    });
+    return synthesizeReportTemplate(input);
+  }
+
   const client = options.client ?? getOpenAiClient();
 
   if (!client) {

@@ -21,17 +21,21 @@ quoteRoute.post("/", validateBody(QuoteRequest), async (c) => {
   // Detect first; pass the result to shallowScan so we don't double-fetch.
   // (Cache would dedup at the provider layer anyway, but the second hit
   // would incorrectly report provenance:"cached" within the same request.)
+  // Phase 1: /quote does NOT allow fixture fallback — transient provider
+  // errors surface as degraded rows + coverage.providerErrors[].
   const detect = await getDetectedApp({
     store: body.store,
     app: body.app,
     country: body.country,
+    allowFixtureFallback: false,
   });
-  const shallowScan = await getShallowScan(
+  const shallow = await getShallowScan(
     {
       store: body.store,
       app: body.app,
       country: body.country,
       keywords: body.keywords,
+      allowFixtureFallback: false,
     },
     detect,
   );
@@ -40,12 +44,12 @@ quoteRoute.post("/", validateBody(QuoteRequest), async (c) => {
     keywords: body.keywords,
     countries: [body.country],
     currency: "USDC",
-    network: "morph-hoodi",
   });
 
   const coverage = buildCoverage({
     appMetadata: detect.provenance,
-    keywordRank: shallowScan.previewKeyword.provenance,
+    keywordRank: shallow.shallowScan.previewKeyword.provenance,
+    providerErrors: shallow.providerErrors,
   });
 
   const response: QuoteResponseType = {
@@ -56,7 +60,7 @@ quoteRoute.post("/", validateBody(QuoteRequest), async (c) => {
     detectedApp: detect.detectedApp,
     pricing,
     coverage,
-    shallowScan,
+    shallowScan: shallow.shallowScan,
     next: {
       paidEndpoint: "/api/v1/aso/diagnose",
     },

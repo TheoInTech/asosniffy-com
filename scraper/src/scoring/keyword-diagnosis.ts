@@ -5,7 +5,18 @@ import type {
   RankBucket,
 } from "../schemas/index.js";
 import type { KeywordRankDatum } from "../data/report-data.js";
-import { intentScore } from "./intent.js";
+import { intentScore, popularityWeightedIntent } from "./intent.js";
+
+// Phase 3 — popularity + related-terms input per keyword. Optional so
+// pre-Phase-3 callers (or callers with ASA disabled) get heuristic intent
+// unchanged.
+export interface KeywordPopularityInfo {
+  keyword: string;
+  popularityScore: number | null;
+  popularitySource: "apple-search-ads" | "heuristic";
+  popularityAsOf: string | null;
+  relatedTerms: string[];
+}
 
 // Per-keyword diagnostic combining provider rank data with metadata coverage.
 // The orchestrator passes these into the synthesis layer to compose the
@@ -27,12 +38,20 @@ export interface KeywordDiagnosis {
   coverageInSubtitle: boolean;
   coverageInDescription: boolean;
   action: KeywordAction;
+  // Phase 3 — surfaced through to KeywordDiagnosisItem in the API response.
+  popularityScore: number | null;
+  popularitySource: "apple-search-ads" | "heuristic";
+  popularityAsOf: string | null;
+  relatedTerms: string[];
 }
 
 export interface DiagnoseKeywordsInput {
   keywords: readonly string[];
   ranks: readonly KeywordRankDatum[];
   app: AppRecord | null;
+  // Phase 3 — optional per-keyword popularity + related-terms map. When
+  // omitted, falls back to heuristic intent with sources/scores nulled.
+  popularity?: readonly KeywordPopularityInfo[];
 }
 
 export function diagnoseKeywords(
@@ -47,18 +66,27 @@ export function diagnoseKeywords(
   for (const r of input.ranks) {
     ranksByKeyword.set(r.keyword.toLowerCase(), r);
   }
+  const popularityByKeyword = new Map<string, KeywordPopularityInfo>();
+  for (const p of input.popularity ?? []) {
+    popularityByKeyword.set(p.keyword.toLowerCase(), p);
+  }
 
   return input.keywords.map((rawKeyword) => {
     const keyword = rawKeyword.trim();
     const lower = keyword.toLowerCase();
     const rank = ranksByKeyword.get(lower);
+    const popularity = popularityByKeyword.get(lower);
 
     const coverageInTitle = title.length > 0 && title.includes(lower);
     const coverageInSubtitle = subtitle.length > 0 && subtitle.includes(lower);
     const coverageInDescription =
       description.length > 0 && description.includes(lower);
 
-    const intent = intentScore(keyword);
+    const intent = popularityWeightedIntent({
+      keyword,
+      popularityScore: popularity?.popularityScore ?? null,
+      popularitySource: popularity?.popularitySource ?? "heuristic",
+    });
     const action = decideAction({
       rankBucket: rank?.rankBucket ?? "not_found",
       intent,
@@ -76,6 +104,10 @@ export function diagnoseKeywords(
       coverageInSubtitle,
       coverageInDescription,
       action,
+      popularityScore: popularity?.popularityScore ?? null,
+      popularitySource: popularity?.popularitySource ?? "heuristic",
+      popularityAsOf: popularity?.popularityAsOf ?? null,
+      relatedTerms: popularity?.relatedTerms ?? [],
     } satisfies KeywordDiagnosis;
   });
 }

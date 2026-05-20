@@ -15,12 +15,19 @@ export interface AppRecord {
   };
   screenshots: string[];
   currentVersion: string;
+  iconUrl?: string;
+  bundleId?: string;
   provenance: Provenance;
 }
 
 // Error envelope shared across Apple endpoints. Providers NEVER throw on
 // upstream failures (rate-limit, not found) — they return an error envelope
-// and let the orchestrator decide whether to fall back to cache or fixture.
+// and let the orchestrator decide whether to surface as degraded or cache
+// the negative result.
+//
+// The legacy three-variant shape is kept for back-compat with existing
+// tests; richer typed errors flow through `providers/_lib/errors.ts` for
+// downstream consumers that need retry-after, http-status, etc.
 export type AppleProviderError =
   | { error: "rate_limited" }
   | { error: "not_found" }

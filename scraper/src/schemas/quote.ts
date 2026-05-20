@@ -65,12 +65,30 @@ export const PreviewKeyword = z.object({
 });
 export type PreviewKeyword = z.infer<typeof PreviewKeyword>;
 
+// When app-identity detection is ambiguous (similarity below threshold), we
+// surface the top candidates so the UI can ask "did you mean…?" before the
+// user pays for /diagnose. Empty array when detection is high-confidence.
+export const ShallowScanCandidate = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  developer: z.string().min(1),
+  iconUrl: z.string().url().optional(),
+  similarityScore: z.number().min(0).max(1),
+});
+export type ShallowScanCandidate = z.infer<typeof ShallowScanCandidate>;
+
 export const ShallowScan = z.object({
   title: z.string(),
   subtitle: z.string(),
   primaryCategory: z.string(),
   ratingsSummary: RatingsSummary,
   previewKeyword: PreviewKeyword,
+  detectionConfidence: Confidence.default("high"),
+  candidates: z.array(ShallowScanCandidate).default([]),
+  // Phase 5 — signals that localizationAnalysis is available behind the
+  // paid /diagnose endpoint. Free /quote callers can show "Run paid
+  // diagnose to see localization gaps" without leaking the actual gap.
+  localizationAvailable: z.boolean().default(true),
 });
 export type ShallowScan = z.infer<typeof ShallowScan>;
 

@@ -1,6 +1,7 @@
 import type { AppRecord } from "../providers/apple/types.js";
 import type {
   DetectedApp,
+  Provenance,
   ReadyToPaste,
   RecommendationItem,
 } from "../schemas/index.js";
@@ -22,6 +23,12 @@ import {
 // using only the structured scoring output + the original input. No external
 // dependencies, no nondeterminism — same inputs always produce the same
 // strings. This is the no-key reliability guarantee from PLAN.md §14.
+//
+// Phase 1: when `inputProvenance` is "fixture" or "degraded", the synthesis
+// switches to sample-disclaimer copy — concrete keyword recommendations
+// require non-fixture, non-degraded inputs. This stops the Phase-0 bug
+// where the AI confidently recommended "promote 'habit' into the title"
+// on top of fixture data.
 
 export interface SynthesisInput {
   scoring: {
@@ -34,6 +41,9 @@ export interface SynthesisInput {
     appRecord: AppRecord | null;
     keywords: readonly string[];
   };
+  // Worst-case provenance among the report-data inputs. Drives the gating
+  // decision below (fixture/degraded → sample-disclaimer copy).
+  inputProvenance: Provenance;
 }
 
 export interface SynthesisOutput {
@@ -45,10 +55,65 @@ export interface SynthesisOutput {
 export function synthesizeReportTemplate(
   input: SynthesisInput,
 ): SynthesisOutput {
+  // Honest-floor: don't fabricate concrete recommendations over fake or
+  // degraded data. Emit clearly-labeled sample copy instead.
+  if (input.inputProvenance === "fixture" || input.inputProvenance === "degraded") {
+    return synthesizeDisclaimerOutput(input);
+  }
   return {
     summary: buildSummary(input),
     recommendations: buildRecommendations(input),
     readyToPaste: buildReadyToPaste(input),
+  };
+}
+
+function synthesizeDisclaimerOutput(input: SynthesisInput): SynthesisOutput {
+  const appName = input.context.detectedApp.name;
+  const isFixture = input.inputProvenance === "fixture";
+  const prefix = isFixture
+    ? "Sample recommendations, not based on your live data."
+    : "Partial recommendations — Apple or Google didn't return full data this run.";
+  const followup = isFixture
+    ? "These are demo recommendations from the public sample dataset. To get a diagnosis grounded in your actual App Store data, the upstream providers (Apple iTunes, Google Play) must be reachable for your store and country."
+    : "We hit a provider error before all data sources resolved. Retry the diagnosis in a minute, or contact support if it persists.";
+
+  const recommendations: RecommendationItem[] = [
+    {
+      rank: 1,
+      action: `${appName}: re-run the diagnosis when the upstream provider is back online.`,
+      impact: "low",
+      effort: "low",
+      rationale: prefix,
+    },
+    {
+      rank: 2,
+      action: "Audit your visible-field coverage (title, subtitle, keywords) against your top three competitors.",
+      impact: "medium",
+      effort: "low",
+      rationale: "This is the generic ASO move that applies regardless of rank data — it's a Phase-0 audit you can do without provider access.",
+    },
+    {
+      rank: 3,
+      action: "Lock in your highest-intent keyword in the subtitle field.",
+      impact: "medium",
+      effort: "low",
+      rationale: "Apple weights the subtitle alongside the title; promoting your top-intent keyword there is the highest-leverage move in ASO. No rank data needed.",
+    },
+  ];
+
+  const primary = input.context.keywords[0] ?? "your category";
+  return {
+    summary: `${prefix} ${followup}`,
+    recommendations,
+    readyToPaste: {
+      title: truncate(appName, APPLE_CAPS.title),
+      subtitle: truncate(`${capitalize(primary)} — sample`, APPLE_CAPS.subtitle),
+      keywordsField: buildKeywordsField(input.context.keywords),
+      shortDescription: truncate(
+        `${appName} (sample). Re-run when live data is available for an evidence-based ASO diagnosis.`,
+        240,
+      ),
+    },
   };
 }
 

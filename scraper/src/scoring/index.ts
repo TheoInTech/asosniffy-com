@@ -1,4 +1,38 @@
-export { intentScore, intentBucket } from "./intent.js";
+export {
+  intentScore,
+  intentBucket,
+  popularityWeightedIntent,
+} from "./intent.js";
+export {
+  reviewKeywordFrequency,
+  type KeywordFrequencyItem,
+  type KeywordFrequencyInput,
+} from "./review-keywords.js";
+export {
+  computeTrend,
+  type Trend,
+  type TrendWindow,
+  type ComputeTrendInput,
+} from "./trend.js";
+export {
+  detectRegressions,
+  type RegressionItem,
+  type DetectRegressionsInput,
+} from "./regressions.js";
+export {
+  scoreLocalization,
+  type LocalizationAnalysis,
+  type LocalizationStorefrontDetail,
+  type ScoreLocalizationInput,
+} from "./localization.js";
+export {
+  bucketOfPosition,
+  deriveKeywordConfidence,
+  identityConfidenceFromScore,
+  provenanceForProviderStatus,
+  type KeywordConfidenceInputs,
+  type ProviderStatus,
+} from "./confidence.js";
 export {
   scoreMetadata,
   scoreMetadataFull,
@@ -14,6 +48,7 @@ export {
   type KeywordDiagnosis,
   type KeywordAction,
   type DiagnoseKeywordsInput,
+  type KeywordPopularityInfo,
 } from "./keyword-diagnosis.js";
 export {
   analyzeCompetitors,

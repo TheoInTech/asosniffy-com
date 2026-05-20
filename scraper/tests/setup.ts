@@ -17,3 +17,9 @@ process.env.SNIFFY_PAYMENT_ASSET_EIP712_VERSION = "1.0";
 process.env.RESOURCE_BASE_URL = "http://localhost:3001";
 // Silence the per-request JSON log line in tests — keeps vitest output readable.
 process.env.ENABLE_REQUEST_LOG = "false";
+// Phase 4 — provide a deterministic HMAC secret so the orchestrator can mint
+// historySignature in test environments. Tests that exercise the history
+// endpoint use this same secret implicitly via env.SNIFFY_HISTORY_HMAC_SECRET.
+process.env.SNIFFY_HISTORY_HMAC_SECRET =
+  process.env.SNIFFY_HISTORY_HMAC_SECRET ??
+  "test-secret-deadbeefdeadbeefdeadbeefdeadbeef-history-hmac";

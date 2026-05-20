@@ -140,8 +140,8 @@ describe("Orchestrator fallback chain — Apple lookup rate-limited, cache warm"
   });
 });
 
-describe("Orchestrator fallback chain — all providers down, no cache", () => {
-  it("returns a structurally valid report with every section marked fixture", async () => {
+describe("Orchestrator fallback chain — all providers down, no cache (Phase 1: degraded, never fixture)", () => {
+  it("returns a structurally valid report with every section marked degraded (NOT fixture)", async () => {
     server.use(
       http.get(
         "https://itunes.apple.com/lookup",
@@ -154,20 +154,42 @@ describe("Orchestrator fallback chain — all providers down, no cache", () => {
     );
 
     const report = await generateReport(REPORT_INPUT);
-    expect(report.dataProvenance.appMetadata).toBe("fixture");
-    expect(report.dataProvenance.keywordRank).toBe("fixture");
-    // Phase 04: competitors slot is the *worst* of all candidates; when no
-    // search results come back at all, the candidates list is empty (worst-of
-    // an empty array is 'fixture' per coverage.worstProvenance) — so this
-    // expectation still holds.
-    expect(report.dataProvenance.competitors).toBe("fixture");
-    expect(report.dataProvenance.recommendations).toBe("inferred");
+    // Phase 1 honest-floor: transient provider errors degrade rows rather
+    // than silently substituting fixture data. The orchestrator default
+    // (allowFixtureFallback: false) means /diagnose never returns fixture.
+    expect(report.dataProvenance.appMetadata).toBe("degraded");
+    expect(report.dataProvenance.keywordRank).toBe("degraded");
+    expect(report.dataProvenance.competitors).toBe("degraded");
+    // Recommendations now propagate worst-input provenance. With every input
+    // degraded, the synthesis emits sample-disclaimer copy stamped 'degraded'
+    // — NOT the old "inferred" lie.
+    expect(report.dataProvenance.recommendations).toBe("degraded");
 
-    // Report still has every required section populated. With no live
-    // competitor candidates the competitorTrail is empty — synthesis still
-    // runs, but there's nothing to surface; that's an honest empty.
+    // Report still has every required section populated even in the
+    // degraded path — the disclaimer synthesizer fills them.
     expect(report.keywordDiagnosis.length).toBe(1);
-    expect(report.metadataScore.overall).toBeGreaterThan(0);
+    expect(report.metadataScore.overall).toBeGreaterThanOrEqual(0);
     expect(report.recommendations.length).toBeGreaterThan(0);
+  });
+});
+
+describe("Orchestrator — allowFixtureFallback: true still permits fixture (used by /sample)", () => {
+  it("dataProvenance.appMetadata becomes 'fixture' when allowFixtureFallback is true and providers fail", async () => {
+    server.use(
+      http.get(
+        "https://itunes.apple.com/lookup",
+        () => new HttpResponse(null, { status: 429 }),
+      ),
+      http.get(
+        "https://itunes.apple.com/search",
+        () => new HttpResponse(null, { status: 429 }),
+      ),
+    );
+    const report = await generateReport({
+      ...REPORT_INPUT,
+      allowFixtureFallback: true,
+    });
+    expect(report.dataProvenance.appMetadata).toBe("fixture");
+    expect(report.dataProvenance.recommendations).toBe("fixture");
   });
 });

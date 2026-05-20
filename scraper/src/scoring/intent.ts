@@ -100,3 +100,43 @@ export function intentBucket(score: number): "low" | "medium" | "high" {
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
+
+// Phase 3 — popularity-weighted intent.
+//
+// When Apple Search Ads popularity is live, prefer it: it's the canonical
+// iOS demand signal. When degraded (ASA disabled, auth-failed, rate-limited),
+// fall back to the heuristic but CAP the score so consumers can see the
+// confidence gap — a heuristic 0.95 should not outrank a real ASA 80.
+//
+// Apple's popularity is on a 5–100 scale; we project to 0–1:
+//     (score - 5) / 95
+//
+// The popularity-weighted blend leans heavily on the real signal (0.75)
+// with the heuristic as a secondary check (0.25) so degenerate cases
+// (a high-popularity keyword that fails heuristic checks) stay coherent.
+export interface PopularityWeightedIntentInput {
+  keyword: string;
+  popularityScore: number | null;
+  popularitySource: "apple-search-ads" | "heuristic";
+}
+
+export function popularityWeightedIntent(
+  input: PopularityWeightedIntentInput,
+): number {
+  const heuristic = intentScore(input.keyword);
+
+  if (
+    input.popularitySource !== "apple-search-ads" ||
+    input.popularityScore === null
+  ) {
+    // Degraded path: heuristic only, with a small cap so callers can see
+    // it sits below "Apple-corroborated demand."
+    return Math.min(heuristic, 0.85);
+  }
+
+  const normalized = clamp((input.popularityScore - 5) / 95, 0, 1);
+  // Weighted blend (0.75 real / 0.25 heuristic) so a heuristic floor still
+  // matters but the real signal dominates.
+  const blended = normalized * 0.75 + heuristic * 0.25;
+  return clamp(blended, 0.1, 0.95);
+}

@@ -33,9 +33,14 @@ const EvmAddress = z
 const DecimalAmount = z.string().regex(/^\d+(\.\d+)?$/);
 const AtomicAmount = z.string().regex(/^\d+$/, "atomic (integer wei) units");
 
+// Per x402 V2 `exact` scheme on EVM (specs/schemes/exact/scheme_exact_evm.md),
+// `extra` carries the EIP-712 domain hints (name/version) and an
+// `assetTransferMethod` discriminator so facilitators don't have to guess
+// between EIP-3009 and Permit2. We only support EIP-3009 today.
 const Eip712DomainHints = z.object({
   name: z.string().min(1),
   version: z.string().min(1),
+  assetTransferMethod: z.literal("eip3009").optional(),
 });
 
 export const PaymentRequirement = z.object({
@@ -103,6 +108,16 @@ export const DataProvenance = z.object({
 });
 export type DataProvenance = z.infer<typeof DataProvenance>;
 
+// Phase 4 — per-keyword trend signal. `null` represents an honest cold
+// start (we never claim a trend from a single point). See scoring/trend.ts.
+export const Trend = z.object({
+  window: z.enum(["7d", "30d"]),
+  deltaPositions: z.number().int().nullable(),
+  previousBucket: RankBucket.nullable(),
+  samplesCount: z.number().int().nonnegative(),
+});
+export type Trend = z.infer<typeof Trend>;
+
 export const KeywordDiagnosisItem = z.object({
   keyword: z.string().min(1),
   rankBucket: RankBucket,
@@ -110,8 +125,72 @@ export const KeywordDiagnosisItem = z.object({
   confidence: Confidence,
   provenance: Provenance,
   recommendation: z.string().min(1),
+  // Phase 3 — Apple Search Ads popularity score. 5..100 when live, null
+  // when the popularity provider was disabled, degraded, or returned
+  // not-found for this keyword. Source tells the consumer whether the
+  // value came from Apple's canonical signal or our heuristic fallback.
+  popularityScore: z.number().int().min(0).max(100).nullable().default(null),
+  popularitySource: z
+    .enum(["apple-search-ads", "heuristic"])
+    .default("heuristic"),
+  popularityAsOf: z.string().datetime().nullable().default(null),
+  // Related terms — gplay.suggest() autocompletions for the keyword.
+  // Capped at 5 to keep response weight bounded.
+  relatedTerms: z.array(z.string().min(1)).max(5).default([]),
+  // Phase 4 — trend over the rank-history series. `null` until at least
+  // two paid diagnose calls land in the same (app, country, keyword) tuple.
+  trend: Trend.nullable().default(null),
 });
 export type KeywordDiagnosisItem = z.infer<typeof KeywordDiagnosisItem>;
+
+// Phase 4 — rank-regression alerts. Keywords whose current position dropped
+// ≥10 positions vs their 7-day rolling median.
+export const RegressionItem = z.object({
+  keyword: z.string().min(1),
+  previousBucket: RankBucket,
+  currentBucket: RankBucket,
+  deltaPositions: z.number().int(),
+  samplesCount: z.number().int().nonnegative(),
+});
+export type RegressionItem = z.infer<typeof RegressionItem>;
+
+// Phase 5 — per-storefront localization gap detail.
+export const LocalizationStorefront = z.object({
+  country: CountryCode,
+  title: z.string(),
+  primaryCategory: z.string(),
+  descriptionLength: z.number().int().nonnegative(),
+  descriptionLanguage: z.string().nullable(),
+  expectedLanguages: z.array(z.string()),
+  localized: z.boolean().nullable(),
+  gapScore: z.number().int().min(0).max(100),
+  error: z.string().nullable(),
+});
+export type LocalizationStorefront = z.infer<typeof LocalizationStorefront>;
+
+export const LocalizationAnalysis = z.object({
+  storefronts: z.array(LocalizationStorefront),
+  titleVariants: z.array(z.string()),
+  overallGapScore: z.number().int().min(0).max(100).nullable(),
+  unlocalizedCount: z.number().int().nonnegative(),
+  detectionMinChars: z.number().int().positive(),
+});
+export type LocalizationAnalysis = z.infer<typeof LocalizationAnalysis>;
+
+// Suggested keywords — Phase 3. Terms the user *should* have submitted
+// but didn't, derived from review-frequency analysis + competitor-overlap.
+// Always live behind a paid /diagnose response.
+export const SuggestedKeyword = z.object({
+  keyword: z.string().min(1),
+  reason: z.enum(["review-frequency", "competitor-overlap"]),
+  confidence: Confidence,
+  provenance: Provenance,
+  // Optional supporting count for review-frequency: how many distinct
+  // reviews this token appeared in. Helps the UI decide which to surface
+  // prominently.
+  reviewCount: z.number().int().nonnegative().optional(),
+});
+export type SuggestedKeyword = z.infer<typeof SuggestedKeyword>;
 
 export const CompetitorTrailItem = z.object({
   appId: z.string().min(1),
@@ -119,6 +198,10 @@ export const CompetitorTrailItem = z.object({
   overlapKeywords: z.array(z.string().min(1)),
   notes: z.string(),
   provenance: Provenance,
+  // Where the competitor candidate originated. iOS uses search-over-first-keyword;
+  // Android uses gplay.similar() (algorithmic "more like this"). Defaults to
+  // "search" for back-compat — historical fixtures don't carry the field.
+  source: z.enum(["search", "similar"]).default("search"),
 });
 export type CompetitorTrailItem = z.infer<typeof CompetitorTrailItem>;
 
@@ -166,5 +249,23 @@ export const DiagnosePaidResponse = z.object({
   metadataScore: MetadataScore,
   recommendations: z.array(RecommendationItem),
   readyToPaste: ReadyToPaste,
+  // Phase 3 — review-derived suggestions + competitor-derived overlap terms.
+  // Optional default empty so older fixtures parse without modification.
+  suggestedKeywords: z.array(SuggestedKeyword).default([]),
+  // Phase 4 — rank-regression alerts surfaced when current rank dropped
+  // ≥10 positions vs the 7-day rolling median for any tracked keyword.
+  // Default empty so cold-start callers (first /diagnose, no history yet)
+  // and older fixtures both parse cleanly.
+  regressions: z.array(RegressionItem).default([]),
+  // Phase 4 — HMAC the SDK uses to fetch /api/v1/aso/history.
+  // Default empty string so fixtures + tests that don't exercise history
+  // parse cleanly; production callers always receive a real signature
+  // (the orchestrator mints one per response when RANK_HISTORY_ENABLED).
+  historySignature: z.string().default(""),
+  // Phase 5 — multi-storefront localization gap analysis. `null` when
+  // LOCALIZATION_ENABLED=false or the underlying multi-storefront fetch
+  // produced no usable storefronts. Default null preserves cold-start
+  // compatibility with existing fixtures + tests.
+  localizationAnalysis: LocalizationAnalysis.nullable().default(null),
 });
 export type DiagnosePaidResponse = z.infer<typeof DiagnosePaidResponse>;
