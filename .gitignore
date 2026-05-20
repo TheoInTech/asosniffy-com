@@ -73,6 +73,11 @@ docker-compose.override.yml
 .claude/projects/
 .agents/cache/
 
+# Local scrape cache used by the firecrawl CLI when an agent runs
+# `firecrawl scrape ... -o .firecrawl/...`. Never commit these — they can
+# contain large or stale third-party content (Apple/Google docs, etc.).
+.firecrawl/
+
 # Misc
 *.tgz
 .pnp.*

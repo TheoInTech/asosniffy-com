@@ -385,7 +385,7 @@ The system must:
 The system must:
 
 - Return HTTP `402 Payment Required` when payment is missing or invalid.
-- Include machine-readable x402 payment requirements.
+- Include machine-readable x402 payment requirements in both the response body (Sniffy-friendly `payment` summary + canonical `accepts[]`) and the canonical `PAYMENT-REQUIRED` HTTP header (Base64 JSON of `{ x402Version, error, resource, accepts[] }`) so `@x402/fetch`-style clients can settle without parsing the body. On 200, return the receipt in both the body and the `PAYMENT-RESPONSE` header.
 - Verify and settle through the Morph x402 facilitator after payment.
 - Fetch or reuse app metadata, keyword results, competitor candidates, and review samples where available.
 - Produce deterministic scores before AI synthesis.
@@ -1334,7 +1334,7 @@ The agent-volume bet is the durable bet. Indie hackers will fund the brand and p
 
 Each agent surface in §22 maps to a distinct revenue path:
 
-- **`SKILL.md` install** (`npx skills add asosniffy/asosniffy-com`) → agent reads spec → agent calls `/quote` (free, returns `shallowScan`) → if user wants the full plan, agent calls `/diagnose` → x402 payment → paid report.
+- **`SKILL.md` install** (`npx skills add TheoInTech/asosniffy-com`) → agent reads spec → agent calls `/quote` (free, returns `shallowScan`) → if user wants the full plan, agent calls `/diagnose` → x402 payment → paid report.
 - **`@sniffy/mcp` install** (Claude Desktop, Cursor config) → user asks agent "should I rename my app?" or "what keywords am I missing?" → agent calls `sniffy_quote` (free) → if the shallow scan is promising, agent calls `sniffy_diagnose` → x402 wallet on the user's machine pays → paid report.
 - **`@sniffy/cli`** (`npx sniffy quote ...`) → script in a release pipeline calls quote, then diagnose, on every CI run that ships an App Store metadata update.
 - **`@sniffy/sdk`** → embedded directly in custom indie-hacker workflows (Vercel AI SDK apps, n8n flows once §22.7 ships).

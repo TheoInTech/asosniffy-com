@@ -131,7 +131,7 @@ Ship the four installable agent-distribution surfaces from `PLAN.md` §22: `SKIL
     - **Hard rule**: testnet only — agents must not use a mainnet key in this kit
   - The body is intentionally instruction-style, not recipe-style. Agents compose workflows from the primitives.
 - **Acceptance**:
-  - `npx skills add asosniffy/asosniffy-com` inside a fresh Claude Code project installs the skill and the agent picks up the description
+  - `npx skills add TheoInTech/asosniffy-com` inside a fresh Claude Code project installs the skill and the agent picks up the description
   - The body fits on one screen — under ~150 lines — so an agent reads it efficiently each session
 - **Out of scope**: do not embed full PLAN.md content in `SKILL.md` (link to it instead); do not write recipes for specific user prompts (we let the agent figure out the workflow)
 - **References**: `PLAN.md` §22.2
