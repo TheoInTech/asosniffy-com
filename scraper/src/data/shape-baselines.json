@@ -1,0 +1,158 @@
+{
+  "apple-itunes:/lookup": {
+    "hash": "a611a05f6837ae17",
+    "fieldPaths": [
+      ":object",
+      "resultCount:number",
+      "results:array",
+      "results[].artistName:string",
+      "results[].artworkUrl100:string",
+      "results[].averageUserRating:number",
+      "results[].bundleId:string",
+      "results[].description:string",
+      "results[].ipadScreenshotUrls:array",
+      "results[].ipadScreenshotUrls[]:string",
+      "results[].primaryGenreName:string",
+      "results[].screenshotUrls:array",
+      "results[].screenshotUrls[]:string",
+      "results[].trackId:number",
+      "results[].trackName:string",
+      "results[].userRatingCount:number",
+      "results[].version:string",
+      "results[]:object"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  },
+  "apple-itunes:/search": {
+    "hash": "fddeba310aed84ff",
+    "fieldPaths": [
+      ":object",
+      "resultCount:number",
+      "results:array",
+      "results[].artistName:string",
+      "results[].artworkUrl100:string",
+      "results[].averageUserRating:number",
+      "results[].bundleId:string",
+      "results[].description:string",
+      "results[].primaryGenreName:string",
+      "results[].screenshotUrls:array",
+      "results[].screenshotUrls[]:string",
+      "results[].trackId:number",
+      "results[].trackName:string",
+      "results[].userRatingCount:number",
+      "results[].version:string",
+      "results[]:object"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  },
+  "apple-reviews-rss:/customerreviews": {
+    "hash": "cefacc46391ae18c",
+    "fieldPaths": [
+      ":object",
+      "feed.entry:array",
+      "feed.entry[].author.name.label:string",
+      "feed.entry[].author.name:object",
+      "feed.entry[].author:object",
+      "feed.entry[].content.label:string",
+      "feed.entry[].content:object",
+      "feed.entry[].id.label:string",
+      "feed.entry[].id:object",
+      "feed.entry[].im:rating.label:string",
+      "feed.entry[].im:rating:object",
+      "feed.entry[].title.label:string",
+      "feed.entry[].title:object",
+      "feed.entry[].updated.label:string",
+      "feed.entry[].updated:object",
+      "feed.entry[]:object",
+      "feed:object"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  },
+  "google-play:/details": {
+    "hash": "b2270bfc792b001c",
+    "fieldPaths": [
+      ":object",
+      "appId:string",
+      "description:string",
+      "developer:string",
+      "free:boolean",
+      "genre:string",
+      "icon:string",
+      "installs:string",
+      "maxInstalls:number",
+      "minInstalls:number",
+      "ratings:number",
+      "reviews:number",
+      "score:number",
+      "scoreText:string",
+      "screenshots:array",
+      "screenshots[]:string",
+      "title:string",
+      "version:string"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  },
+  "google-play:/search": {
+    "hash": "914eb7691efcd49a",
+    "fieldPaths": [
+      ":array",
+      "[].appId:string",
+      "[].developer:string",
+      "[].free:boolean",
+      "[].icon:string",
+      "[].score:number",
+      "[].title:string",
+      "[].url:string",
+      "[]:object"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  },
+  "google-play:/similar": {
+    "hash": "914eb7691efcd49a",
+    "fieldPaths": [
+      ":array",
+      "[].appId:string",
+      "[].developer:string",
+      "[].free:boolean",
+      "[].icon:string",
+      "[].score:number",
+      "[].title:string",
+      "[].url:string",
+      "[]:object"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  },
+  "google-play:/suggest": {
+    "hash": "7155245d88d16ede",
+    "fieldPaths": [
+      ":array",
+      "[]:string"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  },
+  "google-play:/reviews": {
+    "hash": "1c5db717d8ce35fb",
+    "fieldPaths": [
+      ":array",
+      "[].date:string",
+      "[].id:string",
+      "[].score:number",
+      "[].text:string",
+      "[].title:string",
+      "[].userName:string",
+      "[]:object"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  },
+  "apple-search-ads:/keywords/recommendations": {
+    "hash": "212868fe0794c858",
+    "fieldPaths": [
+      ":object",
+      "data.recommendations:array",
+      "data.recommendations[].popularity:number",
+      "data.recommendations[]:object",
+      "data:object"
+    ],
+    "capturedAt": "2026-05-20T10:29:43.502Z"
+  }
+}
