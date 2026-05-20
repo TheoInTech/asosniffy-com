@@ -40,13 +40,13 @@ export interface AssembleReceiptInput {
 }
 
 const DEFAULTS = {
-  network: "eip155:2910" as CAIP2,
-  assetAddress: "0xEcF966Cc754BC411E1F1106fbb4e343b835E85E4",
-  assetDecimals: 18,
+  network: "eip155:2818" as CAIP2,
+  assetAddress: "0xCfb1186F4e93D60E60a8bDd997427D1F33bc372B",
+  assetDecimals: 6,
 } as const;
 
-const HOODI_EXPLORER = "https://explorer-hoodi.morph.network";
-const MAINNET_EXPLORER = "https://explorer.morph.network";
+const HOODI_EXPLORER = "https://explorer-hoodi.morphl2.io";
+const MAINNET_EXPLORER = "https://explorer.morphl2.io";
 
 export function formatExplorerLink(txHash: string, network: CAIP2): string {
   switch (network) {

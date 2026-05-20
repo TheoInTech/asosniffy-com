@@ -8,6 +8,12 @@ export const corsMiddleware = cors({
   },
   allowMethods: ["GET", "POST", "OPTIONS"],
   allowHeaders: ["Content-Type", "PAYMENT-SIGNATURE", "X-Request-ID"],
-  exposeHeaders: ["X-Request-ID", "X-Sniffy-Error-Code"],
+  exposeHeaders: [
+    "X-Request-ID",
+    "X-Sniffy-Error-Code",
+    "X-Sniffy-Error-Message",
+    "PAYMENT-REQUIRED",
+    "PAYMENT-RESPONSE",
+  ],
   maxAge: 86400,
 });

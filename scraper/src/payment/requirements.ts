@@ -46,13 +46,15 @@ export interface BuildPaymentRequirementsInput {
 }
 
 const DEFAULTS = {
-  network: "eip155:2910" as CAIP2,
+  network: "eip155:2818" as CAIP2,
   facilitatorUrl: "https://morph-rails.morph.network/x402",
-  // From Morph's official Go example. PLAN.md §21 / Phase 01.s1 documents this.
-  assetAddress: "0xEcF966Cc754BC411E1F1106fbb4e343b835E85E4",
-  assetDecimals: 18,
-  eip712Name: "HoodiTestToken",
-  eip712Version: "1.0",
+  // Morph Mainnet USDC (Bridged Standard). env.ts resolves the right asset per
+  // MORPH_NETWORK, so this only matters when an external caller passes a
+  // partial PaymentEnv with no asset config (rare path; tests typically do).
+  assetAddress: "0xCfb1186F4e93D60E60a8bDd997427D1F33bc372B",
+  assetDecimals: 6,
+  eip712Name: "USDC",
+  eip712Version: "2",
   maxTimeoutSeconds: 60,
 } as const;
 
@@ -85,7 +87,14 @@ export function buildPaymentRequirements(
   // parseUnits handles fixed-point decimal → atomic conversion (no float math).
   const atomicAmount = parseUnits(amount, decimals).toString();
 
-  const extra = { name: eip712Name, version: eip712Version };
+  // `assetTransferMethod` disambiguates EIP-3009 vs Permit2 for the
+  // facilitator (specs/schemes/exact/scheme_exact_evm.md). Omitting it makes
+  // Morph's prioritizer guess and can misroute the simulation.
+  const extra = {
+    name: eip712Name,
+    version: eip712Version,
+    assetTransferMethod: "eip3009" as const,
+  };
   const maxTimeoutSeconds = input.maxTimeoutSeconds ?? DEFAULTS.maxTimeoutSeconds;
 
   const payment: PaymentRequirement = {

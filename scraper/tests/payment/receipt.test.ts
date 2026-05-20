@@ -120,13 +120,13 @@ describe("assembleReceipt", () => {
 describe("formatExplorerLink", () => {
   it("returns the Hoodi explorer URL for eip155:2910", () => {
     expect(formatExplorerLink(TX_HASH, "eip155:2910")).toBe(
-      `https://explorer-hoodi.morph.network/tx/${TX_HASH}`,
+      `https://explorer-hoodi.morphl2.io/tx/${TX_HASH}`,
     );
   });
 
   it("returns the Mainnet explorer URL for eip155:2818", () => {
     expect(formatExplorerLink(TX_HASH, "eip155:2818")).toBe(
-      `https://explorer.morph.network/tx/${TX_HASH}`,
+      `https://explorer.morphl2.io/tx/${TX_HASH}`,
     );
   });
 

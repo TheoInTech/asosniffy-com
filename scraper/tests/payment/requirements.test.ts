@@ -53,7 +53,7 @@ describe("buildPaymentRequirements", () => {
     expect(payload.payment.decimals).toBe(18);
   });
 
-  it("carries the HoodiTestToken EIP-712 domain hints from env", () => {
+  it("carries the HoodiTestToken EIP-712 domain hints from env (with EIP-3009 discriminator)", () => {
     const pricing = computePricing({ keywords: ["a"] });
     const payload = buildPaymentRequirements({
       sniffId: "sniff_example_002",
@@ -64,10 +64,12 @@ describe("buildPaymentRequirements", () => {
     expect(payload.payment.extra).toEqual({
       name: "HoodiTestToken",
       version: "1.0",
+      assetTransferMethod: "eip3009",
     });
     expect(payload.accepts[0]?.extra).toEqual({
       name: "HoodiTestToken",
       version: "1.0",
+      assetTransferMethod: "eip3009",
     });
   });
 

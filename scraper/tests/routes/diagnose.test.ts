@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseUnits } from "viem";
 import {
+  AcceptsItem,
   DiagnosePaidResponse,
   DiagnoseUnpaidResponse,
+  Receipt,
 } from "../../src/schemas/index.js";
 
 // Mock the facilitator singleton before importing the app. Each test swaps in
@@ -25,6 +27,21 @@ vi.mock("../../src/providers/apple/itunes.js", () => ({
 }));
 vi.mock("../../src/providers/apple/keyword-rank.js", () => ({
   sampleKeywordRank: vi.fn(async () => ({ error: "network_error" })),
+}));
+// Mock gplay so we can drive the relatedTerms path deterministically — by
+// default everything errors (matching what the test env would get without
+// network), and individual tests can override via the exported mock fns.
+const suggestKeywordsMock = vi.fn(async () => ({
+  error: "network_error" as const,
+}));
+vi.mock("../../src/providers/android/play-store.js", () => ({
+  lookupApp: vi.fn(async () => ({ error: "network_error" })),
+  searchApps: vi.fn(async () => ({ error: "network_error" })),
+  similarApps: vi.fn(async () => ({ error: "network_error" })),
+  suggestKeywords: (input: unknown) => suggestKeywordsMock(input),
+  fetchAndroidReviews: vi.fn(async () => ({ error: "network_error" })),
+  lookupAppPreview: vi.fn(async () => ({ error: "network_error" })),
+  searchAppsPreview: vi.fn(async () => ({ error: "network_error" })),
 }));
 
 const { app } = await import("../../src/index.js");
@@ -86,6 +103,12 @@ beforeEach(() => {
   verifyMock.mockReset();
   settleMock.mockReset();
   getFacilitatorMock.mockReset();
+  // Default behavior: pretend gplay.suggest errored (matches the prior test
+  // env). Individual tests can override with mockResolvedValueOnce.
+  suggestKeywordsMock.mockReset();
+  suggestKeywordsMock.mockResolvedValue({
+    error: "network_error" as const,
+  });
   resetCacheClientForTests();
   resetMetricsForTests();
 });
@@ -108,6 +131,35 @@ describe("POST /api/v1/aso/diagnose — unpaid paths", () => {
     expect(parsed.payment.amount).toBe("0.04");
     expect(parsed.accepts.length).toBeGreaterThanOrEqual(1);
     expect(res.headers.get("X-Sniffy-Error-Code")).toBe("payment_required");
+  });
+
+  it("sets PAYMENT-REQUIRED header (Base64 JSON of canonical PaymentRequired) on 402 per x402 V2 spec", async () => {
+    getFacilitatorMock.mockReturnValue(null);
+    const res = await postDiagnose(VALID_BODY);
+    expect(res.status).toBe(402);
+
+    const headerValue = res.headers.get("PAYMENT-REQUIRED");
+    expect(headerValue).not.toBeNull();
+    const decoded = JSON.parse(
+      Buffer.from(headerValue as string, "base64").toString("utf8"),
+    );
+    expect(decoded.x402Version).toBe(2);
+    expect(decoded.error).toBe("payment_required");
+    expect(decoded.resource.url).toContain("/api/v1/aso/diagnose");
+    const offer = AcceptsItem.parse(decoded.accepts[0]);
+    expect(offer.network).toBe("eip155:2910");
+    expect(offer.scheme).toBe("exact");
+    expect(offer.payTo).toBe(MERCHANT);
+  });
+
+  it("advertises assetTransferMethod=eip3009 in accepts[].extra so facilitators don't misroute to Permit2", async () => {
+    getFacilitatorMock.mockReturnValue(null);
+    const res = await postDiagnose(VALID_BODY);
+    expect(res.status).toBe(402);
+    const body = await res.json();
+    const parsed = DiagnoseUnpaidResponse.parse(body);
+    expect(parsed.accepts[0]?.extra.assetTransferMethod).toBe("eip3009");
+    expect(parsed.payment.extra.assetTransferMethod).toBe("eip3009");
   });
 
   it("returns 402 with malformed_payment_header when the header is not base64", async () => {
@@ -205,7 +257,10 @@ describe("POST /api/v1/aso/diagnose — paid happy paths", () => {
     expect(parsed.receipt.transactionHash).toBe(
       "0x1234567890abcdef1234567890abcdef12345678",
     );
-    expect(parsed.dataProvenance.appMetadata).toBe("fixture");
+    // Phase 1 honest-floor: when providers fail and allowFixtureFallback is
+    // false (the /diagnose default), provenance is 'degraded', not 'fixture'.
+    expect(parsed.dataProvenance.appMetadata).toBe("degraded");
+    expect(parsed.dataProvenance.recommendations).not.toBe("inferred");
     expect(parsed.keywordDiagnosis[0]?.keyword).toBe("habit tracker");
   });
 
@@ -220,6 +275,143 @@ describe("POST /api/v1/aso/diagnose — paid happy paths", () => {
     // verify + settle should not have been called in fixture mode
     expect(verifyMock).not.toHaveBeenCalled();
     expect(settleMock).not.toHaveBeenCalled();
+  });
+
+  it("calls facilitator.verify/settle with the canonical accepts[0] shape (atomic amount, no extended fields)", async () => {
+    // Regression: previously we sent unpaidBody.payment (decimal `amount`)
+    // which made Morph's facilitator return HTTP 500 when it parsed `amount`
+    // as a big.Int. The wire shape must be the AcceptsItem (atomic amount).
+    verifyMock.mockResolvedValue({ isValid: true });
+    settleMock.mockResolvedValue({
+      success: true,
+      transaction: "0x1234567890abcdef1234567890abcdef12345678",
+    });
+    getFacilitatorMock.mockReturnValue({
+      verify: verifyMock,
+      settle: settleMock,
+      baseUrl: "https://test.example.com/x402",
+      getSupported: vi.fn(),
+    });
+    const value = parseUnits("0.04", 18).toString();
+    const header = buildAuthHeader({ value });
+    const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
+    expect(res.status).toBe(200);
+
+    for (const captured of [verifyMock.mock.calls[0]?.[0], settleMock.mock.calls[0]?.[0]]) {
+      expect(captured).toBeDefined();
+      const req = captured as { paymentRequirements: Record<string, unknown> };
+      // AcceptsItem is parseable from the captured paymentRequirements.
+      const parsed = AcceptsItem.parse(req.paymentRequirements);
+      // amount must be the same atomic string the wallet signed into authorization.value.
+      expect(parsed.amount).toBe(value);
+      expect(parsed.amount).toMatch(/^\d+$/);
+      // No leakage of our internal extended fields.
+      expect(req.paymentRequirements).not.toHaveProperty("x402Version");
+      expect(req.paymentRequirements).not.toHaveProperty("facilitator");
+      expect(req.paymentRequirements).not.toHaveProperty("decimals");
+      expect(req.paymentRequirements).not.toHaveProperty("atomicAmount");
+      // Extra carries the EIP-712 hints + EIP-3009 discriminator
+      // (specs/schemes/exact/scheme_exact_evm.md).
+      expect(parsed.extra.assetTransferMethod).toBe("eip3009");
+    }
+  });
+
+  it("forwards canonical x402 V2 paymentPayload (with accepted block) to facilitator.verify/settle", async () => {
+    // Regression: Morph's Go facilitator parser reads paymentPayload.accepted.scheme
+    // and returns HTTP 500 when it's missing. The wire shape must be the
+    // canonical V2 PaymentPayload (coinbase/x402 types/payments.ts) — our
+    // header parser intentionally transforms incoming bodies to the flat
+    // shape for internal use, so the route reconstructs canonical before
+    // forwarding.
+    verifyMock.mockResolvedValue({ isValid: true });
+    settleMock.mockResolvedValue({
+      success: true,
+      transaction: "0x1234567890abcdef1234567890abcdef12345678",
+    });
+    getFacilitatorMock.mockReturnValue({
+      verify: verifyMock,
+      settle: settleMock,
+      baseUrl: "https://test.example.com/x402",
+      getSupported: vi.fn(),
+    });
+    const value = parseUnits("0.04", 18).toString();
+    const header = buildAuthHeader({ value });
+    const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
+    expect(res.status).toBe(200);
+
+    for (const captured of [verifyMock.mock.calls[0]?.[0], settleMock.mock.calls[0]?.[0]]) {
+      expect(captured).toBeDefined();
+      const req = captured as {
+        paymentRequirements: Record<string, unknown>;
+        paymentPayload: {
+          x402Version: number;
+          accepted: Record<string, unknown>;
+          payload: {
+            signature: string;
+            authorization: Record<string, unknown>;
+          };
+        };
+      };
+      // paymentPayload MUST carry the canonical `accepted` block.
+      expect(req.paymentPayload).toBeDefined();
+      expect(req.paymentPayload.x402Version).toBe(2);
+      expect(req.paymentPayload.accepted).toBeDefined();
+      // accepted is deep-equal to paymentRequirements — same source of truth.
+      expect(req.paymentPayload.accepted).toEqual(req.paymentRequirements);
+      // accepted.extra carries the EIP-3009 discriminator.
+      expect(
+        (req.paymentPayload.accepted.extra as { assetTransferMethod?: string })
+          .assetTransferMethod,
+      ).toBe("eip3009");
+      // The inner `payload` is the EIP-3009 exact shape (signature +
+      // authorization) the wallet produced — kept intact.
+      expect(req.paymentPayload.payload).toBeDefined();
+      expect(req.paymentPayload.payload.signature).toMatch(/^0x[a-fA-F0-9]+$/);
+      expect(req.paymentPayload.payload.authorization).toBeDefined();
+      // No flat-shape leftovers — `scheme`/`network` must live inside `accepted`.
+      expect(req.paymentPayload).not.toHaveProperty("scheme");
+      expect(req.paymentPayload).not.toHaveProperty("network");
+    }
+  });
+
+  it("filters empty/whitespace entries from gplay.suggest before they reach DiagnosePaidResponse.parse", async () => {
+    // Regression: a single empty string in gplay.suggest() output used to
+    // cause `relatedTerms.*: String must contain at least 1 character(s)`
+    // in the final response schema parse → opaque HTTP 400. The data layer
+    // now trims/filters/slices at the boundary.
+    suggestKeywordsMock.mockResolvedValue([
+      "habit tracker daily",
+      "",
+      "  ",
+      "habit tracker pro",
+      "habit",
+    ]);
+    getFacilitatorMock.mockReturnValue(null);
+    const header = buildAuthHeader();
+    const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
+    expect(res.status).toBe(200);
+
+    const parsed = DiagnosePaidResponse.parse(await res.json());
+    const related = parsed.keywordDiagnosis[0]?.relatedTerms ?? [];
+    // Order preserved, empties dropped.
+    expect(related).toEqual(["habit tracker daily", "habit tracker pro", "habit"]);
+    expect(related.every((t) => t.length > 0)).toBe(true);
+  });
+
+  it("sets PAYMENT-RESPONSE header (Base64 JSON of receipt) on 200 per x402 V2 spec", async () => {
+    getFacilitatorMock.mockReturnValue(null);
+    const header = buildAuthHeader();
+    const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
+    expect(res.status).toBe(200);
+
+    const headerValue = res.headers.get("PAYMENT-RESPONSE");
+    expect(headerValue).not.toBeNull();
+    const decoded = JSON.parse(
+      Buffer.from(headerValue as string, "base64").toString("utf8"),
+    );
+    const receipt = Receipt.parse(decoded);
+    expect(receipt.facilitatorMode).toBe("fixture-receipt");
+    expect(receipt.transactionHash).toMatch(/^0xsample/);
   });
 });
 

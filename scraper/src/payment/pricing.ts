@@ -1,4 +1,11 @@
+import { env } from "../env.js";
 import type { Pricing, PricingBreakdownItem } from "../schemas/index.js";
+
+function networkSlug(caip2: string): string {
+  if (caip2 === "eip155:2818") return "morph-mainnet";
+  if (caip2 === "eip155:2910") return "morph-hoodi";
+  return caip2;
+}
 
 // Hackathon prices in CENTS (docs/business-model.md §2.1). Integer cents keep
 // the sum exact — no float drift via parseFloat.
@@ -75,7 +82,7 @@ export function computePricing(input: ComputePricingInput): Pricing {
 
   return {
     currency: input.currency ?? "USDC",
-    network: input.network ?? "morph-hoodi",
+    network: input.network ?? networkSlug(env.MORPH_NETWORK),
     estimatedTotal: formatCents(totalCents),
     breakdown,
   };

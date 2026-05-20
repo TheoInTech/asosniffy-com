@@ -2,9 +2,12 @@ import { z } from "zod";
 import { CAIP2, PaymentScheme } from "../schemas/index.js";
 
 // PaymentPayload v2 schema per x402-payments/references/http-protocol.md
-// lines 117–141. We keep the inner payload narrowly typed for the EIP-3009
-// `transferWithAuthorization` shape — the only path Morph's `exact` scheme
-// uses on Hoodi today. If/when Permit2 lands we'll widen this to a union.
+// lines 117–141. Canonical V2 shape has `accepted: PaymentRequirements`
+// at the top level, with `scheme`/`network` inside. We accept either the
+// canonical shape OR a flat `{ scheme, network }` for backward compatibility
+// with hand-rolled clients (and our own integration tests). The inner
+// payload is narrowly typed for the EIP-3009 `transferWithAuthorization`
+// shape — the only path Morph's `exact` scheme uses on Hoodi today.
 
 const HexBytes = z.string().regex(/^0x[a-fA-F0-9]+$/, "0x-prefixed hex");
 const EvmAddress = z
@@ -30,12 +33,58 @@ const ExactEvmPayload = z.object({
 });
 export type ExactEvmPayload = z.infer<typeof ExactEvmPayload>;
 
-export const PaymentPayload = z.object({
+// PaymentRequirements as carried back in `accepted` (canonical V2 PaymentPayload).
+// Mirrors the `AcceptsItem` shape advertised on the 402 (asset/amount in atomic units).
+const AcceptedPaymentRequirements = z
+  .object({
+    scheme: PaymentScheme,
+    network: CAIP2,
+    asset: z.string().optional(),
+    amount: z.string().optional(),
+    payTo: z.string().optional(),
+    maxTimeoutSeconds: z.number().int().positive().optional(),
+    extra: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
+
+const PaymentPayloadCanonical = z.object({
+  x402Version: z.literal(2),
+  accepted: AcceptedPaymentRequirements,
+  payload: ExactEvmPayload,
+  resource: z.unknown().optional(),
+  extensions: z.record(z.unknown()).optional(),
+});
+
+const PaymentPayloadFlat = z.object({
   x402Version: z.literal(2),
   scheme: PaymentScheme,
   network: CAIP2,
   payload: ExactEvmPayload,
 });
+
+export const PaymentPayload = z
+  .union([PaymentPayloadCanonical, PaymentPayloadFlat])
+  .transform((raw): {
+    x402Version: 2;
+    scheme: z.infer<typeof PaymentScheme>;
+    network: z.infer<typeof CAIP2>;
+    payload: ExactEvmPayload;
+  } => {
+    if ("accepted" in raw) {
+      return {
+        x402Version: 2,
+        scheme: raw.accepted.scheme,
+        network: raw.accepted.network,
+        payload: raw.payload,
+      };
+    }
+    return {
+      x402Version: 2,
+      scheme: raw.scheme,
+      network: raw.network,
+      payload: raw.payload,
+    };
+  });
 export type PaymentPayload = z.infer<typeof PaymentPayload>;
 
 abstract class PaymentHeaderError extends Error {
