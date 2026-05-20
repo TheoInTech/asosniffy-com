@@ -37,6 +37,7 @@ export { PaymentRequiredError } from "./errors.js";
 export { createSniffy } from "./client.js";
 export type {
   CreateSniffyOptions,
+  DiagnoseOptions,
   SignerLike,
   SniffyClient,
 } from "./client.js";

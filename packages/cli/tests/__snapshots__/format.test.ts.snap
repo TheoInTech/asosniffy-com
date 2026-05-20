@@ -1,0 +1,56 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`formatPaid (and formatSample, which wraps it) > renders all expected sections deterministically 1`] = `
+"Sniffy report — sniffId sniff_sample_001
+requestId req_sample_2026_05_mvp  ·  version 2026-05-mvp
+
+Summary
+  Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has two low-value slots that should be reclaimed.
+
+Data provenance
+  appMetadata                 ○ fixture
+  keywordRank                 ○ fixture
+  competitors                 ○ fixture
+  recommendations             ○ fixture
+
+Keyword diagnosis
+  keyword                  rank       intent   provenance
+  habit tracker            11-30      0.82     ○ fixture
+    └─ Move 'habit tracker' from the keywords field into the subtitle — high intent, currently ranking below the fold.
+  daily routine            51-100     0.61     ○ fixture
+    └─ Keep in the keywords field; pair with 'streaks' in the next screenshot caption to reinforce intent.
+
+Competitor trail
+  Streakly (1000000101)       overlap: habit tracker, daily routine   ○ fixture
+    └─ Outranks Pawprint Habits on both shared keywords. Subtitle leads with 'Habit Tracker', which Pawprint Habits buries.
+  RoutineLab (1000000102)     overlap: daily routine   ○ fixture
+    └─ Lower ratings volume but tighter keyword field — three high-intent terms, no filler.
+
+Metadata score
+  overall                     62
+  title                       70 — Strong brand recall, but doesn't carry a category keyword.
+  subtitle                    55 — 'Daily Routine & Streaks' uses one medium-intent term — leaves the highest-intent keyword on the table.
+  keywords                    48 — Two of ten slots spent on near-duplicates of words already in the subtitle.
+  screenshots                 72 — Captions are readable and benefit-led; first frame buries the streak feature below the fold.
+
+Recommendations
+  #1 Rewrite subtitle to lead with 'Habit Tracker'.   (high/low)
+    Highest-intent keyword is currently in the keywords field where it competes for surface area. Moving it to the subtitle is a one-character-budget change.
+  #2 Reclaim two filler keyword slots.   (medium/low)
+    Two slots duplicate words already in the title/subtitle and yield no additional rank coverage.
+  #3 Promote the streak feature to screenshot frame 1.   (medium/medium)
+    Streakly's lead with streaks correlates with its higher conversion on shared keywords; first-frame promotion is the cheapest test.
+
+Ready to paste
+  title                       Pawprint Habits
+  subtitle                    Habit Tracker · Streaks & Routines
+  keywords                    daily,routine,streak,morning,evening,checklist,journal,calendar
+
+Receipt
+  network                     eip155:2910
+  amount                      0.05 (0xEcF966Cc…)
+  transaction                 0x5a991e00000000000000000000000000000000000000000000000000000001
+  settledAt                   2026-05-17T10:00:00.000Z
+  facilitator                 fixture-receipt via fixture-receipt
+  explorer                    https://explorer-hoodi.morph.network/tx/0x5a991e00000000000000000000000000000000000000000000000000000001"
+`;

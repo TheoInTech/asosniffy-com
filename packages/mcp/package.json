@@ -1,0 +1,35 @@
+{
+  "name": "@sniffy/mcp",
+  "version": "0.0.0",
+  "description": "Model Context Protocol server for the Sniffy ASO API. Exposes sniffy_quote, sniffy_diagnose, sniffy_sample over stdio.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "sniffy-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'lint: configured post-MVP'",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@sniffy/sdk": "workspace:*",
+    "viem": "^2.21.55",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
