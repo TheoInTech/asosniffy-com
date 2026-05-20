@@ -9,6 +9,7 @@ import type {
   SampleResponse,
 } from "@sniffy/scraper/schemas";
 import { getQuote, getSample, postDiagnose } from "./client";
+import type { ProtocolTraceEntry } from "./errors";
 
 export function useQuote() {
   return useMutation<QuoteResponse, Error, QuoteRequest>({
@@ -29,12 +30,16 @@ export function useSample(enabled = true) {
 export interface DiagnoseMutationInput {
   request: DiagnoseRequest;
   paymentHeader?: string;
+  onProtocolTrace?: (entry: ProtocolTraceEntry) => void;
 }
 
 export function useDiagnose() {
   return useMutation<DiagnosePaidResponse, Error, DiagnoseMutationInput>({
     mutationKey: ["diagnose"],
-    mutationFn: ({ request, paymentHeader }) =>
-      postDiagnose(request, { paymentHeader }),
+    mutationFn: ({ request, paymentHeader, onProtocolTrace }) =>
+      postDiagnose(request, {
+        ...(paymentHeader ? { paymentHeader } : {}),
+        ...(onProtocolTrace ? { onProtocolTrace } : {}),
+      }),
   });
 }

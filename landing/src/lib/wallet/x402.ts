@@ -9,9 +9,11 @@ import type {
   PaymentRequirement,
 } from "@sniffy/scraper/schemas";
 
-// PaymentPayload v2 (EIP-3009 "exact" scheme) per
-// scraper/src/payment/header.ts. The header is base64-encoded JSON of:
-// { x402Version: 2, scheme: "exact", network, payload: { signature, authorization } }
+// Canonical x402 V2 PaymentPayload (EIP-3009 "exact" scheme) per
+// coinbase/x402 `typescript/packages/core/src/types/payments.ts`. The header
+// is base64-encoded JSON of an object with an `accepted` block that mirrors
+// the requirement the client signed against — facilitators (Morph included)
+// reject without it.
 interface Eip3009Authorization {
   from: Address;
   to: Address;
@@ -21,10 +23,23 @@ interface Eip3009Authorization {
   nonce: Hex;
 }
 
-interface PaymentPayloadV2 {
-  x402Version: 2;
+interface AcceptedRequirement {
   scheme: "exact";
   network: string;
+  amount: string;
+  asset: string;
+  payTo: string;
+  maxTimeoutSeconds: number;
+  extra: {
+    name: string;
+    version: string;
+    assetTransferMethod?: "eip3009";
+  };
+}
+
+interface PaymentPayloadV2 {
+  x402Version: 2;
+  accepted: AcceptedRequirement;
   payload: {
     signature: Hex;
     authorization: Eip3009Authorization;
@@ -132,8 +147,15 @@ export async function buildPaymentHeader({
 
   const payload: PaymentPayloadV2 = {
     x402Version: 2,
-    scheme: "exact",
-    network: requirement.network,
+    accepted: {
+      scheme: "exact",
+      network: requirement.network,
+      amount: requirement.atomicAmount,
+      asset: requirement.asset,
+      payTo: requirement.payTo,
+      maxTimeoutSeconds: requirement.maxTimeoutSeconds,
+      extra: requirement.extra,
+    },
     payload: { signature, authorization },
   };
 

@@ -5,8 +5,9 @@ export const MAINNET_EXPLORER = MORPH_MAINNET.explorer;
 
 // Fixture-receipt mode produces a synthetic tx hash of the form `0xsample…`
 // so the scraper can return a parseable Receipt even when the Morph facilitator
-// can't settle on Hoodi yet. The Hoodi explorer won't resolve these, so we
-// suppress the URL — `SpendTrail` falls back to plain monospace text.
+// did not settle on-chain (network not in /v2/supported, or facilitator down).
+// Block explorers won't resolve these, so we suppress the URL — `SpendTrail`
+// falls back to plain monospace text.
 export function isFixtureTxHash(txHash: string): boolean {
   return txHash.startsWith("0xsample");
 }

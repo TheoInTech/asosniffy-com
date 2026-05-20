@@ -11,6 +11,7 @@ import {
   ApiNetworkError,
   ApiValidationError,
   PaymentRequiredError,
+  type ProtocolTraceEntry,
 } from "./errors";
 
 const DEFAULT_BASE_URL = "http://localhost:3001";
@@ -22,6 +23,15 @@ export function getBaseUrl(): string {
 interface RequestOptions {
   signal?: AbortSignal;
   paymentHeader?: string;
+  onProtocolTrace?: (entry: ProtocolTraceEntry) => void;
+}
+
+function headersToRecord(headers: Headers): Record<string, string> {
+  const out: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    out[key] = value;
+  });
+  return out;
 }
 
 async function postJSON<T>(
@@ -31,16 +41,17 @@ async function postJSON<T>(
   options: RequestOptions = {},
 ): Promise<T> {
   const url = `${getBaseUrl()}${path}`;
+  const requestHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.paymentHeader ? { "PAYMENT-SIGNATURE": options.paymentHeader } : {}),
+  };
+  const startedAt = new Date().toISOString();
+  const t0 = performance.now();
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.paymentHeader
-          ? { "PAYMENT-SIGNATURE": options.paymentHeader }
-          : {}),
-      },
+      headers: requestHeaders,
       body: JSON.stringify(body),
       signal: options.signal,
     });
@@ -51,12 +62,28 @@ async function postJSON<T>(
     );
   }
 
+  const responseHeaders = headersToRecord(res.headers);
+  const durationMs = Math.round(performance.now() - t0);
+
   if (res.status === 402) {
     let raw: unknown;
     try {
       raw = await res.json();
     } catch (err) {
       throw new ApiError(402, "payment_required_malformed", "Server returned 402 without a parseable body", err);
+    }
+    if (options.onProtocolTrace) {
+      options.onProtocolTrace({
+        url,
+        method: "POST",
+        requestHeaders,
+        requestBody: body,
+        status: 402,
+        responseHeaders,
+        responseBody: raw,
+        startedAt,
+        durationMs,
+      });
     }
     const parsed = DiagnoseUnpaidResponse.safeParse(raw);
     if (!parsed.success) {
@@ -65,17 +92,13 @@ async function postJSON<T>(
         raw,
       );
     }
-    throw new PaymentRequiredError(parsed.data);
+    const serverCode = res.headers.get("x-sniffy-error-code") ?? undefined;
+    const serverMessage = res.headers.get("x-sniffy-error-message") ?? undefined;
+    throw new PaymentRequiredError(parsed.data, serverCode, serverMessage);
   }
 
   if (!res.ok) {
-    let body: unknown;
-    try {
-      body = await res.json();
-    } catch {
-      body = await res.text().catch(() => "");
-    }
-    throw new ApiError(res.status, `http_${res.status}`, `Request to ${path} failed: HTTP ${res.status}`, body);
+    throw await buildNonOkApiError(res, path);
   }
 
   let raw: unknown;
@@ -83,6 +106,19 @@ async function postJSON<T>(
     raw = await res.json();
   } catch (err) {
     throw new ApiError(res.status, "invalid_json", "Response was not valid JSON", err);
+  }
+  if (options.onProtocolTrace) {
+    options.onProtocolTrace({
+      url,
+      method: "POST",
+      requestHeaders,
+      requestBody: body,
+      status: res.status,
+      responseHeaders,
+      responseBody: raw,
+      startedAt,
+      durationMs,
+    });
   }
   try {
     return parser(raw);
@@ -92,6 +128,37 @@ async function postJSON<T>(
     }
     throw err;
   }
+}
+
+// Build an ApiError for a non-2xx response, pulling whatever diagnostic the
+// server surfaced — `X-Sniffy-Error-Code` / `-Message` headers (the same path
+// the 402 branch uses) plus `body.error.message`/`body.error.details` so a
+// ZodError's failing field paths show up in the UI's Wallet snag instead of
+// the opaque "HTTP 400". Always returns a rejected ApiError; never throws.
+async function buildNonOkApiError(res: Response, path: string): Promise<ApiError> {
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    body = await res.text().catch(() => "");
+  }
+  const headerCode = res.headers.get("x-sniffy-error-code") ?? undefined;
+  const headerMessage = res.headers.get("x-sniffy-error-message") ?? undefined;
+  const bodyError =
+    body && typeof body === "object" && "error" in body
+      ? (body as { error?: { code?: string; message?: string; details?: unknown } })
+          .error
+      : undefined;
+  const code =
+    headerCode ?? bodyError?.code ?? `http_${res.status}`;
+  // Prefer the explicit server message over the generic transport-level one;
+  // fall back to the historical message format if the server gave us nothing.
+  const message = headerMessage
+    ? `Request to ${path} failed: HTTP ${res.status} — ${headerMessage}`
+    : bodyError?.message
+      ? `Request to ${path} failed: HTTP ${res.status} — ${bodyError.message}`
+      : `Request to ${path} failed: HTTP ${res.status}`;
+  return new ApiError(res.status, code, message, body);
 }
 
 async function getJSON<T>(
@@ -110,13 +177,7 @@ async function getJSON<T>(
     );
   }
   if (!res.ok) {
-    let body: unknown;
-    try {
-      body = await res.json();
-    } catch {
-      body = await res.text().catch(() => "");
-    }
-    throw new ApiError(res.status, `http_${res.status}`, `Request to ${path} failed: HTTP ${res.status}`, body);
+    throw await buildNonOkApiError(res, path);
   }
   let raw: unknown;
   try {

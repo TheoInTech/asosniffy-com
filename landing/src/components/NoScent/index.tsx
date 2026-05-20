@@ -58,13 +58,11 @@ export function NoScent({ reason, recommendations, onReset }: Props) {
     <section className="border-2 border-sniffy-ink bg-sniffy-paper p-5">
       <div className="flex flex-col items-start gap-4 md:flex-row">
         <Image
-          src="/sniffy/mascot-puzzled.svg"
+          src="/sniffy/puzzled.png"
           alt="Sniffy looking puzzled at a broken scent trail"
           width={120}
           height={120}
-          className="motion-safe:animate-pulse motion-reduce:animate-none"
           priority={false}
-          unoptimized
         />
         <div className="flex-1">
           <h2 className="font-display text-lg font-semibold uppercase tracking-[0.12em] text-sniffy-ink">

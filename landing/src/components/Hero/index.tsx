@@ -1,5 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getActiveMorphNetwork } from "@/lib/morph-urls";
+
+const ACTIVE = getActiveMorphNetwork();
 
 export function Hero() {
   return (
@@ -16,7 +19,7 @@ export function Hero() {
           and run a <strong className="font-semibold text-sniffy-ink">free sniff test</strong>.
           When you want the full keyword diagnosis, competitor trail, metadata
           score, and ready-to-paste copy, settle a few cents on{" "}
-          <strong className="font-semibold text-sniffy-ink">Morph Hoodi</strong>{" "}
+          <strong className="font-semibold text-sniffy-ink">{ACTIVE.name}</strong>{" "}
           over x402 — no subscription, no email gate.
         </p>
         <p className="mt-3 max-w-prose font-mono text-xs text-sniffy-ink-mute">
@@ -30,7 +33,7 @@ export function Hero() {
         </p>
       </div>
       <Image
-        src="/sniffy/mascot.svg"
+        src="/sniffy/idle.png"
         alt="Sniffy, a pixel-art detective dog with a magnifying glass"
         width={160}
         height={160}

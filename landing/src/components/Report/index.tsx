@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { DiagnosePaidResponse } from "@sniffy/scraper/schemas";
 import { SpendTrail } from "@/components/SpendTrail";
+import type { ProtocolTraceEntry } from "@/lib/api/errors";
 import { CompetitorTrail } from "./CompetitorTrail";
 import { KeywordDiagnosisTable } from "./KeywordDiagnosisTable";
 import { MetadataScoreCard } from "./MetadataScore";
@@ -13,9 +14,10 @@ import { Summary } from "./Summary";
 export interface ReportProps {
   report: DiagnosePaidResponse;
   showReveal?: boolean;
+  protocolTrace?: ProtocolTraceEntry[];
 }
 
-export function Report({ report, showReveal = true }: ReportProps) {
+export function Report({ report, showReveal = true, protocolTrace }: ReportProps) {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -24,17 +26,15 @@ export function Report({ report, showReveal = true }: ReportProps) {
         </h2>
         {showReveal ? (
           <Image
-            src="/sniffy/mascot-found.svg"
+            src="/sniffy/unlock.png"
             alt=""
             width={72}
             height={72}
-            className="motion-safe:animate-[pixel-pulse_1.4s_ease-in-out_infinite] motion-reduce:animate-none"
-            unoptimized
           />
         ) : null}
       </div>
       <Summary report={report} />
-      <SpendTrail report={report} />
+      <SpendTrail report={report} protocolTrace={protocolTrace} />
       <KeywordDiagnosisTable report={report} />
       <CompetitorTrail report={report} />
       <MetadataScoreCard report={report} />

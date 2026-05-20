@@ -21,7 +21,16 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "Sniffy — agent-buyable ASO intelligence",
   description:
-    "Run a free sniff test on any iOS app, then pay per request over x402 on Morph Hoodi for a full ASO trail.",
+    "Run a free sniff test on any iOS app, then pay per request over x402 on Morph for a full ASO trail.",
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

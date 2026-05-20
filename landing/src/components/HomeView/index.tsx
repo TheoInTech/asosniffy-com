@@ -15,11 +15,13 @@ import { QuoteResponseView } from "@/components/QuoteResponse";
 import { Report } from "@/components/Report";
 import { UnlockTrail } from "@/components/UnlockTrail";
 import { useQuote } from "@/lib/api/hooks";
+import type { ProtocolTraceEntry } from "@/lib/api/errors";
 
 export function HomeView() {
   const quoteMutation = useQuote();
   const [lastRequest, setLastRequest] = useState<QuoteRequest | null>(null);
   const [paidReport, setPaidReport] = useState<DiagnosePaidResponse | null>(null);
+  const [protocolTrace, setProtocolTrace] = useState<ProtocolTraceEntry[]>([]);
 
   const quote: QuoteResponse | null = quoteMutation.data ?? null;
 
@@ -42,6 +44,7 @@ export function HomeView() {
 
   const handleSubmit = (req: QuoteRequest) => {
     setPaidReport(null);
+    setProtocolTrace([]);
     setLastRequest(req);
     quoteMutation.mutate(req);
   };
@@ -50,6 +53,7 @@ export function HomeView() {
     quoteMutation.reset();
     setLastRequest(null);
     setPaidReport(null);
+    setProtocolTrace([]);
   };
 
   return (
@@ -81,7 +85,10 @@ export function HomeView() {
             <UnlockTrail
               quote={quote}
               diagnoseRequest={diagnoseRequest}
-              onPaid={(paid: DiagnosePaidResponse) => setPaidReport(paid)}
+              onPaid={(paid, trace) => {
+                setPaidReport(paid);
+                setProtocolTrace(trace);
+              }}
             />
           ) : null}
         </div>
@@ -89,7 +96,7 @@ export function HomeView() {
 
       {paidReport ? (
         <div className="mt-8">
-          <Report report={paidReport} />
+          <Report report={paidReport} protocolTrace={protocolTrace} />
         </div>
       ) : null}
     </div>

@@ -5,7 +5,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useEffect, useState, type ReactNode } from "react";
 import { WagmiProvider, type Config } from "wagmi";
 import { createAppKit } from "@reown/appkit/react";
-import { morphHoodi } from "@/lib/wallet/chains";
+import { morphActive } from "@/lib/wallet/chains";
 import { projectId, wagmiAdapter, wagmiConfig } from "@/lib/wallet/config";
 
 // One global AppKit instance per browser session. createAppKit is idempotent
@@ -19,8 +19,8 @@ function ensureAppKit(): void {
   createAppKit({
     adapters: [wagmiAdapter],
     projectId,
-    networks: [morphHoodi],
-    defaultNetwork: morphHoodi,
+    networks: [morphActive],
+    defaultNetwork: morphActive,
     metadata: {
       name: "Sniffy",
       description: "Agent-buyable ASO intelligence on Morph x402.",
@@ -28,7 +28,7 @@ function ensureAppKit(): void {
         typeof window !== "undefined"
           ? window.location.origin
           : "https://asosniffy.com",
-      icons: ["/sniffy/mascot-mark.svg"],
+      icons: ["/sniffy/logo-transparent.png"],
     },
     features: {
       analytics: false,

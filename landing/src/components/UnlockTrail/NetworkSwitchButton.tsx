@@ -2,7 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 import { useSwitchChain } from "wagmi";
-import { morphHoodi } from "@/lib/wallet/chains";
+import { morphActive } from "@/lib/wallet/chains";
 
 export function NetworkSwitchButton() {
   const { switchChain, isPending, error } = useSwitchChain();
@@ -15,15 +15,15 @@ export function NetworkSwitchButton() {
             Wrong network
           </p>
           <p className="mt-1 font-mono text-xs text-sniffy-ink-2">
-            Sniffy settles on Morph Hoodi testnet. Switch to continue.
+            Sniffy settles on {morphActive.name}. Switch to continue.
           </p>
           <button
             type="button"
-            onClick={() => switchChain({ chainId: morphHoodi.id })}
+            onClick={() => switchChain({ chainId: morphActive.id })}
             disabled={isPending}
             className="mt-2 inline-flex items-center border-2 border-sniffy-ink bg-sniffy-yellow px-3 py-1.5 font-display text-xs font-semibold uppercase tracking-[0.14em] text-sniffy-ink shadow-ink-tab-sm transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] focus:outline-none focus-visible:ring-2 focus-visible:ring-sniffy-ink motion-reduce:transition-none disabled:opacity-60"
           >
-            {isPending ? "Switching…" : "Switch to Morph Hoodi"}
+            {isPending ? "Switching…" : `Switch to ${morphActive.name}`}
           </button>
           {error ? (
             <p className="mt-1 font-mono text-[10px] text-sniffy-warn">

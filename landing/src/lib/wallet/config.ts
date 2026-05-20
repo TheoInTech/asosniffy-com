@@ -1,5 +1,5 @@
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import { morphHoodi } from "./chains";
+import { morphActive } from "./chains";
 
 const FALLBACK_PROJECT_ID = "00000000000000000000000000000000";
 
@@ -19,11 +19,11 @@ function readProjectId(): string {
 
 export const projectId = readProjectId();
 
-export const networks = [morphHoodi] as const;
+export const networks = [morphActive] as const;
 
 export const wagmiAdapter = new WagmiAdapter({
   ssr: true,
-  networks: [morphHoodi],
+  networks: [morphActive],
   projectId,
 });
 

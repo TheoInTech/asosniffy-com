@@ -1,9 +1,9 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import type { QuoteRequest, QuoteResponse } from "@sniffy/scraper/schemas";
-import { Lottie } from "@/components/Lottie";
 import { cn } from "@/lib/cn";
 import { AdvancedSection } from "./AdvancedSection";
 import { CountrySelect } from "./CountrySelect";
@@ -137,7 +137,12 @@ export function QuoteForm({
           )}
         </button>
         {isPending ? (
-          <Lottie name="sniffy-sniffing-loader" size={56} alt="" play="loop" />
+          <Image
+            src="/sniffy/sniffing.png"
+            alt=""
+            width={56}
+            height={56}
+          />
         ) : null}
       </div>
     </form>

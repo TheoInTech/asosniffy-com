@@ -1,19 +1,22 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
+import Image from "next/image";
 import type {
   DiagnosePaidResponse,
   DiagnoseRequest,
   QuoteResponse,
 } from "@sniffy/scraper/schemas";
-import { Lottie } from "@/components/Lottie";
 import { WalletConnect } from "@/components/WalletConnect";
 import { useDiagnose } from "@/lib/api/hooks";
-import { PaymentRequiredError } from "@/lib/api/errors";
+import {
+  PaymentRequiredError,
+  type ProtocolTraceEntry,
+} from "@/lib/api/errors";
 import { isFixtureTxHash } from "@/lib/explorer";
-import { morphHoodi } from "@/lib/wallet/chains";
+import { morphActive } from "@/lib/wallet/chains";
 import { buildPaymentHeader } from "@/lib/wallet/x402";
 import { FundPanel } from "./FundPanel";
 import { NetworkSwitchButton } from "./NetworkSwitchButton";
@@ -21,7 +24,7 @@ import { NetworkSwitchButton } from "./NetworkSwitchButton";
 interface Props {
   quote: QuoteResponse;
   diagnoseRequest: DiagnoseRequest;
-  onPaid: (paid: DiagnosePaidResponse) => void;
+  onPaid: (paid: DiagnosePaidResponse, trace: ProtocolTraceEntry[]) => void;
 }
 
 type Phase =
@@ -42,8 +45,9 @@ export function UnlockTrail({ quote, diagnoseRequest, onPaid }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [errorText, setErrorText] = useState<string | null>(null);
   const [paidResult, setPaidResult] = useState<DiagnosePaidResponse | null>(null);
+  const traceRef = useRef<ProtocolTraceEntry[]>([]);
 
-  const onWrongNetwork = isConnected && chainId !== morphHoodi.id;
+  const onWrongNetwork = isConnected && chainId !== morphActive.id;
 
   const handleUnlock = useCallback(async () => {
     setErrorText(null);
@@ -51,8 +55,10 @@ export function UnlockTrail({ quote, diagnoseRequest, onPaid }: Props) {
       open();
       return;
     }
-    if (chainId !== morphHoodi.id) {
-      setErrorText("Wallet is on the wrong network. Switch to Morph Hoodi and retry.");
+    if (chainId !== morphActive.id) {
+      setErrorText(
+        `Wallet is on the wrong network. Switch to ${morphActive.name} and retry.`,
+      );
       return;
     }
     if (!walletClient) {
@@ -60,12 +66,20 @@ export function UnlockTrail({ quote, diagnoseRequest, onPaid }: Props) {
       return;
     }
 
+    traceRef.current = [];
+    const collectTrace = (entry: ProtocolTraceEntry) => {
+      traceRef.current.push(entry);
+    };
+
     let requirement;
     try {
       setPhase("requesting-requirements");
       // First call without a payment header — server returns 402 with
       // PaymentRequirement (which is what we need to sign).
-      await diagnose.mutateAsync({ request: diagnoseRequest });
+      await diagnose.mutateAsync({
+        request: diagnoseRequest,
+        onProtocolTrace: collectTrace,
+      });
       // If we somehow got a 200 here (caching, replay), surface it.
       setPhase("unlocked");
       return;
@@ -93,17 +107,27 @@ export function UnlockTrail({ quote, diagnoseRequest, onPaid }: Props) {
       const paid = await diagnose.mutateAsync({
         request: diagnoseRequest,
         paymentHeader: header,
+        onProtocolTrace: collectTrace,
       });
       setPaidResult(paid);
       setPhase("unlocked");
-      onPaid(paid);
+      onPaid(paid, [...traceRef.current]);
     } catch (signErr: unknown) {
       setPhase("error");
-      setErrorText(
-        signErr instanceof Error
-          ? signErr.message
-          : "Wallet rejected the signature.",
-      );
+      if (signErr instanceof PaymentRequiredError) {
+        // Facilitator (or backend pre-check) rejected the signed payload.
+        // Surface the actual code + reason so the user can see what's wrong
+        // — generic "payment required" again would be confusing post-signing.
+        setErrorText(
+          `${signErr.code}: ${signErr.serverMessage ?? signErr.message}`,
+        );
+      } else {
+        setErrorText(
+          signErr instanceof Error
+            ? signErr.message
+            : "Wallet rejected the signature.",
+        );
+      }
     }
   }, [
     address,
@@ -123,14 +147,14 @@ export function UnlockTrail({ quote, diagnoseRequest, onPaid }: Props) {
       case "awaiting-signature":
         return "Sign the payment in your wallet to continue.";
       case "settling":
-        return "Settling on Morph Hoodi…";
+        return `Settling on ${morphActive.name}…`;
       case "unlocked": {
         if (!paidResult) return "Trail unlocked.";
         const fixture =
           paidResult.receipt.facilitatorMode === "fixture-receipt" ||
           isFixtureTxHash(paidResult.receipt.transactionHash);
         return fixture
-          ? "Signature settled (demo facilitator — Hoodi pending)."
+          ? "Signature settled (demo facilitator — on-chain settlement pending)."
           : "Trail unlocked.";
       }
       case "error":
@@ -151,22 +175,33 @@ export function UnlockTrail({ quote, diagnoseRequest, onPaid }: Props) {
 
       <p className="font-mono text-xs text-sniffy-ink">
         You pay {quote.pricing.estimatedTotal} {quote.pricing.currency} on{" "}
-        Morph Hoodi to settle this sniff. Sniffy never custodies your wallet —
-        the signature only authorizes this one transfer to the merchant.
+        {morphActive.name} to settle this sniff. Sniffy never custodies your
+        wallet — the signature only authorizes this one transfer to the
+        merchant.
       </p>
 
       {onWrongNetwork ? <NetworkSwitchButton /> : null}
 
       {phase === "awaiting-signature" || phase === "settling" ? (
         <div className="flex items-center gap-3 border border-sniffy-rule bg-sniffy-paper-2 p-3">
-          <Lottie name="sniffy-sniffing-loader" size={48} alt="" play="loop" />
+          <Image
+            src="/sniffy/sniffing.png"
+            alt=""
+            width={48}
+            height={48}
+          />
           <p className="font-mono text-xs text-sniffy-ink">{phaseLabel}</p>
         </div>
       ) : null}
 
       {phase === "unlocked" ? (
         <div className="flex items-center gap-3 border border-sniffy-rule bg-sniffy-paper-2 p-3">
-          <Lottie name="sniffy-x402-unlock" size={48} alt="" play="once" />
+          <Image
+            src="/sniffy/unlock.png"
+            alt=""
+            width={48}
+            height={48}
+          />
           <p className="font-mono text-xs text-sniffy-ink">{phaseLabel}</p>
         </div>
       ) : null}

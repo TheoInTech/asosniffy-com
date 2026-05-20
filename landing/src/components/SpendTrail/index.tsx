@@ -4,6 +4,9 @@ import type { DiagnosePaidResponse } from "@sniffy/scraper/schemas";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { buildExplorerUrl, isFixtureTxHash, networkLabel } from "@/lib/explorer";
+import type { ProtocolTraceEntry } from "@/lib/api/errors";
+import { AuthenticityChecklist } from "./AuthenticityChecklist";
+import { ProtocolWaterfall } from "./ProtocolWaterfall";
 import { X402Mode } from "./X402Mode";
 
 function truncate(hex: string, head = 10, tail = 8): string {
@@ -11,15 +14,23 @@ function truncate(hex: string, head = 10, tail = 8): string {
   return `${hex.slice(0, head)}…${hex.slice(-tail)}`;
 }
 
-export function SpendTrail({ report }: { report: DiagnosePaidResponse }) {
+interface SpendTrailProps {
+  report: DiagnosePaidResponse;
+  protocolTrace?: ProtocolTraceEntry[];
+}
+
+export function SpendTrail({ report, protocolTrace }: SpendTrailProps) {
   const { receipt } = report;
   const explorerUrl = buildExplorerUrl(receipt.network, receipt.transactionHash);
   const fixtureHash = isFixtureTxHash(receipt.transactionHash);
+  const fixtureMode =
+    receipt.facilitatorMode === "fixture-receipt" || fixtureHash;
   const [open, setOpen] = useState(false);
   const settledAt = new Date(receipt.settledAt);
 
   return (
-    <section className="border-2 border-sniffy-ink bg-sniffy-paper-2 p-5">
+    <div className="space-y-4">
+      <section className="border-2 border-sniffy-ink bg-sniffy-paper-2 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-sniffy-ink-mute">
           Spend trail
@@ -138,6 +149,28 @@ export function SpendTrail({ report }: { report: DiagnosePaidResponse }) {
           </div>
         </dl>
       ) : null}
-    </section>
+      </section>
+
+      {protocolTrace && protocolTrace.length > 0 ? (
+        <ProtocolWaterfall entries={protocolTrace} />
+      ) : null}
+
+      {fixtureMode ? (
+        <section className="border-2 border-sniffy-ink bg-sniffy-paper-2 p-4">
+          <h4 className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-sniffy-ink-mute">
+            On-chain authenticity
+          </h4>
+          <p className="mt-2 font-mono text-[11px] text-sniffy-ink">
+            Fixture receipt — on-chain verification skipped. The scraper is
+            running in demo mode (no settlement was submitted to Morph), so
+            there&apos;s nothing to verify against an RPC. Switch the scraper to{" "}
+            <code className="font-mono">morph-official</code> mode to see the
+            five forensic checks against a real settled tx.
+          </p>
+        </section>
+      ) : (
+        <AuthenticityChecklist receipt={receipt} />
+      )}
+    </div>
   );
 }

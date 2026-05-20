@@ -22,6 +22,11 @@ export interface MorphNetwork {
   readonly faucet?: string;
   readonly facilitator: string;
   readonly testnet: boolean;
+  // On-chain settlement contract that the Morph facilitator's relayers
+  // call to execute EIP-3009 transferWithAuthorization on the user's behalf.
+  // null if not yet verified for this network. Verified for mainnet against
+  // tx 0xdb32c34a6e90408f4bb1606038a04f192cd49e73af560eb7e1459aa09cede4e3.
+  readonly facilitatorSettlementContract: `0x${string}` | null;
 }
 
 function readEnv(name: string, fallback: string): string {
@@ -53,6 +58,7 @@ export const MORPH_HOODI: MorphNetwork = {
     "https://faucet-hoodi.morph.network",
   ),
   facilitator: MORPH_FACILITATOR_URL,
+  facilitatorSettlementContract: null,
   testnet: true,
 };
 
@@ -70,10 +76,19 @@ export const MORPH_MAINNET: MorphNetwork = {
     "https://bridge.morphl2.io",
   ),
   facilitator: MORPH_FACILITATOR_URL,
+  facilitatorSettlementContract: "0x154dd21f7386c4c49481c1fe568dad365cfc34e5",
   testnet: false,
 };
 
 export const MORPH_NETWORKS = [MORPH_HOODI, MORPH_MAINNET] as const;
+
+// Selector: which network the wallet, AppKit, and UI copy should target.
+// Default `eip155:2818` (Morph Mainnet) since the official facilitator only
+// lists Mainnet in /v2/supported. Override per-deploy via NEXT_PUBLIC_MORPH_NETWORK.
+export const MORPH_NETWORK_CAIP2 = readEnv(
+  "NEXT_PUBLIC_MORPH_NETWORK",
+  "eip155:2818",
+) as MorphNetwork["caip2"];
 
 export function morphByCaip2(caip2: string): MorphNetwork | null {
   return MORPH_NETWORKS.find((n) => n.caip2 === caip2) ?? null;
@@ -81,4 +96,8 @@ export function morphByCaip2(caip2: string): MorphNetwork | null {
 
 export function morphByChainId(chainId: number): MorphNetwork | null {
   return MORPH_NETWORKS.find((n) => n.chainId === chainId) ?? null;
+}
+
+export function getActiveMorphNetwork(): MorphNetwork {
+  return morphByCaip2(MORPH_NETWORK_CAIP2) ?? MORPH_MAINNET;
 }

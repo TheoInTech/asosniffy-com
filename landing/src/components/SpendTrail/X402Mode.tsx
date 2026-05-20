@@ -21,10 +21,10 @@ const VARIANTS: Record<FacilitatorMode, Variant> = {
       "Settled through the official Morph x402 facilitator at morph-rails.morph.network.",
   },
   "fixture-receipt": {
-    label: "Demo settlement — Hoodi pending",
+    label: "Demo settlement — on-chain pending",
     tint: "bg-sniffy-yellow text-sniffy-ink",
     tooltip:
-      "Your wallet signed a real EIP-3009 authorization, but the Morph facilitator does not list Hoodi (eip155:2910) yet. The scraper returned a fixture receipt so the demo flow stays end-to-end. See PLAN.md §21.",
+      "Your wallet signed a real EIP-3009 authorization, but the Morph facilitator did not settle on-chain (network not in /v2/supported, or facilitator down). The scraper returned a fixture receipt so the demo flow stays end-to-end. See PLAN.md §21.",
   },
   "self-hosted-fallback": {
     label: "Settled via fallback facilitator",

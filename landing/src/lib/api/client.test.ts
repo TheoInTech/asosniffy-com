@@ -92,6 +92,7 @@ function mockFetchOnce(response: Partial<Response> & { json?: () => Promise<unkn
     status: response.status ?? 500,
     json: response.json ?? (async () => ({})),
     text: response.text ?? (async () => ""),
+    headers: response.headers ?? new Headers(),
   } as unknown as Response);
   (globalThis as unknown as { fetch: typeof fetch }).fetch = fn as unknown as typeof fetch;
   return fn;

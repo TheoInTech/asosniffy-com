@@ -5,12 +5,12 @@ export function Wordmark({ withMark = true }: { withMark?: boolean }) {
     <span className="inline-flex items-center gap-2 leading-none">
       {withMark ? (
         <Image
-          src="/sniffy/mascot-mark.svg"
+          src="/sniffy/logo-transparent.png"
           alt=""
-          width={28}
-          height={28}
+          width={32}
+          height={32}
           priority
-          className="h-7 w-7"
+          className="h-8 w-8"
         />
       ) : null}
       <span className="font-display text-xl font-semibold tracking-tight text-sniffy-ink">
