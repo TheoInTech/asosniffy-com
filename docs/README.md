@@ -42,7 +42,6 @@ Phase 00 (foundation) ──┬─► Phase 01 (payment)    ──┐
 | [09](./09-submission.md) | Submission — video, build diary, 200-word writeup, diagram | not-started |
 | [99](./99-post-mvp.md) | Post-MVP roadmap | reference only |
 | [biz](./business-model.md) | Business model — pricing, unit economics, GTM | reference for 01/02/04/05/06/09 |
-| [arch](./architecture.md) | Architecture — Mermaid diagrams (system + scraper internals) | reference for every phase |
 
 ## How to dispatch parallel agents
 
