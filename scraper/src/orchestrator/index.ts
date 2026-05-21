@@ -47,6 +47,11 @@ import {
   type SynthesisInput,
   type SynthesisOutput,
 } from "../synthesis/index.js";
+import {
+  buildLocalizationRecommendation,
+  stitchLocalizedCopy,
+  synthesizeLocalizedCopy,
+} from "../synthesis/localized-copy.js";
 import { worstProvenance } from "../data/coverage.js";
 import {
   getRankSeries,
@@ -207,7 +212,7 @@ export async function generateReportWithMeta(
   // but the Android scoring path uses a different record shape and we
   // ship Android parity in a follow-up. LOCALIZATION_ENABLED gates the
   // whole feature; allowFixtureFallback skips it to keep /sample fast.
-  const localizationAnalysis = await collectLocalization({
+  let localizationAnalysis = await collectLocalization({
     enabled: env.LOCALIZATION_ENABLED && !input.allowFixtureFallback,
     store: input.store,
     requestCountry: input.country,
@@ -215,10 +220,58 @@ export async function generateReportWithMeta(
     targetCountries: env.LOCALIZATION_STOREFRONTS,
   });
 
+  // ---------- Phase C: localized translated copy (OpenAI-gated) ----------
+  // For each mismatched storefront, generate paste-ready translated copy
+  // when OPENAI_API_KEY is set. Fallback when key/circuit unavailable: the
+  // synthesis layer surfaces a "translate this listing" recommendation
+  // card so the value is still visible to the buyer. Skipped entirely for
+  // fixture/sample paths and when localization itself is degraded.
+  if (
+    localizationAnalysis &&
+    localizationAnalysis.unlocalizedCount > 0 &&
+    !input.allowFixtureFallback &&
+    inputProvenance !== "fixture" &&
+    inputProvenance !== "degraded"
+  ) {
+    const mismatched = localizationAnalysis.storefronts
+      .filter((s) => s.localized === false)
+      .map((s) => ({
+        country: s.country,
+        expectedLanguages: s.expectedLanguages,
+      }));
+    const translations = await synthesizeLocalizedCopy({
+      appName: data.detectedApp.name,
+      currentTitle:
+        data.detect.appRecord?.name ?? data.detectedApp.name,
+      currentSubtitle: data.detect.appRecord?.subtitle ?? "",
+      primaryKeywords: input.keywords,
+      targets: mismatched,
+      requestId: input.requestId,
+    });
+    localizationAnalysis = stitchLocalizedCopy(
+      localizationAnalysis,
+      translations,
+    );
+  }
+
   // Phase 6 — target-app momentum block. iOS only (Android record lacks
   // releaseDate from gplay-scraper today). null when AppRecord wasn't
   // fetched or the listing is region-locked without a releaseDate.
   const targetAppSignals = assembleTargetAppSignals(data.detect.appRecord);
+
+  // ---------- Phase C: localization recommendation card ----------
+  // When translation was deferred (no OpenAI key, or call failed), surface
+  // a single "translate your listing" recommendation so the report still
+  // tells the buyer what to do. When translation succeeded, the copy
+  // itself is the value and no extra card is needed.
+  const recommendations = [...synthesis.recommendations];
+  const localizationRec = buildLocalizationRecommendation(
+    localizationAnalysis,
+    recommendations.length + 1,
+  );
+  if (localizationRec && recommendations.length < 5) {
+    recommendations.push(localizationRec);
+  }
 
   // ---------- Assembly ----------
   return {
@@ -236,7 +289,7 @@ export async function generateReportWithMeta(
         data.competitors,
       ),
       metadataScore: assembleMetadataScore(metadataScoring),
-      recommendations: synthesis.recommendations,
+      recommendations,
       readyToPaste: synthesis.readyToPaste,
       suggestedKeywords: buildSuggestedKeywords({
         reviewBodies: data.reviewBodies,

@@ -124,20 +124,20 @@ describe("scoreMetadata", () => {
 describe("composeOverall", () => {
   it("respects the documented 35/30/25/10 weights", () => {
     const overall = composeOverall({
-      title: { score: 100, reasons: [] },
-      subtitle: { score: 0, reasons: [] },
-      keywordsField: { score: 0, reasons: [] },
-      description: { score: 0, reasons: [] },
+      title: { score: 100, reasons: [], negativeReasons: [] },
+      subtitle: { score: 0, reasons: [], negativeReasons: [] },
+      keywordsField: { score: 0, reasons: [], negativeReasons: [] },
+      description: { score: 0, reasons: [], negativeReasons: [] },
     });
     expect(overall).toBe(Math.round(METADATA_WEIGHTS.title * 100));
   });
 
   it("returns an integer 0–100", () => {
     const overall = composeOverall({
-      title: { score: 73, reasons: [] },
-      subtitle: { score: 61, reasons: [] },
-      keywordsField: { score: 44, reasons: [] },
-      description: { score: 80, reasons: [] },
+      title: { score: 73, reasons: [], negativeReasons: [] },
+      subtitle: { score: 61, reasons: [], negativeReasons: [] },
+      keywordsField: { score: 44, reasons: [], negativeReasons: [] },
+      description: { score: 80, reasons: [], negativeReasons: [] },
     });
     expect(Number.isInteger(overall)).toBe(true);
     expect(overall).toBeGreaterThanOrEqual(0);

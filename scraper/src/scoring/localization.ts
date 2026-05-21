@@ -88,6 +88,21 @@ const STOREFRONT_PRIMARY_LANG: Record<string, readonly string[]> = {
   EG: ["arb", "ara"],
 };
 
+export interface LocalizationRecommendedCopy {
+  // Translated title (≤ 30 chars). Null when generation was skipped or
+  // failed for this locale.
+  title: string | null;
+  // Translated subtitle (≤ 30 chars). Null when skipped/failed.
+  subtitle: string | null;
+  // Translated short description / promotional copy (≤ 240 chars). Null
+  // when skipped/failed.
+  shortDescription: string | null;
+  // How the copy was produced. "openai" = LLM-generated translation;
+  // "deferred" = OpenAI was unavailable (no key, cost-circuit, error),
+  // so the UI should surface a "translate this listing" prompt instead.
+  source: "openai" | "deferred";
+}
+
 export interface LocalizationStorefrontDetail {
   country: string;
   // Title as it appears in this storefront (iTunes returns localized trackName).
@@ -114,6 +129,13 @@ export interface LocalizationStorefrontDetail {
   // from a "successful lookup with a non-localized description" so the
   // UI can show "couldn't check JP" vs "JP listing is English".
   error: string | null;
+  // Paste-ready translated copy for storefronts with a detected language
+  // mismatch. Stitched in by the synthesis layer after a successful
+  // OpenAI translation call. Null for matched storefronts (no work to
+  // do) and for mismatched storefronts when translation was unavailable
+  // — in the latter case the synthesis layer surfaces a "translate this
+  // listing" recommendation card so the value-add is still visible.
+  recommendedCopy: LocalizationRecommendedCopy | null;
 }
 
 export interface LocalizationAnalysis {
@@ -161,6 +183,7 @@ export function scoreLocalization(
         localized: null,
         gapScore: 50, // unknown — neutral
         error: result.error,
+        recommendedCopy: null,
       });
       continue;
     }
@@ -183,6 +206,7 @@ export function scoreLocalization(
       localized,
       gapScore,
       error: null,
+      recommendedCopy: null,
     });
   }
 

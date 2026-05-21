@@ -41,6 +41,17 @@ export function analyzeCompetitors(
     keywords: input.targetKeywords,
   });
 
+  // Brand-token registry — built once from every candidate's head-of-name
+  // before the per-competitor loop. Tokens in here are treated as branded
+  // (the competitor's app-name fragment) and excluded from any competitor's
+  // `uniqueToCompetitor` list. Without this, "Pickleball Stars" surfaces
+  // `stars` and the downstream synthesis layer recommends a competitor's
+  // brand name as the user's metadata — actively harmful advice.
+  const competitorBrandTokens = buildBrandTokenRegistry(
+    input.candidates,
+    input.candidateRecords,
+  );
+
   return input.candidates.slice(0, 3).map((candidate) => {
     const record = input.candidateRecords?.get(candidate.appId);
     const competitorTokens = collectSurfaceTokens({
@@ -62,6 +73,7 @@ export function analyzeCompetitors(
     for (const token of competitorTokens.tokens) {
       if (token.length < 4) continue;
       if (GENERIC_TOKENS.has(token)) continue;
+      if (competitorBrandTokens.has(token)) continue;
       if (targetSurface.tokens.has(token)) continue;
       if (overlap.some((o) => o.toLowerCase().includes(token))) continue;
       if (!unique.includes(token)) unique.push(token);
@@ -106,6 +118,52 @@ function collectSurfaceTokens(input: {
 function containsTerm(haystack: string, needle: string): boolean {
   if (needle.length === 0) return false;
   return haystack.includes(needle);
+}
+
+// Build a registry of competitor brand tokens drawn from each candidate's
+// head-of-name (everything before the first `:` / `-` / `–` / `—` / `|`).
+// For names without a delimiter we tokenize the entire trimmed name — short
+// brand names like "Reclub" or "Tally" need to surface even when the name
+// has no tagline. We deliberately do NOT tokenize the tail of the name: the
+// tail is taglined feature copy ("Social Sports Nearby"), which legitimately
+// describes the category and is fair game as a "lean-on" term for the
+// recommendation engine. Generic English tokens never enter the registry
+// even if they happen to be part of a brand name — that keeps a competitor
+// named e.g. "Top Tracker" from blocking the generic word "top" across the
+// niche.
+function buildBrandTokenRegistry(
+  candidates: readonly CompetitorCandidate[],
+  candidateRecords: ReadonlyMap<string, AppRecord> | undefined,
+): Set<string> {
+  const registry = new Set<string>();
+  for (const candidate of candidates) {
+    const record = candidateRecords?.get(candidate.appId);
+    // Prefer the live record name (canonical) but fall back to the
+    // candidate.name (the search-result label) when no record is present.
+    const name = (record?.name ?? candidate.name ?? "").trim();
+    if (name.length === 0) continue;
+
+    const head = headOfName(name);
+    const tokens = head
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3 && !GENERIC_TOKENS.has(t));
+    for (const t of tokens) registry.add(t);
+  }
+  return registry;
+}
+
+// Head-of-name extraction. Matches the brand-prefix splitter in
+// synthesis/template.ts:359 so brand detection and ready-to-paste title
+// rewriting agree on what counts as "the brand" vs "the tagline."
+function headOfName(name: string): string {
+  const split = name.split(/[:\-–—|]/);
+  if (split.length > 1) {
+    const head = split[0]?.trim() ?? name;
+    return head.length > 0 ? head : name;
+  }
+  return name.trim();
 }
 
 const GENERIC_TOKENS = new Set([

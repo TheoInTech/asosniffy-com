@@ -36,6 +36,30 @@ export const APPLE_CAPS = {
 export interface MetadataSubscoreInternal {
   score: number;
   reasons: string[];
+  // Subset of `reasons` flagged as "this is what dragged the score down."
+  // The synthesis layer reads this when it needs to surface an honest
+  // rationale (e.g., the subtitle-rewrite recommendation should never
+  // quote a positive reason as its "why"). Empty when nothing about the
+  // field was scored negatively — in that case the field is healthy and
+  // no rewrite recommendation should fire.
+  negativeReasons: string[];
+}
+
+// Internal helper — keeps the two-array bookkeeping local to each scorer.
+// Always mirrors negative reasons into the `negativeReasons` set so the
+// synthesis layer never has to re-parse prose to figure out polarity.
+interface ReasonState {
+  reasons: string[];
+  negativeReasons: string[];
+}
+
+function recordReason(
+  state: ReasonState,
+  reason: string,
+  polarity: "negative" | "positive" | "neutral",
+): void {
+  state.reasons.push(reason);
+  if (polarity === "negative") state.negativeReasons.push(reason);
 }
 
 export interface MetadataScoringResult {
@@ -104,7 +128,7 @@ function scoreTitle(
   primary: string | undefined,
   allKeywords: readonly string[],
 ): MetadataSubscoreInternal {
-  const reasons: string[] = [];
+  const state: ReasonState = { reasons: [], negativeReasons: [] };
   const len = title.length;
   const normalizedTitle = title.toLowerCase();
 
@@ -114,21 +138,27 @@ function scoreTitle(
   // the sweet spot — long enough to carry brand + a keyword, short enough to
   // not get truncated in search results.
   if (len === 0) {
-    reasons.push("Title is empty — listing will fall back to bundle name.");
+    recordReason(state, "Title is empty — listing will fall back to bundle name.", "negative");
     score = 10;
   } else if (len > APPLE_CAPS.title) {
-    reasons.push(
+    recordReason(
+      state,
       `Title is ${len} characters — Apple caps titles at ${APPLE_CAPS.title} and will truncate.`,
+      "negative",
     );
     score -= 25;
   } else if (len < 8) {
-    reasons.push(`Title is only ${len} characters — under-using the 30-char budget.`);
+    recordReason(
+      state,
+      `Title is only ${len} characters — under-using the 30-char budget.`,
+      "negative",
+    );
     score -= 10;
   } else if (len >= 18 && len <= 28) {
-    reasons.push(`Title length (${len} chars) is in the optimal 18–28 range.`);
+    recordReason(state, `Title length (${len} chars) is in the optimal 18–28 range.`, "positive");
     score += 10;
   } else {
-    reasons.push(`Title length (${len}/${APPLE_CAPS.title}) is acceptable.`);
+    recordReason(state, `Title length (${len}/${APPLE_CAPS.title}) is acceptable.`, "neutral");
   }
 
   // Primary keyword presence in title — distinguish exact-phrase from
@@ -139,16 +169,20 @@ function scoreTitle(
   if (primary && primary.length > 0) {
     const match = classifyKeywordMatch({ keyword: primary, title });
     if (match === "titleExactPhrase") {
-      reasons.push(`Title carries "${primary}" as an exact phrase.`);
+      recordReason(state, `Title carries "${primary}" as an exact phrase.`, "positive");
       score += 25;
     } else if (match === "titleAllWords") {
-      reasons.push(
+      recordReason(
+        state,
         `Title carries "${primary}" only as separated tokens — converting to an exact phrase is the cheapest single fix.`,
+        "negative",
       );
       score += 10;
     } else {
-      reasons.push(
+      recordReason(
+        state,
         `Title does not carry the primary keyword "${primary}" — biggest single rank lever.`,
+        "negative",
       );
       score -= 15;
     }
@@ -159,10 +193,12 @@ function scoreTitle(
     .slice(1)
     .filter((k) => k.length > 0 && normalizedTitle.includes(k)).length;
   if (otherKeywordsCovered > 0) {
-    reasons.push(
+    recordReason(
+      state,
       `Title also surfaces ${otherKeywordsCovered} secondary keyword${
         otherKeywordsCovered === 1 ? "" : "s"
       }.`,
+      "positive",
     );
     score += 5 * Math.min(otherKeywordsCovered, 2);
   }
@@ -173,11 +209,19 @@ function scoreTitle(
     (k) => k.length > 0 && normalizedTitle.includes(k),
   ).length;
   if (totalCovered >= 3) {
-    reasons.push("Title appears keyword-stuffed — Apple penalizes obvious stacking.");
+    recordReason(
+      state,
+      "Title appears keyword-stuffed — Apple penalizes obvious stacking.",
+      "negative",
+    );
     score -= 10;
   }
 
-  return { score: clamp(Math.round(score), 0, 100), reasons };
+  return {
+    score: clamp(Math.round(score), 0, 100),
+    reasons: state.reasons,
+    negativeReasons: state.negativeReasons,
+  };
 }
 
 function scoreSubtitle(
@@ -186,7 +230,7 @@ function scoreSubtitle(
   allKeywords: readonly string[],
   subtitleProvenance: Provenance | undefined,
 ): MetadataSubscoreInternal {
-  const reasons: string[] = [];
+  const state: ReasonState = { reasons: [], negativeReasons: [] };
   const len = subtitle.length;
   const normalized = subtitle.toLowerCase();
 
@@ -199,28 +243,42 @@ function scoreSubtitle(
     // they have none.
     const provenanceKnown =
       subtitleProvenance === "live" || subtitleProvenance === "cached";
+    const emptyReason = provenanceKnown
+      ? "Subtitle is empty — leaving the highest-leverage 30-char keyword slot unused."
+      : "Subtitle source unavailable — re-scan in a few minutes to confirm.";
+    // Empty-subtitle prose is the "drag" — surface as negative when we're
+    // confident the subtitle really is empty. The degraded-provider variant
+    // is neutral (we don't know enough to call it a problem).
+    recordReason(state, emptyReason, provenanceKnown ? "negative" : "neutral");
     return {
       score: 25,
-      reasons: [
-        provenanceKnown
-          ? "Subtitle is empty — leaving the highest-leverage 30-char keyword slot unused."
-          : "Subtitle source unavailable — re-scan in a few minutes to confirm.",
-      ],
+      reasons: state.reasons,
+      negativeReasons: state.negativeReasons,
     };
   }
 
   let score = 55;
 
   if (len > APPLE_CAPS.subtitle) {
-    reasons.push(
+    recordReason(
+      state,
       `Subtitle is ${len} characters — exceeds Apple's ${APPLE_CAPS.subtitle}-char cap and will truncate.`,
+      "negative",
     );
     score -= 20;
   } else if (len >= 20 && len <= 28) {
-    reasons.push(`Subtitle length (${len} chars) is in the optimal 20–28 range.`);
+    recordReason(
+      state,
+      `Subtitle length (${len} chars) is in the optimal 20–28 range.`,
+      "positive",
+    );
     score += 10;
   } else {
-    reasons.push(`Subtitle length (${len}/${APPLE_CAPS.subtitle}) leaves room to grow.`);
+    recordReason(
+      state,
+      `Subtitle length (${len}/${APPLE_CAPS.subtitle}) leaves room to grow.`,
+      "neutral",
+    );
   }
 
   if (primary && primary.length > 0) {
@@ -230,20 +288,26 @@ function scoreSubtitle(
     const match = classifyKeywordMatch({ keyword: primary, title: subtitle });
     if (match === "titleExactPhrase") {
       const leadsWith = normalized.startsWith(primary);
-      reasons.push(
+      recordReason(
+        state,
         leadsWith
           ? `Subtitle leads with "${primary}" as an exact phrase — strong placement.`
           : `Subtitle includes "${primary}" as an exact phrase but not at the front.`,
+        "positive",
       );
       score += leadsWith ? 25 : 15;
     } else if (match === "titleAllWords") {
-      reasons.push(
+      recordReason(
+        state,
         `Subtitle includes the tokens of "${primary}" but not as a phrase — convert to a contiguous phrase to gain rank weight.`,
+        "negative",
       );
       score += 8;
     } else {
-      reasons.push(
+      recordReason(
+        state,
         `Subtitle does not include the primary keyword "${primary}" — the cheapest fix available.`,
+        "negative",
       );
       score -= 15;
     }
@@ -253,15 +317,21 @@ function scoreSubtitle(
     .slice(1)
     .filter((k) => k.length > 0 && normalized.includes(k)).length;
   if (otherKeywordsCovered > 0) {
-    reasons.push(
+    recordReason(
+      state,
       `Subtitle picks up ${otherKeywordsCovered} secondary keyword${
         otherKeywordsCovered === 1 ? "" : "s"
       }.`,
+      "positive",
     );
     score += 5 * Math.min(otherKeywordsCovered, 2);
   }
 
-  return { score: clamp(Math.round(score), 0, 100), reasons };
+  return {
+    score: clamp(Math.round(score), 0, 100),
+    reasons: state.reasons,
+    negativeReasons: state.negativeReasons,
+  };
 }
 
 function scoreKeywordsField(
@@ -273,13 +343,17 @@ function scoreKeywordsField(
   // score the user-submitted keywords[] as a proxy — these are the keywords
   // the user actually cares about ranking for, which is what the keywords
   // field should be carrying.
-  const reasons: string[] = [];
+  const state: ReasonState = { reasons: [], negativeReasons: [] };
   if (keywords.length === 0) {
+    recordReason(
+      state,
+      "No keywords provided — can't infer keyword-field strategy.",
+      "negative",
+    );
     return {
       score: 30,
-      reasons: [
-        "No keywords provided — can't infer keyword-field strategy.",
-      ],
+      reasons: state.reasons,
+      negativeReasons: state.negativeReasons,
     };
   }
 
@@ -290,20 +364,24 @@ function scoreKeywordsField(
   const joined = keywords.join(",");
   const budgetUsed = joined.length;
   if (budgetUsed > APPLE_CAPS.keywordsField) {
-    reasons.push(
+    recordReason(
+      state,
       `Keyword set joined to ${budgetUsed} characters — exceeds the 100-char field cap.`,
+      "negative",
     );
     score -= 15;
   } else if (budgetUsed < 30) {
-    reasons.push(
+    recordReason(
+      state,
       `Keyword budget only ${budgetUsed}/100 chars used — room for more terms.`,
+      "negative",
     );
     score -= 10;
   } else if (budgetUsed >= 60 && budgetUsed <= 95) {
-    reasons.push(`Keyword budget (${budgetUsed}/100) is well-utilized.`);
+    recordReason(state, `Keyword budget (${budgetUsed}/100) is well-utilized.`, "positive");
     score += 10;
   } else {
-    reasons.push(`Keyword budget (${budgetUsed}/100) is acceptable.`);
+    recordReason(state, `Keyword budget (${budgetUsed}/100) is acceptable.`, "neutral");
   }
 
   // Diversity: keywords field should not duplicate words already in title +
@@ -319,25 +397,35 @@ function scoreKeywordsField(
     k.toLowerCase().split(/\s+/).every((token) => visibleWords.has(token)),
   );
   if (dupes.length > 0) {
-    reasons.push(
+    recordReason(
+      state,
       `${dupes.length} keyword${dupes.length === 1 ? "" : "s"} duplicate${
         dupes.length === 1 ? "s" : ""
       } words already in the title/subtitle — wasted slots.`,
+      "negative",
     );
     score -= 8 * Math.min(dupes.length, 3);
   } else {
-    reasons.push("Keywords field is diverse — no overlap with title/subtitle.");
+    recordReason(
+      state,
+      "Keywords field is diverse — no overlap with title/subtitle.",
+      "positive",
+    );
     score += 5;
   }
 
   // Duplicates inside the keyword set itself.
   const unique = new Set(keywords.map((k) => k.toLowerCase().trim()));
   if (unique.size < keywords.length) {
-    reasons.push("Duplicate keywords in the set — collapse them.");
+    recordReason(state, "Duplicate keywords in the set — collapse them.", "negative");
     score -= 10;
   }
 
-  return { score: clamp(Math.round(score), 0, 100), reasons };
+  return {
+    score: clamp(Math.round(score), 0, 100),
+    reasons: state.reasons,
+    negativeReasons: state.negativeReasons,
+  };
 }
 
 function scoreDescription(
@@ -348,27 +436,41 @@ function scoreDescription(
   // decisions — the schema name is preserved for SDK compatibility but the
   // content is a description-density heuristic. Notes here therefore should
   // read as descriptive of the listing's *narrative*, not the screenshots.
-  const reasons: string[] = [];
+  const state: ReasonState = { reasons: [], negativeReasons: [] };
   const len = description.length;
   const normalized = description.toLowerCase();
 
   if (len === 0) {
+    recordReason(state, "Description is empty — listing reads thin to humans.", "negative");
     return {
       score: 30,
-      reasons: ["Description is empty — listing reads thin to humans."],
+      reasons: state.reasons,
+      negativeReasons: state.negativeReasons,
     };
   }
 
   let score = 60;
 
   if (len < 200) {
-    reasons.push(`Description is short (${len} chars) — under-using the listing page.`);
+    recordReason(
+      state,
+      `Description is short (${len} chars) — under-using the listing page.`,
+      "negative",
+    );
     score -= 10;
   } else if (len >= 800 && len <= 3000) {
-    reasons.push(`Description length (${len} chars) is well-paced for skim-readers.`);
+    recordReason(
+      state,
+      `Description length (${len} chars) is well-paced for skim-readers.`,
+      "positive",
+    );
     score += 5;
   } else if (len > APPLE_CAPS.description) {
-    reasons.push(`Description exceeds the ${APPLE_CAPS.description}-char cap.`);
+    recordReason(
+      state,
+      `Description exceeds the ${APPLE_CAPS.description}-char cap.`,
+      "negative",
+    );
     score -= 5;
   }
 
@@ -378,13 +480,25 @@ function scoreDescription(
   if (keywords.length > 0) {
     const ratio = covered.length / keywords.length;
     if (ratio >= 0.7) {
-      reasons.push(`Description covers ${covered.length}/${keywords.length} target keywords.`);
+      recordReason(
+        state,
+        `Description covers ${covered.length}/${keywords.length} target keywords.`,
+        "positive",
+      );
       score += 8;
     } else if (ratio === 0) {
-      reasons.push("Description mentions none of the target keywords.");
+      recordReason(
+        state,
+        "Description mentions none of the target keywords.",
+        "negative",
+      );
       score -= 10;
     } else {
-      reasons.push(`Description covers ${covered.length}/${keywords.length} target keywords — could lean in.`);
+      recordReason(
+        state,
+        `Description covers ${covered.length}/${keywords.length} target keywords — could lean in.`,
+        "negative",
+      );
     }
   }
 
@@ -399,14 +513,18 @@ function scoreDescription(
     "free",
   ];
   if (ctaPatterns.some((p) => normalized.includes(p))) {
-    reasons.push("Description includes a call-to-action verb.");
+    recordReason(state, "Description includes a call-to-action verb.", "positive");
     score += 5;
   } else {
-    reasons.push("Description lacks an obvious call-to-action.");
+    recordReason(state, "Description lacks an obvious call-to-action.", "negative");
     score -= 5;
   }
 
-  return { score: clamp(Math.round(score), 0, 100), reasons };
+  return {
+    score: clamp(Math.round(score), 0, 100),
+    reasons: state.reasons,
+    negativeReasons: state.negativeReasons,
+  };
 }
 
 function clamp(n: number, lo: number, hi: number): number {

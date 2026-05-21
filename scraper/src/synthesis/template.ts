@@ -226,21 +226,26 @@ function buildRecommendations(
     });
   }
 
-  // 2) Subtitle rewrite if subtitle subscore is weak (and we didn't already
-  //    cover it via a promotion).
+  // 2) Subtitle rewrite if subtitle subscore is weak AND there's an actual
+  //    negative reason to point at. The metadata scorer can emit a "below 60"
+  //    score whose `reasons[0]` is a *positive* note (e.g., "Subtitle length
+  //    is in the optimal 20–28 range") because reasons[] is order-of-emission,
+  //    not order-of-polarity. We surface `negativeReasons[0]` so the
+  //    recommendation never contradicts its own rationale. When the score
+  //    is below 60 but every reason is positive, the right move is to leave
+  //    the subtitle alone, not to rewrite it.
+  const subtitleSub = input.scoring.metadata.subtitle;
   if (
-    input.scoring.metadata.subtitle.score < 60 &&
+    subtitleSub.score < 60 &&
+    subtitleSub.negativeReasons.length > 0 &&
     !promotions.some((p) => p.action === "add_to_subtitle")
   ) {
-    const reason =
-      input.scoring.metadata.subtitle.reasons[0] ??
-      "Subtitle is under-using its 30-character budget.";
     items.push({
       rank: items.length + 1,
       action: "Rewrite the subtitle.",
       impact: "medium",
       effort: "low",
-      rationale: reason,
+      rationale: subtitleSub.negativeReasons[0]!,
     });
   }
 
@@ -257,7 +262,32 @@ function buildRecommendations(
     });
   }
 
-  // 4) Competitor copy lessons.
+  // 3.5) Apple keyword-field dedup — when the user's submitted keywords[]
+  // overlap tokens already in title/subtitle, those slots are wasted. Apple
+  // indexes title + subtitle automatically, so dupes in the hidden field
+  // burn budget without earning a rank position. Surface as an explicit,
+  // quantified recommendation rather than fixing it silently in readyToPaste.
+  const appleDedup = detectAppleKeywordDedup({
+    keywords: input.context.keywords,
+    title:
+      input.context.appRecord?.name ?? input.context.detectedApp.name,
+    subtitle: input.context.appRecord?.subtitle ?? "",
+  });
+  if (appleDedup.wastedChars >= 6) {
+    const list = appleDedup.dupes.map((d) => `"${d}"`).join(", ");
+    items.push({
+      rank: items.length + 1,
+      action: `Apple keyword dedup — drop ${list} from the keywords field.`,
+      impact: "low",
+      effort: "low",
+      rationale: `Apple indexes your title and subtitle automatically, so repeating ${list} in the 100-char keywords field wastes ${appleDedup.wastedChars} characters. Reclaim those slots for terms only reachable via the hidden field.`,
+    });
+  }
+
+  // 4) Competitor copy lessons. (Brand-token filter in scoring/competitors.ts
+  // already strips a competitor's own brand-name tokens from
+  // uniqueToCompetitor, so this no longer recommends a user copy "stars"
+  // when their competitor is "Pickleball Stars".)
   const topCompetitor = input.scoring.competitors[0];
   if (topCompetitor && topCompetitor.uniqueToCompetitor.length > 0) {
     items.push({
@@ -609,6 +639,34 @@ function makeField(args: {
     charCount: text.length,
     charLimit: args.charLimit,
   };
+}
+
+// Identify single-token user keywords already present in the title or
+// subtitle. Multi-token user keywords (like "habit tracker") are ignored
+// here — they're handled by the field-level dedup logic in
+// buildKeywordsFieldField. Wasted chars approximates how much of the
+// 100-char comma-joined keywords budget the developer reclaims after the
+// fix: sum of token lengths plus one comma per token (minus one because
+// the keywords field has N-1 separators for N tokens).
+function detectAppleKeywordDedup(args: {
+  keywords: readonly string[];
+  title: string;
+  subtitle: string;
+}): { dupes: string[]; wastedChars: number } {
+  const visible = tokenize(`${args.title} ${args.subtitle}`);
+  const dupes: string[] = [];
+  for (const raw of args.keywords) {
+    const k = raw.toLowerCase().trim();
+    if (k.length === 0) continue;
+    if (k.includes(" ")) continue;
+    if (!visible.has(k)) continue;
+    if (dupes.includes(k)) continue;
+    dupes.push(k);
+  }
+  if (dupes.length === 0) return { dupes, wastedChars: 0 };
+  const totalTokenChars = dupes.reduce((acc, k) => acc + k.length, 0);
+  const wastedChars = totalTokenChars + dupes.length - 1;
+  return { dupes, wastedChars };
 }
 
 function tokenize(text: string): Set<string> {

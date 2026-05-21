@@ -193,6 +193,21 @@ export const RegressionItem = z.object({
 });
 export type RegressionItem = z.infer<typeof RegressionItem>;
 
+// Paste-ready translated copy for a mismatched storefront. Additive in the
+// schema — old SDK consumers see this as `null` when the translation layer
+// is disabled / fails / hasn't run. `source: "openai"` means the strings
+// are LLM-translated; `source: "deferred"` means we surfaced a "translate
+// this listing" recommendation instead and the strings are nulled out.
+export const LocalizationRecommendedCopy = z.object({
+  title: z.string().nullable(),
+  subtitle: z.string().nullable(),
+  shortDescription: z.string().nullable(),
+  source: z.enum(["openai", "deferred"]),
+});
+export type LocalizationRecommendedCopy = z.infer<
+  typeof LocalizationRecommendedCopy
+>;
+
 // Phase 5 — per-storefront localization gap detail.
 export const LocalizationStorefront = z.object({
   country: CountryCode,
@@ -204,6 +219,10 @@ export const LocalizationStorefront = z.object({
   localized: z.boolean().nullable(),
   gapScore: z.number().int().min(0).max(100),
   error: z.string().nullable(),
+  // Additive: translated copy for mismatched storefronts when OpenAI is
+  // configured. Default null preserves backward compatibility with
+  // existing SDK consumers and cached fixtures.
+  recommendedCopy: LocalizationRecommendedCopy.nullable().default(null),
 });
 export type LocalizationStorefront = z.infer<typeof LocalizationStorefront>;
 

@@ -34,10 +34,26 @@ function buildInput(): SynthesisInput {
     scoring: {
       metadata: {
         overall: 62,
-        title: { score: 70, reasons: ["Strong brand recall."] },
-        subtitle: { score: 55, reasons: ["Subtitle missing primary keyword."] },
-        keywordsField: { score: 48, reasons: ["Two slots duplicate the title."] },
-        description: { score: 72, reasons: ["Description includes a CTA."] },
+        title: {
+          score: 70,
+          reasons: ["Strong brand recall."],
+          negativeReasons: [],
+        },
+        subtitle: {
+          score: 55,
+          reasons: ["Subtitle missing primary keyword."],
+          negativeReasons: ["Subtitle missing primary keyword."],
+        },
+        keywordsField: {
+          score: 48,
+          reasons: ["Two slots duplicate the title."],
+          negativeReasons: ["Two slots duplicate the title."],
+        },
+        description: {
+          score: 72,
+          reasons: ["Description includes a CTA."],
+          negativeReasons: [],
+        },
       },
       keywords: [
         {

@@ -1,45 +1,31 @@
 // Heuristic intent score for a search keyword on 0–1.
 //
-// The schema (`KeywordDiagnosisItem.intentScore`) expects a continuous value;
-// the synthesis layer reads it back into low/medium/high buckets for prose.
+// Category-agnostic, structural-only. We score from the SHAPE of the
+// keyword — not from a hardcoded vocabulary that only applies to one
+// vertical. Older revisions of this file maintained a `HIGH_INTENT_TOKENS`
+// set tuned for habit-tracker apps (tracker, planner, journal, habit,
+// routine, streak, …). That made every single-word non-productivity
+// keyword (pickleball, dupr, photo, finance, yoga) flatline at exactly
+// 0.5 − 0.15 = 0.35 — silently broken across most of the App Store.
 //
 // Signals (cheap, deterministic, no external lookups):
-//   • Length & word count — multi-word phrases tend to carry higher intent
-//     than single broad terms ("habit tracker" > "habit").
-//   • Specificity modifiers — verbs like "track", "build", "log", concrete
-//     nouns like "tracker", "planner" lift intent.
-//   • Generic / discovery words — "app", "best", "top", "free", "new" drop
+//   • Word count — multi-word phrases carry higher search intent than
+//     broad single terms ("habit tracker" > "habit").
+//   • Brand-likeness for single-word terms — proper-noun / acronym
+//     patterns lift intent (the searcher knows what they want). Detected
+//     from: uppercase letters in the original input, length 3–7 with no
+//     common English suffix, unusual vowel ratio.
+//   • Token length — very short single tokens are usually category
+//     browsers ("app", "ai"); long compound tokens are usually specific
+//     ("pickleball", "scoreboard").
+//   • Generic / discovery stopwords — "best", "top", "free", "new" drop
 //     intent (transactional but unspecific).
-//   • Very short single tokens — often category browsers, lower intent.
 //
-// Output range: 0.10 – 0.95, never the exact boundaries so a value of 0 or 1
-// always reads as "unset" in downstream code.
-
-const HIGH_INTENT_TOKENS = new Set([
-  "tracker",
-  "planner",
-  "journal",
-  "habit",
-  "routine",
-  "streak",
-  "log",
-  "logger",
-  "manager",
-  "schedule",
-  "scheduler",
-  "checklist",
-  "timer",
-  "reminder",
-  "todo",
-  "task",
-  "tasks",
-  "goal",
-  "goals",
-  "challenge",
-  "build",
-  "track",
-  "monitor",
-]);
+// `popularityWeightedIntent` blends this heuristic with Apple Search Ads
+// popularity when available — see below.
+//
+// Output range: 0.10 – 0.95, never the exact boundaries so a value of 0
+// or 1 always reads as "unset" in downstream code.
 
 const LOW_INTENT_TOKENS = new Set([
   "app",
@@ -63,32 +49,78 @@ const LOW_INTENT_TOKENS = new Set([
   "my",
 ]);
 
-export function intentScore(keyword: string): number {
-  const normalized = keyword.trim().toLowerCase();
-  if (normalized.length === 0) return 0.1;
+// Common English derivational suffixes. A 4–7 char single-word keyword
+// that ends in one of these is much less likely to be a proper noun /
+// brand and more likely to be a category-feature word.
+const COMMON_SUFFIX_RE =
+  /(ing|tion|sion|ness|ment|ity|able|ible|ful|less|ous|ish|ly|er|ed|est|ies)$/;
 
+export function intentScore(keyword: string): number {
+  const raw = keyword.trim();
+  if (raw.length === 0) return 0.1;
+
+  const normalized = raw.toLowerCase();
   const tokens = normalized.split(/\s+/).filter((t) => t.length > 0);
   const wordCount = tokens.length;
 
   let score = 0.5;
 
-  // Word-count signal: 1 word floor, 2 words ideal, 3–4 still strong, 5+ falls
-  // off (becomes a sentence rather than a search query).
-  if (wordCount === 1) score -= 0.15;
-  else if (wordCount === 2) score += 0.15;
-  else if (wordCount === 3) score += 0.1;
-  else if (wordCount >= 5) score -= 0.05;
-
-  // Token-level lift / drag.
-  for (const token of tokens) {
-    if (HIGH_INTENT_TOKENS.has(token)) score += 0.08;
-    if (LOW_INTENT_TOKENS.has(token)) score -= 0.05;
+  if (wordCount === 1) {
+    const token = tokens[0]!;
+    score += singleWordAdjustment(token, raw);
+  } else if (wordCount === 2) {
+    score += 0.2; // long-tail sweet spot
+  } else if (wordCount === 3) {
+    score += 0.15;
+  } else if (wordCount === 4) {
+    score += 0.05;
+  } else {
+    score -= 0.05; // 5+ words: sentence, not query
   }
 
-  // Single-character or very short tokens are rarely searched intentionally.
-  if (wordCount === 1 && tokens[0]!.length <= 3) score -= 0.05;
+  // Stopword drag — cap at three hits so a search like
+  // "for the best app" doesn't go to -0.20 below the floor immediately.
+  let stopHits = 0;
+  for (const token of tokens) {
+    if (LOW_INTENT_TOKENS.has(token)) {
+      score -= 0.05;
+      stopHits += 1;
+      if (stopHits >= 3) break;
+    }
+  }
+
+  // Stopword-density penalty — when most/all of a phrase's tokens are
+  // stopwords ("best free app", "the new top app"), the word-count lift
+  // is misleading: it's still a low-intent generic query, just longer.
+  // The drag here pushes those phrases back into the drop band.
+  if (wordCount >= 2 && stopHits / wordCount >= 0.66) {
+    score -= 0.1;
+  }
 
   return clamp(score, 0.1, 0.95);
+}
+
+// Single-word intent shaping. Brand-like tokens (proper nouns, acronyms,
+// niche names like DUPR) get a lift because the searcher already knows
+// what they want. Very short tokens ("app", "ai") get penalized as
+// category browse. Long compound tokens ("pickleball") get a small lift
+// as specific.
+function singleWordAdjustment(token: string, rawKeyword: string): number {
+  const hasUpperBody = /[A-Z]/.test(rawKeyword.slice(1));
+  const len = token.length;
+  const vowels = (token.match(/[aeiou]/g) ?? []).length;
+  const vowelRatio = len > 0 ? vowels / len : 0;
+  const hasCommonSuffix = COMMON_SUFFIX_RE.test(token);
+
+  let brandLike = 0;
+  if (hasUpperBody) brandLike += 0.3;
+  if (len >= 3 && len <= 7 && !hasCommonSuffix) brandLike += 0.15;
+  if (vowelRatio < 0.3 || vowelRatio > 0.6) brandLike += 0.15;
+
+  if (brandLike >= 0.25) return 0.15; // niche/brand lift (DUPR-class)
+  if (len <= 3) return -0.2; // truly broad ("app", "ai")
+  if (len >= 8) return 0.05; // compound/specific ("pickleball")
+  return 0; // 4-7 char common-English token: neutral
 }
 
 export function intentBucket(score: number): "low" | "medium" | "high" {

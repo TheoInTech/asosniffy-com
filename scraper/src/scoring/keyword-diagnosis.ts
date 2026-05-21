@@ -60,6 +60,11 @@ export interface KeywordDiagnosis {
   minDifficulty: number | null;
   difficultyIsFallback: boolean;
   matchKind: KeywordMatchKind;
+  // Lifecycle gate — set true when the target app is too young / too
+  // low-velocity for a `not_found` rank to be evidence of low intent.
+  // Used only by the deterministic prose layer to swap "drop" advice for
+  // "still seeding"; intentionally not surfaced in the public schema yet.
+  isAppSeeding: boolean;
 }
 
 export interface DiagnoseKeywordsInput {
@@ -93,6 +98,7 @@ export function diagnoseKeywords(
     popularityByKeyword.set(p.keyword.toLowerCase(), p);
   }
   const now = Date.now();
+  const isAppSeeding = isAppStillSeeding(input.app, now);
 
   return input.keywords.map((rawKeyword) => {
     const keyword = rawKeyword.trim();
@@ -121,6 +127,7 @@ export function diagnoseKeywords(
       intent,
       coverageInTitle,
       coverageInSubtitle,
+      isAppSeeding,
     });
 
     const difficultyOutcome = scoreKeywordDifficulty({
@@ -148,8 +155,27 @@ export function diagnoseKeywords(
       minDifficulty: difficultyOutcome.minDifficulty,
       difficultyIsFallback: difficultyOutcome.isFallback,
       matchKind,
+      isAppSeeding,
     } satisfies KeywordDiagnosis;
   });
+}
+
+// A `not_found` rank in a 35-day-old listing with 0.11 ratings/day is
+// evidence of "still seeding," not "low intent." Without this gate the
+// drop branch in decideAction fires on every niche/long-tail keyword in a
+// brand-new app and the synthesis layer ends up recommending users drop
+// their most relevant terms. The OR is intentionally permissive:
+// false-positives produce "keep watching" advice (safe), while
+// false-negatives drop high-relevance terms (harmful).
+function isAppStillSeeding(app: AppRecord | null, now: number): boolean {
+  if (!app?.releaseDate) return false;
+  const released = Date.parse(app.releaseDate);
+  if (!Number.isFinite(released)) return false;
+  const days = (now - released) / DAY_MS;
+  if (days < 90) return true;
+  const ratings = app.ratingsSummary?.count ?? 0;
+  const perDay = ratings / Math.max(days, 1);
+  return perDay < 0.5;
 }
 
 interface ScoreKeywordDifficultyInput {
@@ -227,6 +253,7 @@ interface DecideActionInput {
   intent: number;
   coverageInTitle: boolean;
   coverageInSubtitle: boolean;
+  isAppSeeding: boolean;
 }
 
 // Decision matrix derived from the doc's recommendation enum:
@@ -245,6 +272,13 @@ function decideAction(input: DecideActionInput): KeywordAction {
   const ranksWell = input.rankBucket === "1-10" || input.rankBucket === "11-30";
   const ranksPoorly =
     input.rankBucket === "100+" || input.rankBucket === "not_found";
+
+  // Lifecycle gate — seeding apps don't have enough listing-history evidence
+  // to declare a keyword dead. Hold the slot, swap the prose to "still
+  // seeding" downstream, and re-check after the app accumulates velocity.
+  if (input.isAppSeeding && ranksPoorly) {
+    return "keep_in_keywords_field";
+  }
 
   // Drop: low intent + not ranking + not in any visible field.
   if (

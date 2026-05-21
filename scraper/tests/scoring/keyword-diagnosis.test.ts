@@ -68,12 +68,12 @@ describe("diagnoseKeywords", () => {
   });
 
   it("recommends `add_to_subtitle` for medium-intent uncovered keywords", () => {
-    // "morning meditation" has no HIGH_INTENT_TOKENS but the 2-word bonus
-    // lifts it into the medium band (~0.65) — exactly the case `add_to_subtitle`
-    // is designed for.
+    // "scoreboard" is a single-word compound (≥8 chars, no brand-like
+    // signal) — structural-only intent lifts it to ~0.55 (medium band),
+    // which is exactly the case `add_to_subtitle` is designed for.
     const result = diagnoseKeywords({
-      keywords: ["morning meditation"],
-      ranks: [rank("morning meditation", "51-100")],
+      keywords: ["scoreboard"],
+      ranks: [rank("scoreboard", "51-100")],
       app: makeApp({ name: "BrandOnly", subtitle: "Tracker for everyone" }),
     });
     expect(result[0]!.action).toBe("add_to_subtitle");

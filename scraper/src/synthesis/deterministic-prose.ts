@@ -34,6 +34,13 @@ export function buildKeywordRecommendation(d: KeywordDiagnosis): string {
       if (d.coverageInSubtitle) {
         return `Keep "${d.keyword}" in the keywords field — subtitle already carries it; further promotion risks displacing brand.${suffix}`;
       }
+      // Lifecycle-aware framing for a `not_found` keyword while the app
+      // is still seeding (young listing or low ratings velocity). Calling
+      // this "low intent" would be a false negative — the listing simply
+      // hasn't accumulated enough Apple-side signal yet.
+      if (d.isAppSeeding && d.rankBucket === "not_found") {
+        return `Keep "${d.keyword}" in the keywords field — listing is still seeding (young app or low ratings velocity), so "not ranking yet" isn't evidence of low intent. Re-check after the app accumulates more installs and reviews.${suffix}`;
+      }
       return `Keep "${d.keyword}" in the keywords field — ${rankPhrase}; better fit there than in visible metadata.${suffix}`;
     default: {
       const exhaustive: never = d.action;

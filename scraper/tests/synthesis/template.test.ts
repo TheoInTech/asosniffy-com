@@ -27,10 +27,26 @@ function buildInput(overrides: Partial<SynthesisInput> = {}): SynthesisInput {
     scoring: {
       metadata: {
         overall: 62,
-        title: { score: 70, reasons: ["Strong brand recall."] },
-        subtitle: { score: 55, reasons: ["Subtitle misses the primary keyword."] },
-        keywordsField: { score: 48, reasons: ["Two slots duplicate the title."] },
-        description: { score: 72, reasons: ["Description includes a CTA."] },
+        title: {
+          score: 70,
+          reasons: ["Strong brand recall."],
+          negativeReasons: [],
+        },
+        subtitle: {
+          score: 55,
+          reasons: ["Subtitle misses the primary keyword."],
+          negativeReasons: ["Subtitle misses the primary keyword."],
+        },
+        keywordsField: {
+          score: 48,
+          reasons: ["Two slots duplicate the title."],
+          negativeReasons: ["Two slots duplicate the title."],
+        },
+        description: {
+          score: 72,
+          reasons: ["Description includes a CTA."],
+          negativeReasons: [],
+        },
       },
       keywords: [
         {
@@ -137,10 +153,10 @@ describe("synthesizeReportTemplate", () => {
         scoring: {
           metadata: {
             overall: 85,
-            title: { score: 90, reasons: ["Strong."] },
-            subtitle: { score: 80, reasons: ["Strong."] },
-            keywordsField: { score: 80, reasons: ["Diverse."] },
-            description: { score: 85, reasons: ["Strong CTA."] },
+            title: { score: 90, reasons: ["Strong."], negativeReasons: [] },
+            subtitle: { score: 80, reasons: ["Strong."], negativeReasons: [] },
+            keywordsField: { score: 80, reasons: ["Diverse."], negativeReasons: [] },
+            description: { score: 85, reasons: ["Strong CTA."], negativeReasons: [] },
           },
           keywords: [
             {
@@ -225,10 +241,10 @@ describe("synthesizeReportTemplate", () => {
         scoring: {
           metadata: {
             overall: 85,
-            title: { score: 90, reasons: ["Strong."] },
-            subtitle: { score: 80, reasons: ["Strong."] },
-            keywordsField: { score: 80, reasons: ["Diverse."] },
-            description: { score: 85, reasons: ["Strong CTA."] },
+            title: { score: 90, reasons: ["Strong."], negativeReasons: [] },
+            subtitle: { score: 80, reasons: ["Strong."], negativeReasons: [] },
+            keywordsField: { score: 80, reasons: ["Diverse."], negativeReasons: [] },
+            description: { score: 85, reasons: ["Strong CTA."], negativeReasons: [] },
           },
           keywords: [
             {
