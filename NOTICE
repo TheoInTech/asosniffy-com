@@ -7,3 +7,10 @@ This product includes software developed as part of the Sniffy project
 "Sniffy" and "ASOSniffy", together with the pixel-detective mascot, are
 trademarks of Theo Roque. Use of the source code under the MIT License does not
 grant rights to use these marks. See PLAN.md §23 for the open-source posture.
+
+Portions of scraper/src/scoring/keyword-difficulty.ts and
+scraper/src/scoring/keyword-match.ts are derived from
+semihcihan/App-Store-Optimization-CLI
+(https://github.com/semihcihan/App-Store-Optimization-CLI),
+Copyright (c) 2026 Semih Cihan, licensed under the MIT License.
+See LICENSE-THIRD-PARTY.md for the full upstream license text and pinned commit.
