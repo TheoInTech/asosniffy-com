@@ -99,6 +99,17 @@ the track is built around.
 
 ---
 
+## Architecture
+
+Two canonical Mermaid diagrams live in [`docs/architecture.md`](docs/architecture.md):
+
+- **System architecture** — trust boundaries (Client / Vercel / Railway / Morph), the x402 paid loop with the `PAYMENT-REQUIRED` / `PAYMENT-SIGNATURE` / `PAYMENT-RESPONSE` headers, Redis cache, facilitator, and external providers.
+- **Scraper internals** — the paid `/diagnose` endpoint end-to-end: middleware, payment verification, cache + provider fan-out, deterministic scoring, AI synthesis, and response assembly with provenance labels.
+
+Hackathon judges and contributors: start there for the visual map of how an agent's `POST` becomes a settled x402 receipt and a structured report.
+
+---
+
 ## Open-source posture
 
 Sniffy is **MIT-licensed**. The commercial strategy is _open client,

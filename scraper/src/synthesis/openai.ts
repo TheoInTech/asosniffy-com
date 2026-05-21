@@ -1,9 +1,11 @@
 import { z } from "zod";
 import type OpenAI from "openai";
 import {
-  ReadyToPaste,
+  type ReadyToPaste,
+  type ReadyToPasteField,
   RecommendationItem,
 } from "../schemas/index.js";
+import { APPLE_CAPS } from "../scoring/index.js";
 import { env } from "../env.js";
 import { getOpenAiClient } from "./openai-client.js";
 import {
@@ -16,6 +18,7 @@ import {
   logOpenAiCost,
 } from "./cost.js";
 import {
+  SHORT_DESCRIPTION_CAP,
   synthesizeReportTemplate,
   type SynthesisInput,
   type SynthesisOutput,
@@ -38,11 +41,28 @@ export interface OpenAiSynthesisOptions {
   client?: OpenAI | null; // injection seam for tests
 }
 
+// Lean shape: the model only generates the novel text. The adapter fills in
+// `current`, `charCount`, `charLimit`, and the top-level `source` from the
+// scoring input — never trust the model with bookkeeping it can't validate.
+const ReadyToPasteAiField = z.object({
+  recommended: z.string().nullable(),
+  changeReason: z.string().nullable(),
+});
+
 const OpenAiResponseShape = z.object({
   summary: z.string().min(1),
   recommendations: z.array(RecommendationItem).min(1).max(5),
-  readyToPaste: ReadyToPaste,
+  readyToPaste: z.object({
+    title: ReadyToPasteAiField,
+    subtitle: ReadyToPasteAiField,
+    keywordsField: ReadyToPasteAiField,
+    shortDescription: ReadyToPasteAiField,
+  }),
 });
+
+type ReadyToPasteAiPayload = z.infer<
+  typeof OpenAiResponseShape
+>["readyToPaste"];
 
 export async function synthesizeReportOpenAi(
   input: SynthesisInput,
@@ -162,7 +182,7 @@ export async function synthesizeReportOpenAi(
     return {
       summary: validated.data.summary,
       recommendations,
-      readyToPaste: validated.data.readyToPaste,
+      readyToPaste: mergeAiReadyToPaste(input, validated.data.readyToPaste),
     };
   } catch (err) {
     return fallbackWithTelemetry({
@@ -182,6 +202,75 @@ interface FallbackArgs {
     | null
     | undefined;
   reason: string;
+}
+
+// Stitch AI-generated `recommended` + `changeReason` strings onto the
+// server-controlled bookkeeping (`current`, `charCount`, `charLimit`).
+// Also defensively coerces echo cases (`recommended` exactly matches `current`)
+// to `recommended: null` — see PR notes: the model has been told not to
+// echo, but we don't want to ship the bug if it ignores instructions.
+function mergeAiReadyToPaste(
+  input: SynthesisInput,
+  ai: ReadyToPasteAiPayload,
+): ReadyToPaste {
+  const appRecord = input.context.appRecord;
+  const currentTitle = appRecord?.name ?? input.context.detectedApp.name;
+  const currentSubtitle = appRecord?.subtitle ?? "";
+  const currentKeywordsField = input.context.keywords
+    .map((k) => k.toLowerCase().trim())
+    .filter((k) => k.length > 0)
+    .join(",");
+
+  return {
+    title: mergeAiField({
+      current: currentTitle,
+      ai: ai.title,
+      charLimit: APPLE_CAPS.title,
+    }),
+    subtitle: mergeAiField({
+      current: currentSubtitle,
+      ai: ai.subtitle,
+      charLimit: APPLE_CAPS.subtitle,
+    }),
+    keywordsField: mergeAiField({
+      current: currentKeywordsField,
+      ai: ai.keywordsField,
+      charLimit: APPLE_CAPS.keywordsField,
+    }),
+    shortDescription: mergeAiField({
+      current: "",
+      ai: ai.shortDescription,
+      charLimit: SHORT_DESCRIPTION_CAP,
+    }),
+    source: "ai",
+  };
+}
+
+function mergeAiField(args: {
+  current: string;
+  ai: { recommended: string | null; changeReason: string | null };
+  charLimit: number;
+}): ReadyToPasteField {
+  let recommended = args.ai.recommended;
+  let changeReason = args.ai.changeReason;
+  if (
+    recommended !== null &&
+    recommended.toLowerCase() === args.current.toLowerCase()
+  ) {
+    recommended = null;
+    changeReason = null;
+  }
+  if (recommended === null) {
+    changeReason = null;
+  }
+  const text = recommended ?? args.current;
+  return {
+    current: args.current,
+    recommended,
+    changeReason,
+    charCount: text.length,
+    charLimit: args.charLimit,
+  };
 }
 
 function fallbackWithTelemetry(args: FallbackArgs): SynthesisOutput {

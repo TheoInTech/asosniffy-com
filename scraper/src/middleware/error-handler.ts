@@ -55,10 +55,16 @@ export function handleError(err: Error, c: Context): Response {
     }
 
     const combinedMessage = facilitatorDetails?.excerpt
-      ? `${err.message} — body: ${facilitatorDetails.excerpt}`
+      ? `${err.message} -- body: ${facilitatorDetails.excerpt}`
       : err.message;
-    // ASCII-clean header value: drop CR/LF (Hono lowercases names already).
-    const safeMessage = combinedMessage.replace(/[\r\n]+/g, " ").slice(0, 1024);
+    // HTTP header values are ByteString-encoded: any code point > 0xFF
+    // (e.g. em-dash U+2014, smart quotes, accented characters echoed back
+    // from Morph) throws TypeError in undici. Drop CR/LF and replace
+    // non-ASCII with `?` so the header always sets cleanly.
+    const safeMessage = combinedMessage
+      .replace(/[\r\n]+/g, " ")
+      .replace(/[^\x20-\x7E]/g, "?")
+      .slice(0, 1024);
     c.header("X-Sniffy-Error-Message", safeMessage);
     // x402 V2 spec: PAYMENT-REQUIRED header carries Base64(JSON) of a
     // canonical PaymentRequired object so wrapFetchWithPayment / @x402/fetch

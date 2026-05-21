@@ -30,6 +30,8 @@ export {
   MetadataSubscore,
   RecommendationItem,
   ReadyToPaste,
+  ReadyToPasteField,
+  ReadyToPasteSource,
   SampleResponse,
   KeywordMatchKind,
   TargetAppSignals,

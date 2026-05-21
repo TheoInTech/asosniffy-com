@@ -12,6 +12,12 @@ interface PricePerMillion {
 }
 
 const MODEL_PRICING: Record<string, PricePerMillion> = {
+  // Current marketed lineup — developers.openai.com/api/docs/models (2026-05).
+  "gpt-5.5": { inputPerMillion: 5.0, outputPerMillion: 30.0 },
+  "gpt-5.4": { inputPerMillion: 2.5, outputPerMillion: 15.0 },
+  "gpt-5.4-mini": { inputPerMillion: 0.75, outputPerMillion: 4.5 },
+  // Legacy — still callable via API; kept here so OPENAI_MODEL= overrides
+  // produce accurate cost telemetry instead of costUsd: null.
   "gpt-4o-mini": { inputPerMillion: 0.15, outputPerMillion: 0.6 },
   "gpt-4o": { inputPerMillion: 2.5, outputPerMillion: 10.0 },
   "gpt-4.1-mini": { inputPerMillion: 0.4, outputPerMillion: 1.6 },

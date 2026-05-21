@@ -3,6 +3,7 @@ import type {
   DetectedApp,
   Provenance,
   ReadyToPaste,
+  ReadyToPasteField,
   RecommendationItem,
 } from "../schemas/index.js";
 import {
@@ -16,6 +17,12 @@ import {
   effortForAction,
   impactForAction,
 } from "./deterministic-prose.js";
+
+// Google Play short-description cap doesn't match this number, but the
+// existing scoring + UI treat the `shortDescription` slot as a punchy
+// 1-2 sentence summary closer to iOS promotional text. Kept at 240 to
+// preserve pre-refactor behavior; revisit when Android scraping is wired.
+export const SHORT_DESCRIPTION_CAP = 240;
 
 // Deterministic template fallback synthesizer.
 //
@@ -102,17 +109,48 @@ function synthesizeDisclaimerOutput(input: SynthesisInput): SynthesisOutput {
   ];
 
   const primary = input.context.keywords[0] ?? "your category";
+  const sampleSubtitle = truncate(
+    `${capitalize(primary)} — sample`,
+    APPLE_CAPS.subtitle,
+  );
+  const sampleShortDescription = truncate(
+    `${appName} (sample). Re-run when live data is available for an evidence-based ASO diagnosis.`,
+    SHORT_DESCRIPTION_CAP,
+  );
+  const sampleKeywords = buildKeywordsField(input.context.keywords);
+  const disclaimerReason = isFixture
+    ? "Sample data — re-run with live providers for a real recommendation."
+    : "Partial data — provider degraded; re-run for a real recommendation.";
+
   return {
     summary: `${prefix} ${followup}`,
     recommendations,
     readyToPaste: {
-      title: truncate(appName, APPLE_CAPS.title),
-      subtitle: truncate(`${capitalize(primary)} — sample`, APPLE_CAPS.subtitle),
-      keywordsField: buildKeywordsField(input.context.keywords),
-      shortDescription: truncate(
-        `${appName} (sample). Re-run when live data is available for an evidence-based ASO diagnosis.`,
-        240,
-      ),
+      title: makeField({
+        current: truncate(appName, APPLE_CAPS.title),
+        recommended: null,
+        changeReason: disclaimerReason,
+        charLimit: APPLE_CAPS.title,
+      }),
+      subtitle: makeField({
+        current: input.context.appRecord?.subtitle ?? "",
+        recommended: sampleSubtitle,
+        changeReason: disclaimerReason,
+        charLimit: APPLE_CAPS.subtitle,
+      }),
+      keywordsField: makeField({
+        current: sampleKeywords,
+        recommended: null,
+        changeReason: disclaimerReason,
+        charLimit: APPLE_CAPS.keywordsField,
+      }),
+      shortDescription: makeField({
+        current: "",
+        recommended: sampleShortDescription,
+        changeReason: disclaimerReason,
+        charLimit: SHORT_DESCRIPTION_CAP,
+      }),
+      source: "template-fallback",
     },
   };
 }
@@ -250,55 +288,377 @@ function buildRecommendations(
   return items.slice(0, 5);
 }
 
+// Pool of keywords we can splice into the listing. Sorted descending by
+// `weight` so callers iterate in best-first order.
+interface OpportunityKeyword {
+  keyword: string;
+  origin: "user-keyword" | "competitor-unique";
+  weight: number;
+  rankBucket?: string;
+  // Pre-computed coverage flags against the user's current listing — only
+  // populated for user-keyword origin (where `KeywordDiagnosis` already
+  // tracked these); competitor-unique terms compute substring coverage
+  // ad-hoc at the splice site.
+  coverageInTitle: boolean;
+  coverageInSubtitle: boolean;
+}
+
+function collectOpportunityKeywords(
+  input: SynthesisInput,
+): OpportunityKeyword[] {
+  const out: OpportunityKeyword[] = [];
+  const seen = new Set<string>();
+
+  for (const k of input.scoring.keywords) {
+    const key = k.keyword.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      keyword: k.keyword,
+      origin: "user-keyword",
+      weight: k.intentScore,
+      rankBucket: k.rankBucket,
+      coverageInTitle: k.coverageInTitle,
+      coverageInSubtitle: k.coverageInSubtitle,
+    });
+  }
+
+  // Competitor-unique terms anchor at 0.5 — below most user keywords but
+  // above truly dead-weight terms. Real intent for these would require
+  // a separate scoring pass, which we defer until plumbing is justified.
+  for (const c of input.scoring.competitors) {
+    for (const term of c.uniqueToCompetitor) {
+      const key = term.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        keyword: term,
+        origin: "competitor-unique",
+        weight: 0.5,
+        coverageInTitle: false,
+        coverageInSubtitle: false,
+      });
+    }
+  }
+
+  return out.sort((a, b) => b.weight - a.weight);
+}
+
+// Apple's keyword indexer tokenizes on whitespace + punctuation and matches
+// case-insensitively. Substring is a reasonable proxy for "covered" in
+// short fields where exact-phrase placement matters more than precision.
+function fieldContainsKeyword(text: string, keyword: string): boolean {
+  return text.toLowerCase().includes(keyword.toLowerCase());
+}
+
+// Brand prefix candidates to try (longest first) when splicing a keyword
+// into the title. `"Tally: Everything Pickleball"` yields `["Tally"]`. A
+// no-delimiter multi-word name like `"Pawprint Habits"` yields
+// `["Pawprint Habits", "Pawprint"]` so the rewriter can fall back to the
+// first word when the full name is too long to fit any opportunity keyword.
+function brandCandidates(appName: string): string[] {
+  const trimmed = appName.trim();
+  const split = trimmed.split(/[:\-–—|]/);
+  if (split.length > 1) {
+    const head = split[0]?.trim() ?? trimmed;
+    return [head.length > 0 ? head : trimmed];
+  }
+  const firstWord = trimmed.split(/\s+/)[0] ?? trimmed;
+  return firstWord === trimmed ? [trimmed] : [trimmed, firstWord];
+}
+
+function buildTitleField(args: {
+  currentTitle: string;
+  appName: string;
+  opportunities: OpportunityKeyword[];
+}): ReadyToPasteField {
+  const cap = APPLE_CAPS.title;
+  const { currentTitle, appName, opportunities } = args;
+  const brands = brandCandidates(appName);
+
+  // Iterate opportunities in priority order (intent desc). For each, try
+  // brand candidates longest-first so we don't shorten the brand more than
+  // necessary. Return the first (opportunity, brand) combo that fits the cap.
+  for (const o of opportunities) {
+    if (o.coverageInTitle) continue;
+    if (fieldContainsKeyword(currentTitle, o.keyword)) continue;
+
+    for (const brand of brands) {
+      const recommended = `${brand} — ${capitalize(o.keyword)}`;
+      if (recommended.length > cap) continue;
+      if (recommended.toLowerCase() === currentTitle.toLowerCase()) continue;
+
+      const reason =
+        o.origin === "user-keyword" && o.rankBucket
+          ? `Promotes "${o.keyword}" (rank ${o.rankBucket}) into the title — Apple's heaviest-weighted indexed field.`
+          : `Promotes "${o.keyword}" (competitor coverage you don't carry) into the title.`;
+
+      return makeField({
+        current: currentTitle,
+        recommended,
+        changeReason: reason,
+        charLimit: cap,
+      });
+    }
+  }
+
+  return makeField({
+    current: currentTitle,
+    recommended: null,
+    changeReason: null,
+    charLimit: cap,
+  });
+}
+
+function buildSubtitleField(args: {
+  currentSubtitle: string;
+  opportunities: OpportunityKeyword[];
+  primaryCategory: string | undefined;
+  consumedKeyword: string | null;
+}): ReadyToPasteField {
+  const cap = APPLE_CAPS.subtitle;
+  const { currentSubtitle, opportunities, primaryCategory, consumedKeyword } =
+    args;
+  const consumed = consumedKeyword?.toLowerCase() ?? "";
+  const suffix = suffixForCategory(primaryCategory);
+
+  const candidate = opportunities.find((o) => {
+    if (consumed && o.keyword.toLowerCase() === consumed) return false;
+    if (o.coverageInSubtitle) return false;
+    if (fieldContainsKeyword(currentSubtitle, o.keyword)) return false;
+    const text = `${capitalize(o.keyword)} · ${suffix}`;
+    return text.length <= cap;
+  });
+
+  if (!candidate) {
+    return makeField({
+      current: currentSubtitle,
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  const recommended = `${capitalize(candidate.keyword)} · ${suffix}`;
+  if (recommended.toLowerCase() === currentSubtitle.toLowerCase()) {
+    return makeField({
+      current: currentSubtitle,
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  const reason =
+    candidate.origin === "user-keyword" && candidate.rankBucket
+      ? `Promotes "${candidate.keyword}" (rank ${candidate.rankBucket}) into the subtitle, paired with a category cue.`
+      : `Adds "${candidate.keyword}" (competitor coverage) to the subtitle, paired with a category cue.`;
+
+  return makeField({
+    current: currentSubtitle,
+    recommended,
+    changeReason: reason,
+    charLimit: cap,
+  });
+}
+
+function buildKeywordsFieldField(args: {
+  userKeywords: readonly string[];
+  opportunities: OpportunityKeyword[];
+  titleText: string;
+  subtitleText: string;
+}): ReadyToPasteField {
+  const cap = APPLE_CAPS.keywordsField;
+  const { userKeywords, opportunities, titleText, subtitleText } = args;
+  const current = joinKeywords(userKeywords, cap);
+
+  // Recommended set: user keywords + competitor-unique terms not already in
+  // title/subtitle. Apple counts visible-field tokens, so we strip those out.
+  const visibleTokens = tokenize(`${titleText} ${subtitleText}`);
+  const recommendedSet = new Set<string>();
+  for (const k of userKeywords) {
+    const norm = k.toLowerCase().trim();
+    if (norm.length === 0) continue;
+    if (visibleTokens.has(norm)) continue;
+    recommendedSet.add(norm);
+  }
+  for (const o of opportunities) {
+    if (o.origin !== "competitor-unique") continue;
+    const norm = o.keyword.toLowerCase().trim();
+    if (norm.length === 0) continue;
+    if (visibleTokens.has(norm)) continue;
+    recommendedSet.add(norm);
+  }
+  const recommended = joinKeywords(Array.from(recommendedSet), cap);
+
+  if (recommended === current || recommended.length === 0) {
+    return makeField({
+      current,
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  const added = Array.from(recommendedSet).filter(
+    (k) =>
+      !userKeywords.some((u) => u.toLowerCase().trim() === k),
+  );
+  const reason = added.length > 0
+    ? `Adds competitor-coverage terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
+    : `Drops tokens already covered by title/subtitle so each slot earns a new rank.`;
+
+  return makeField({
+    current,
+    recommended,
+    changeReason: reason,
+    charLimit: cap,
+  });
+}
+
+function buildShortDescriptionField(args: {
+  appName: string;
+  opportunities: OpportunityKeyword[];
+  primaryCategory: string | undefined;
+}): ReadyToPasteField {
+  const cap = SHORT_DESCRIPTION_CAP;
+  const { appName, opportunities, primaryCategory } = args;
+  const top = opportunities.slice(0, 2).map((o) => o.keyword.toLowerCase());
+
+  if (top.length === 0) {
+    return makeField({
+      current: "",
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  const benefit = benefitForCategory(primaryCategory);
+  const headline =
+    top.length === 2
+      ? `${appName}: ${top[0]} and ${top[1]} for ${benefit}.`
+      : `${appName}: ${top[0]} for ${benefit}.`;
+  const recommended = truncate(headline, cap);
+
+  const reason = `Leads with your top-intent keyword${top.length === 2 ? "s" : ""} (${top.join(", ")}) instead of generic copy.`;
+
+  return makeField({
+    current: "",
+    recommended,
+    changeReason: reason,
+    charLimit: cap,
+  });
+}
+
 function buildReadyToPaste(input: SynthesisInput): ReadyToPaste {
-  const appName = input.context.detectedApp.name;
-  const existingSubtitle = input.context.appRecord?.subtitle ?? "";
-  const primary = input.context.keywords[0] ?? "your category";
+  const opportunities = collectOpportunityKeywords(input);
+  const currentTitle =
+    input.context.appRecord?.name ?? input.context.detectedApp.name;
+  const currentSubtitle = input.context.appRecord?.subtitle ?? "";
 
-  const titleAction = input.scoring.keywords.find((k) => k.action === "add_to_title");
-  const title = titleAction
-    ? truncate(`${appName} — ${capitalize(titleAction.keyword)}`, APPLE_CAPS.title)
-    : truncate(appName, APPLE_CAPS.title);
+  const title = buildTitleField({
+    currentTitle,
+    appName: input.context.detectedApp.name,
+    opportunities,
+  });
 
-  const subtitleAction = input.scoring.keywords.find(
-    (k) => k.action === "add_to_subtitle",
-  );
-  const subtitle = subtitleAction
-    ? truncate(
-        `${capitalize(subtitleAction.keyword)} & ${suffixForCategory(input.context.appRecord?.primaryCategory)}`,
-        APPLE_CAPS.subtitle,
-      )
-    : truncate(
-        existingSubtitle.length > 0
-          ? existingSubtitle
-          : `${capitalize(primary)} for indie builders`,
-        APPLE_CAPS.subtitle,
-      );
+  // Pass the keyword that title consumed so subtitle picks a different one.
+  const titleConsumed = extractKeywordFromTitle(title.recommended);
 
-  const keywordsField = buildKeywordsField(input.context.keywords);
+  const subtitle = buildSubtitleField({
+    currentSubtitle,
+    opportunities,
+    primaryCategory: input.context.appRecord?.primaryCategory,
+    consumedKeyword: titleConsumed,
+  });
 
-  const shortDescription = truncate(
-    `${appName} helps you with ${primary.toLowerCase()} — focused, fast, and built for the workflow you already have.`,
-    240,
-  );
+  const keywordsField = buildKeywordsFieldField({
+    userKeywords: input.context.keywords,
+    opportunities,
+    titleText: title.recommended ?? currentTitle,
+    subtitleText: subtitle.recommended ?? currentSubtitle,
+  });
+
+  const shortDescription = buildShortDescriptionField({
+    appName: input.context.detectedApp.name,
+    opportunities,
+    primaryCategory: input.context.appRecord?.primaryCategory,
+  });
 
   return {
     title,
     subtitle,
     keywordsField,
     shortDescription,
+    source: "deterministic",
   };
 }
 
-function buildKeywordsField(keywords: readonly string[]): string {
-  if (keywords.length === 0) return "";
-  // App Store Connect uses comma-joined single tokens, no spaces, lowercased.
-  // We approximate by joining the user-provided phrases with commas.
+function makeField(args: {
+  current: string;
+  recommended: string | null;
+  changeReason: string | null;
+  charLimit: number;
+}): ReadyToPasteField {
+  const text = args.recommended ?? args.current;
+  return {
+    current: args.current,
+    recommended: args.recommended,
+    changeReason: args.changeReason,
+    charCount: text.length,
+    charLimit: args.charLimit,
+  };
+}
+
+function tokenize(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length > 0),
+  );
+}
+
+function joinKeywords(keywords: readonly string[], cap: number): string {
   const joined = keywords
     .map((k) => k.toLowerCase().trim())
     .filter((k) => k.length > 0)
     .join(",");
-  return truncate(joined, APPLE_CAPS.keywordsField);
+  return truncate(joined, cap);
+}
+
+function buildKeywordsField(keywords: readonly string[]): string {
+  return joinKeywords(keywords, APPLE_CAPS.keywordsField);
+}
+
+// Recover the keyword the deterministic title-rewriter spliced in (the
+// portion after the brand prefix). Returns null when title is unchanged
+// or doesn't follow the "<brand> — <keyword>" shape.
+function extractKeywordFromTitle(recommended: string | null): string | null {
+  if (recommended === null) return null;
+  const match = /[—\-–]\s+(.+)$/.exec(recommended);
+  return match?.[1]?.trim() ?? null;
+}
+
+function benefitForCategory(category: string | undefined): string {
+  if (!category) return "indie builders";
+  switch (category.toLowerCase()) {
+    case "productivity":
+      return "people who track what matters";
+    case "education":
+      return "daily learners";
+    case "health & fitness":
+      return "anyone building healthier habits";
+    case "lifestyle":
+      return "daily rituals that stick";
+    case "sports":
+      return "players, leagues, and clubs";
+    case "games":
+      return "fans who want to win more";
+    default:
+      return "indie builders";
+  }
 }
 
 function suffixForCategory(category: string | undefined): string {

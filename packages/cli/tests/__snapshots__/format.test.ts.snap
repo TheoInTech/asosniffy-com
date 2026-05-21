@@ -2,7 +2,7 @@
 
 exports[`formatPaid (and formatSample, which wraps it) > renders all expected sections deterministically 1`] = `
 "Sniffy report — sniffId sniff_sample_001
-requestId req_sample_2026_05_mvp  ·  version 2026-05-mvp
+requestId req_sample_2026_05_mvp  ·  version 2026-05-mvp-2
 
 Summary
   Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has two low-value slots that should be reclaimed.
@@ -47,9 +47,17 @@ Recommendations
     Streakly's lead with streaks correlates with its higher conversion on shared keywords; first-frame promotion is the cheapest test.
 
 Ready to paste
-  title                       Pawprint Habits
-  subtitle                    Habit Tracker · Streaks & Routines
-  keywords                    daily,routine,streak,morning,evening,checklist,journal,calendar
+  source: ◐ deterministic
+  title                       [NO CHANGE] (15/30)
+    current     Pawprint Habits
+  subtitle                    Habit Tracker · Streaks & Routines (34/30)
+    why         Promotes "habit tracker" (rank 11-30) into the subtitle, paired with a category cue.
+    current     Track your daily routine
+  keywords                    daily,routine,streak,morning,evening,checklist,journal,calendar (64/100)
+    why         Adds competitor-coverage terms (evening, checklist, calendar) and drops tokens already in title/subtitle.
+    current     habit,daily,routine,streak,morning,journal
+  short desc                  Pawprint Habits: habit tracker and streaks for daily routines that stick. (74/240)
+    why         Leads with your top-intent keywords (habit tracker, streaks) instead of generic copy.
 
 Receipt
   network                     eip155:2910

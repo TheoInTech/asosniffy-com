@@ -88,7 +88,6 @@ export function HomeView() {
         <div className="mt-8 space-y-6">
           <QuoteResponseView
             quote={quote}
-            onUnlock={() => undefined}
             isReQuoting={quoteMutation.isPending}
             onSelectCandidate={(appId) => {
               if (!lastRequest) return;

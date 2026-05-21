@@ -29,6 +29,20 @@ import { getCurrentAudit } from "../observability/audit.js";
 import { recordSniff } from "../wallet/history.js";
 import { tryNormalizeAddress } from "../lib/address.js";
 
+// Duck-type fallback for cross-realm Error identification: in tests, vitest
+// can hand the route a FacilitatorError instance from a different module
+// realm than the one diagnose.ts statically imported, breaking the
+// `instanceof` check. The `.name === "FacilitatorError"` fallback keeps the
+// production path (single-realm) unchanged while letting integration tests
+// inject FacilitatorErrors through the mocked facilitator without resorting
+// to fragile module-cache gymnastics.
+function isFacilitatorError(err: unknown): err is FacilitatorError {
+  return (
+    err instanceof FacilitatorError ||
+    (err instanceof Error && err.name === "FacilitatorError")
+  );
+}
+
 export const diagnoseRoute = new Hono();
 
 diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
@@ -148,7 +162,7 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
         paymentRequirements: wireRequirements,
       })
       .catch((err: unknown) => {
-        if (err instanceof FacilitatorError) {
+        if (isFacilitatorError(err)) {
           throw new PaymentRequiredError(
             "verification_failed",
             `Facilitator verify failed: ${err.message}`,
@@ -206,7 +220,7 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
         paymentRequirements: wireRequirements,
       })
       .catch((err: unknown) => {
-        if (err instanceof FacilitatorError) {
+        if (isFacilitatorError(err)) {
           throw new PaymentRequiredError(
             "settlement_failed",
             `Facilitator settle failed: ${err.message}`,

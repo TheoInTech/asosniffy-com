@@ -3,6 +3,8 @@ import type {
   DiagnosePaidResponse,
   Provenance,
   QuoteResponse,
+  ReadyToPasteField,
+  ReadyToPasteSource,
   SampleResponse,
 } from "@sniffy/sdk";
 import { getExplorerUrl } from "./explorer.js";
@@ -59,6 +61,38 @@ function table(
     }
   }
   return lines.join("\n");
+}
+
+const SOURCE_ICON: Record<ReadyToPasteSource, string> = {
+  ai: "●",
+  deterministic: "◐",
+  "template-fallback": "◇",
+};
+
+function sourceLabel(s: ReadyToPasteSource): string {
+  return `${SOURCE_ICON[s]} ${s}`;
+}
+
+function pushReadyToPasteField(
+  lines: string[],
+  label: string,
+  field: ReadyToPasteField,
+): void {
+  const counter = `(${field.charCount}/${field.charLimit})`;
+  if (field.recommended === null) {
+    lines.push(row(label, `${MUTED("[NO CHANGE]")} ${MUTED(counter)}`));
+    if (field.current.length > 0) {
+      lines.push(MUTED(`    current     ${field.current}`));
+    }
+    return;
+  }
+  lines.push(row(label, `${field.recommended} ${MUTED(counter)}`));
+  if (field.changeReason !== null) {
+    lines.push(MUTED(`    why         ${field.changeReason}`));
+  }
+  if (field.current.length > 0) {
+    lines.push(MUTED(`    current     ${field.current}`));
+  }
 }
 
 function recommendations(items: DiagnosePaidResponse["recommendations"]): string {
@@ -207,11 +241,11 @@ export function formatPaid(r: DiagnosePaidResponse): string {
 
   if (r.readyToPaste !== undefined) {
     lines.push(header("Ready to paste"));
-    if (r.readyToPaste.title !== undefined) lines.push(row("title", r.readyToPaste.title));
-    if (r.readyToPaste.subtitle !== undefined) lines.push(row("subtitle", r.readyToPaste.subtitle));
-    if (r.readyToPaste.keywordsField !== undefined) {
-      lines.push(row("keywords", r.readyToPaste.keywordsField));
-    }
+    lines.push(MUTED(`  source: ${sourceLabel(r.readyToPaste.source)}`));
+    pushReadyToPasteField(lines, "title", r.readyToPaste.title);
+    pushReadyToPasteField(lines, "subtitle", r.readyToPaste.subtitle);
+    pushReadyToPasteField(lines, "keywords", r.readyToPaste.keywordsField);
+    pushReadyToPasteField(lines, "short desc", r.readyToPaste.shortDescription);
   }
 
   lines.push(receiptBlock(r.receipt));

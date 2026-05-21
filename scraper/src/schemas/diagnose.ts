@@ -268,11 +268,36 @@ export const RecommendationItem = z.object({
 });
 export type RecommendationItem = z.infer<typeof RecommendationItem>;
 
+// Per-field structure used by `readyToPaste`. `recommended === null` is the
+// honest "no change" signal — the field is already optimal and the UI should
+// surface a NO CHANGE state rather than echoing `current` back. Agents
+// consuming the SDK branch on this to avoid rewriting a listing into itself.
+export const ReadyToPasteField = z.object({
+  current: z.string(),
+  recommended: z.string().nullable(),
+  changeReason: z.string().nullable(),
+  charCount: z.number().int().nonnegative(),
+  charLimit: z.number().int().positive(),
+});
+export type ReadyToPasteField = z.infer<typeof ReadyToPasteField>;
+
+// `source` distinguishes deterministic ranked-rewrite from the AI path so the
+// founder (and tests) can see which engine produced the recommendation.
+// `template-fallback` is reserved for the legacy stock-copy path — present
+// only as a defensive value; the deterministic rewriter has replaced it.
+export const ReadyToPasteSource = z.enum([
+  "ai",
+  "deterministic",
+  "template-fallback",
+]);
+export type ReadyToPasteSource = z.infer<typeof ReadyToPasteSource>;
+
 export const ReadyToPaste = z.object({
-  title: z.string(),
-  subtitle: z.string(),
-  keywordsField: z.string(),
-  shortDescription: z.string(),
+  title: ReadyToPasteField,
+  subtitle: ReadyToPasteField,
+  keywordsField: ReadyToPasteField,
+  shortDescription: ReadyToPasteField,
+  source: ReadyToPasteSource,
 });
 export type ReadyToPaste = z.infer<typeof ReadyToPaste>;
 

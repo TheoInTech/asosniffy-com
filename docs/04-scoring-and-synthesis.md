@@ -58,7 +58,7 @@ Turn the structured provider output from Phase 03 into the paid-report sections 
     - `recommendations`: ranked array of 3–5 next-action items, each with `action`, `rationale`, `expectedImpact: 'high'|'medium'|'low'`
     - `readyToPaste`: title, subtitle, keywords-field text, short-description suggestions, **each constrained to App Store character limits**
   - Prompt template lives in `scraper/src/synthesis/prompts/full-report.ts` as a typed string template. Keep prompt under ~1500 tokens; pass scoring output as JSON, not prose, so the model can read it efficiently
-  - Use `gpt-4o-mini` by default (cost discipline per §24.3); allow override via `OPENAI_MODEL` env var
+  - Use `gpt-5.4-mini` by default (current marketed lineup, ~$0.003 per call — 2× under the §24.3 budget); allow override via `OPENAI_MODEL` env var (e.g. `gpt-4o-mini` at ~$0.0004/call for maximum margin)
   - Response is JSON (use OpenAI's JSON mode); validate against the Zod schemas for `Recommendation` and `ReadyToPaste` before returning. On parse failure, fall through to the template fallback (04.p3)
   - **All outputs tagged `provenance: 'inferred'`**
   - Cost telemetry: log `{ requestId, modelInputTokens, modelOutputTokens, costUsd }` per call (for the `business-model.md` §6 dashboard)
@@ -67,7 +67,7 @@ Turn the structured provider output from Phase 03 into the paid-report sections 
   - `synthesizeReport(...)` with mocked OpenAI returns valid `Recommendation[]`, `ReadyToPaste`, and `summary`
   - When `OPENAI_API_KEY` is unset, the function delegates to 04.p3 and **does not throw**
   - Token-cost log line is emitted for every call
-- **Out of scope**: do not implement a streaming response (the API is request/response); do not fine-tune or use a Claude model for this (cost target favors `gpt-4o-mini`); do not synthesize the deterministic `metadataScore` fields — those come from 04.p1 unchanged
+- **Out of scope**: do not implement a streaming response (the API is request/response); do not fine-tune or use a Claude model for this (cost target favors a `gpt-5.4-mini`-class OpenAI mini model); do not synthesize the deterministic `metadataScore` fields — those come from 04.p1 unchanged
 - **References**: `PLAN.md` §9, §13; `business-model.md` §3; `claude-api` skill (for prompt-engineering discipline)
 
 ### 04.p3 — Template-only fallback synthesis

@@ -80,7 +80,7 @@ function aiReply(payload: object, usage?: object): object {
     id: "chatcmpl-test-1",
     object: "chat.completion",
     created: 1717182982,
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-mini",
     choices: [
       {
         index: 0,
@@ -125,11 +125,23 @@ const VALID_AI_PAYLOAD = {
     },
   ],
   readyToPaste: {
-    title: "Pawprint Habits — Tracker",
-    subtitle: "Habit Tracker · Streaks",
-    keywordsField: "habit,tracker,routine",
-    shortDescription:
-      "Pawprint Habits helps you build a habit tracker workflow that sticks.",
+    title: {
+      recommended: "Pawprint Habits — Tracker",
+      changeReason: "Promotes 'habit tracker' (rank 31-50) into the title.",
+    },
+    subtitle: {
+      recommended: "Habit Tracker · Streaks",
+      changeReason: "Lifts the highest-intent term into the indexed subtitle.",
+    },
+    keywordsField: {
+      recommended: "habit,routine,mindful,planner",
+      changeReason: "Drops title-redundant tokens and adds competitor terms.",
+    },
+    shortDescription: {
+      recommended:
+        "Pawprint Habits: habit tracker and routines for indie builders.",
+      changeReason: "Leads with the top-intent keyword.",
+    },
   },
 };
 
@@ -212,6 +224,46 @@ describe("synthesizeReportOpenAi — happy path", () => {
   });
 });
 
+describe("synthesizeReportOpenAi — echo coercion", () => {
+  it("coerces recommended === current to recommended:null defensively", async () => {
+    const echoPayload = {
+      ...VALID_AI_PAYLOAD,
+      readyToPaste: {
+        title: {
+          recommended: "Pawprint Habits",
+          changeReason: "Some reasoning that should be discarded.",
+        },
+        subtitle: {
+          recommended: "Different subtitle here",
+          changeReason: "Real improvement.",
+        },
+        keywordsField: {
+          recommended: "habit",
+          changeReason: "Adjusted.",
+        },
+        shortDescription: {
+          recommended: "Pawprint Habits short description.",
+          changeReason: "Suggested copy.",
+        },
+      },
+    };
+    server.use(http.post(OPENAI_CHAT, () => HttpResponse.json(aiReply(echoPayload))));
+
+    const result = await synthesizeReportOpenAi(buildInput(), {
+      requestId: "req_test_echo",
+      client: makeClient(),
+    });
+
+    // Title.current === detectedApp.name "Pawprint Habits" → must coerce to null
+    expect(result.readyToPaste.title.recommended).toBeNull();
+    expect(result.readyToPaste.title.changeReason).toBeNull();
+    expect(result.readyToPaste.title.current).toBe("Pawprint Habits");
+    // Subtitle differs so it stays
+    expect(result.readyToPaste.subtitle.recommended).toBe("Different subtitle here");
+    expect(result.readyToPaste.source).toBe("ai");
+  });
+});
+
 describe("synthesizeReportOpenAi — fallback paths", () => {
   beforeEach(() => vi.restoreAllMocks());
 
@@ -237,7 +289,7 @@ describe("synthesizeReportOpenAi — fallback paths", () => {
       id: "chatcmpl-test",
       object: "chat.completion",
       created: 1,
-      model: "gpt-4o-mini",
+      model: "gpt-5.4-mini",
       choices: [
         { index: 0, message: { role: "assistant", content: "{not json" }, finish_reason: "stop" },
       ],

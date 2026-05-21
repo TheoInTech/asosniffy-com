@@ -251,13 +251,15 @@ const EnvSchema = z.object({
   // OpenAI synthesis (Phase 04). Both optional — when OPENAI_API_KEY is unset
   // (or empty, e.g. `OPENAI_API_KEY= pnpm test`), the orchestrator falls
   // through to the template synthesizer (PLAN.md §14 reliability guarantee).
-  // Default model honors business-model.md §3 unit economics: gpt-4o-mini at
-  // ~$0.15/1M input + $0.60/1M output tokens.
+  // Default model honors business-model.md §3 unit economics: gpt-5.4-mini at
+  // $0.75/1M input + $4.50/1M output (~$0.003 per /diagnose call, ~2× under
+  // the $0.005–$0.020 envelope). gpt-4o-mini remains accepted via
+  // OPENAI_MODEL= override (~$0.0004/call) for cost-sensitive deploys.
   OPENAI_API_KEY: z.preprocess(
     (v) => (typeof v === "string" && v.trim().length === 0 ? undefined : v),
     z.string().min(1).optional(),
   ),
-  OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  OPENAI_MODEL: z.string().min(1).default("gpt-5.4-mini"),
   OPENAI_BASE_URL: z.preprocess(
     (v) => (typeof v === "string" && v.trim().length === 0 ? undefined : v),
     z.string().url().optional(),
@@ -300,6 +302,14 @@ const ASSET_DEFAULTS = {
     eip712Version: "1.0",
   },
 } as const;
+
+function isOfficialMorphFacilitator(url: string): boolean {
+  try {
+    return new URL(url).host === "morph-rails.morph.network";
+  } catch {
+    return false;
+  }
+}
 
 function resolveActiveAsset(parsed: RawEnv) {
   const network = parsed.MORPH_NETWORK;
@@ -387,6 +397,31 @@ function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
       "RANK_HISTORY_ENABLED=true but SNIFFY_HISTORY_HMAC_SECRET is unset. " +
         "Generate one with `openssl rand -hex 32` and set it in Railway env, " +
         "or flip RANK_HISTORY_ENABLED=false to disable history persistence.",
+    );
+  }
+
+  // Non-fatal heads-up for local dev: Morph's official facilitator at
+  // morph-rails.morph.network has been returning HTTP 500 on /v2/verify
+  // (both Mainnet and Hoodi) since at least 2026-05-20. With
+  // MORPH_FACILITATOR_MODE=morph-official, /diagnose calls will fail at the
+  // facilitator boundary until Morph restores service. Flip to
+  // fixture-receipt for offline iteration; keep morph-official for the
+  // canonical x402 demo path.
+  if (
+    parsed.NODE_ENV === "development" &&
+    parsed.MORPH_FACILITATOR_MODE === "morph-official" &&
+    isOfficialMorphFacilitator(parsed.MORPH_FACILITATOR_URL)
+  ) {
+    process.stderr.write(
+      `${JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "warn",
+        message: "morph_facilitator_outage_advisory",
+        facilitatorUrl: parsed.MORPH_FACILITATOR_URL,
+        mode: parsed.MORPH_FACILITATOR_MODE,
+        advice:
+          "Morph's official facilitator is currently degraded. Set MORPH_FACILITATOR_MODE=fixture-receipt for offline dev iteration; keep morph-official for the canonical x402 demo path.",
+      })}\n`,
     );
   }
 

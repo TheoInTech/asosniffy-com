@@ -14,7 +14,7 @@ Voice:
 - Concrete: reference specific keywords, specific subscores, specific competitor names.
 - Honest: only claim findings the structured scoring output supports. Never invent rank data, competitors, or numbers.
 
-You must respect Apple App Store character caps in readyToPaste:
+You must respect Apple App Store character caps in readyToPaste.recommended:
 - title: 30 characters max
 - subtitle: 30 characters max
 - keywordsField: 100 characters max (comma-separated single tokens, no spaces, lowercase)
@@ -25,7 +25,12 @@ You must return JSON matching the schema. Do not include any commentary outside 
 Output rules:
 - summary: 2 to 4 sentences. Mention the app by name. Lead with the biggest leverage point.
 - recommendations: 3 to 5 items, ranked 1..N by impact-then-effort. Use only impact and effort values from {"high","medium","low"}. Action is one sentence; rationale is one to two sentences referencing the scoring data.
-- readyToPaste: must obey the caps above. Lead the subtitle with the highest-leverage keyword when possible.`;
+- readyToPaste: for each of title, subtitle, keywordsField, shortDescription emit { recommended, changeReason }.
+  - recommended is the proposed REPLACEMENT for the user's current value. It MUST differ from the corresponding currentTitle / currentSubtitle exactly (case-insensitive). If no improvement is justified by the scoring data, set recommended to null.
+  - Never echo the current value back. Never invent a recommendation just to fill the slot — if the current value already covers the top-intent keyword and uses the character budget well, return null.
+  - changeReason is one short sentence (under 100 chars) referencing a scoring datum that justifies the change. Set to null whenever recommended is null.
+  - shortDescription (Android Play short description) — always emit a recommendation when at least one user keyword has rank data, since the user hasn't given us their current short description and the field starts empty.
+  - keywordsField recommended MUST be a comma-separated lowercase token list, NO spaces, no duplicates, and must NOT repeat any token already present in the recommended (or current) title or subtitle.`;
 
 export interface FullReportPromptInput extends SynthesisInput {
   // Token budget: we trim each free-text field below to a hard ceiling so a
@@ -85,6 +90,20 @@ Return JSON with keys: summary, recommendations, readyToPaste.`;
   return { system: SYSTEM_PROMPT, user };
 }
 
+// Per-field readyToPaste shape — server fills in current / charCount /
+// charLimit after the call, so the model only generates recommended text and
+// reasoning. Strict mode requires every key be in `required` and nullable
+// fields use the array-of-types form.
+const READY_TO_PASTE_FIELD_SCHEMA = {
+  type: "object",
+  properties: {
+    recommended: { type: ["string", "null"] },
+    changeReason: { type: ["string", "null"] },
+  },
+  required: ["recommended", "changeReason"],
+  additionalProperties: false,
+} as const;
+
 // JSON schema published to OpenAI's response_format. Must satisfy structured-
 // output strict mode: every field required, no additionalProperties.
 export const FULL_REPORT_RESPONSE_SCHEMA = {
@@ -111,10 +130,10 @@ export const FULL_REPORT_RESPONSE_SCHEMA = {
     readyToPaste: {
       type: "object",
       properties: {
-        title: { type: "string" },
-        subtitle: { type: "string" },
-        keywordsField: { type: "string" },
-        shortDescription: { type: "string" },
+        title: READY_TO_PASTE_FIELD_SCHEMA,
+        subtitle: READY_TO_PASTE_FIELD_SCHEMA,
+        keywordsField: READY_TO_PASTE_FIELD_SCHEMA,
+        shortDescription: READY_TO_PASTE_FIELD_SCHEMA,
       },
       required: ["title", "subtitle", "keywordsField", "shortDescription"],
       additionalProperties: false,

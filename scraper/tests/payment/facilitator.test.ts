@@ -342,6 +342,106 @@ describe("createFacilitatorClient", () => {
     });
   });
 
+  it("throws FacilitatorError when httpFetch rejects (network error)", async () => {
+    // Models the user's req_uFTHJ8KVjm0E case: TypeError("fetch failed") from
+    // node:fetch on connection reset/DNS/TLS failure. Without translation, this
+    // bubbles up as an uncaught error → opaque HTTP 500.
+    const fetchImpl: typeof fetch = async () => {
+      throw new TypeError("fetch failed");
+    };
+    const client = createFacilitatorClient({
+      accessKey: ACCESS_KEY,
+      secretKey: SECRET_KEY,
+      fetchImpl,
+    });
+    await expect(
+      client.settle({
+        x402Version: 2,
+        paymentPayload: {},
+        paymentRequirements: {},
+      }),
+    ).rejects.toMatchObject({
+      name: "FacilitatorError",
+      status: 0,
+      path: "/x402/v2/settle",
+      method: "POST",
+      body: { networkError: "fetch failed" },
+    });
+  });
+
+  it("settle() throws FacilitatorError when the 200 body fails schema validation", async () => {
+    // Models the user's observed bug: Morph returns HTTP 200 but `transaction`
+    // is malformed (empty string) and `network` isn't a CAIP-2 identifier.
+    // SettleResponse.parse() would throw a raw ZodError; we expect it wrapped
+    // as a FacilitatorError so the diagnose route's 402 settlement_failed
+    // taxonomy handles it instead of leaking HTTP 400 invalid_body.
+    const { fetchImpl } = captureFetch({
+      status: 200,
+      body: {
+        success: true,
+        transaction: "",
+        network: "morph-hoodi",
+      },
+    });
+    const client = createFacilitatorClient({
+      accessKey: ACCESS_KEY,
+      secretKey: SECRET_KEY,
+      fetchImpl,
+    });
+    let captured: unknown;
+    try {
+      await client.settle({
+        x402Version: 2,
+        paymentPayload: {},
+        paymentRequirements: {},
+      });
+    } catch (e) {
+      captured = e;
+    }
+    expect(captured).toBeInstanceOf(FacilitatorError);
+    const err = captured as FacilitatorError;
+    expect(err.status).toBe(200);
+    expect(err.path).toBe("/x402/v2/settle");
+    expect(err.method).toBe("POST");
+    expect(err.message).toContain("transaction");
+    expect(err.message).toContain("network");
+    expect(err.body).toMatchObject({
+      success: true,
+      transaction: "",
+      network: "morph-hoodi",
+    });
+  });
+
+  it("verify() throws FacilitatorError when the 200 body fails schema validation", async () => {
+    // Verify symmetry with settle(): a 200-with-garbage from /v2/verify must
+    // also map to FacilitatorError, not a raw ZodError.
+    const { fetchImpl } = captureFetch({
+      status: 200,
+      body: {
+        // isValid is required by VerifyResponse — omitting it triggers a
+        // ZodError on the boolean type rather than on a regex.
+        invalidReason: "nope",
+      },
+    });
+    const client = createFacilitatorClient({
+      accessKey: ACCESS_KEY,
+      secretKey: SECRET_KEY,
+      fetchImpl,
+    });
+    await expect(
+      client.verify({
+        x402Version: 2,
+        paymentPayload: {},
+        paymentRequirements: {},
+      }),
+    ).rejects.toMatchObject({
+      name: "FacilitatorError",
+      status: 200,
+      path: "/x402/v2/verify",
+      method: "POST",
+    });
+  });
+
   it("does not bake secrets into the FacilitatorError message", async () => {
     const { fetchImpl } = captureFetch({
       status: 500,

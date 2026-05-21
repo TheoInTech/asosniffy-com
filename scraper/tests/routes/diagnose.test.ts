@@ -6,6 +6,7 @@ import {
   DiagnoseUnpaidResponse,
   Receipt,
 } from "../../src/schemas/index.js";
+import { FacilitatorError } from "../../src/payment/facilitator/index.js";
 
 // Mock the facilitator singleton before importing the app. Each test swaps in
 // its own behavior via mockReturnValue / mockResolvedValue.
@@ -233,6 +234,49 @@ describe("POST /api/v1/aso/diagnose — unpaid paths", () => {
     const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
     expect(res.status).toBe(402);
     expect(res.headers.get("X-Sniffy-Error-Code")).toBe("settlement_failed");
+  });
+
+  it("returns 402 settlement_failed when Morph returns 200 with malformed Settle body (parse-failure wrapped as FacilitatorError)", async () => {
+    // Regression: Morph's /v2/settle was observed returning HTTP 200 with
+    // `transaction: ""` and `network: "morph-hoodi"` — both failing
+    // SettleResponse's regex/CAIP-2 validators. Pre-fix, the raw ZodError
+    // leaked to the global handler and the user saw an opaque HTTP 400
+    // "invalid_body" implying their request was bad. Post-fix, the client
+    // wraps the parse failure as FacilitatorError so the diagnose route's
+    // existing 402 settlement_failed branch handles it. The reported
+    // facilitator status (200) and the failing field paths must propagate
+    // into the response headers so the UI can show useful copy.
+    verifyMock.mockResolvedValue({ isValid: true });
+    // `mockRejectedValue` (async rejection) — a synchronous throw breaks the
+    // route's `await facilitator.settle(...).catch(...)` chain, since the
+    // .catch is on a promise that never gets returned.
+    settleMock.mockRejectedValue(
+      new FacilitatorError({
+        status: 200,
+        body: { success: true, transaction: "", network: "morph-hoodi" },
+        path: "/x402/v2/settle",
+        method: "POST",
+        message:
+          "Morph POST /x402/v2/settle returned HTTP 200 with body that failed schema validation: transaction: Invalid; network: CAIP-2 identifier, eip155:<chainId>",
+      }),
+    );
+    getFacilitatorMock.mockReturnValue({
+      verify: verifyMock,
+      settle: settleMock,
+      baseUrl: "https://test.example.com/x402",
+      getSupported: vi.fn(),
+    });
+    const header = buildAuthHeader();
+    const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
+    expect(res.status).toBe(402);
+    expect(res.headers.get("X-Sniffy-Error-Code")).toBe("settlement_failed");
+    expect(res.headers.get("X-Sniffy-Facilitator-Status")).toBe("200");
+    const errMessage = res.headers.get("X-Sniffy-Error-Message") ?? "";
+    expect(errMessage).toContain("transaction");
+    expect(errMessage).toContain("network");
+    // Body must remain a valid DiagnoseUnpaidResponse so the client can
+    // re-sign and retry with a fresh nonce.
+    DiagnoseUnpaidResponse.parse(await res.json());
   });
 });
 

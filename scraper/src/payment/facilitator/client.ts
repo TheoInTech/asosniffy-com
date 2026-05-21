@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { signRequest } from "./hmac.js";
 import {
   SettleRequest,
@@ -75,7 +76,9 @@ export function createFacilitatorClient(
   const now = options.now ?? Date.now;
   const { accessKey, secretKey } = options;
 
-  async function request(args: InternalRequestArgs): Promise<unknown> {
+  async function request(
+    args: InternalRequestArgs,
+  ): Promise<{ body: unknown; status: number; fullPath: string }> {
     const { fullPath, absoluteUrl } = parsePath(baseUrl, args.endpoint);
     const headers: Record<string, string> = {
       Accept: "application/json",
@@ -102,11 +105,27 @@ export function createFacilitatorClient(
       headers["MORPH-ACCESS-SIGN"] = signature;
     }
 
-    const response = await httpFetch(absoluteUrl, {
-      method: args.method,
-      headers,
-      body: rawBody,
-    });
+    // Network-layer failures (DNS, connection reset, TLS, timeout) surface as
+    // a TypeError("fetch failed") in node:fetch. Translate to FacilitatorError
+    // so the diagnose route can map it to HTTP 402 settlement_failed instead
+    // of bubbling up as an opaque 500.
+    let response: Response;
+    try {
+      response = await httpFetch(absoluteUrl, {
+        method: args.method,
+        headers,
+        body: rawBody,
+      });
+    } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      throw new FacilitatorError({
+        status: 0,
+        body: { networkError: errMessage },
+        path: fullPath,
+        method: args.method,
+        message: `Morph ${args.method} ${fullPath} failed before response: ${errMessage}`,
+      });
+    }
 
     const text = await response.text();
     let parsed: unknown = undefined;
@@ -126,38 +145,65 @@ export function createFacilitatorClient(
         method: args.method,
       });
     }
-    return parsed;
+    return { body: parsed, status: response.status, fullPath };
+  }
+
+  // Convert a ZodError from a 2xx-body parse into a FacilitatorError so the
+  // diagnose route's existing `FacilitatorError` → 402 settlement_failed /
+  // verification_failed taxonomy handles it uniformly. Without this, a
+  // malformed-but-200 facilitator response leaks the raw ZodError to the
+  // global handler and the user sees HTTP 400 "invalid_body" — wrong code,
+  // wrong direction (our request wasn't bad; Morph's response was).
+  function parseFacilitatorResponse<T>(
+    schema: z.ZodType<T>,
+    body: unknown,
+    status: number,
+    fullPath: string,
+    method: "GET" | "POST",
+  ): T {
+    const result = schema.safeParse(body);
+    if (result.success) return result.data;
+    const issues = result.error.issues
+      .map((i) => `${i.path.length > 0 ? i.path.join(".") : "(root)"}: ${i.message}`)
+      .join("; ");
+    throw new FacilitatorError({
+      status,
+      body,
+      path: fullPath,
+      method,
+      message: `Morph ${method} ${fullPath} returned HTTP ${status} with body that failed schema validation: ${issues}`,
+    });
   }
 
   return {
     baseUrl,
     async getSupported() {
-      const body = await request({
+      const { body, status, fullPath } = await request({
         method: "GET",
         endpoint: "/v2/supported",
         signed: false,
       });
-      return SupportedResponse.parse(body);
+      return parseFacilitatorResponse(SupportedResponse, body, status, fullPath, "GET");
     },
     async verify(payload) {
       const validated = VerifyRequest.parse(payload);
-      const body = await request({
+      const { body, status, fullPath } = await request({
         method: "POST",
         endpoint: "/v2/verify",
         body: validated,
         signed: true,
       });
-      return VerifyResponse.parse(body);
+      return parseFacilitatorResponse(VerifyResponse, body, status, fullPath, "POST");
     },
     async settle(payload) {
       const validated = SettleRequest.parse(payload);
-      const body = await request({
+      const { body, status, fullPath } = await request({
         method: "POST",
         endpoint: "/v2/settle",
         body: validated,
         signed: true,
       });
-      return SettleResponse.parse(body);
+      return parseFacilitatorResponse(SettleResponse, body, status, fullPath, "POST");
     },
   };
 }

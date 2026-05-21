@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = "2026-05-mvp" as const;
+export const SCHEMA_VERSION = "2026-05-mvp-2" as const;
 
 export * from "./shared.js";
 export * from "./quote.js";

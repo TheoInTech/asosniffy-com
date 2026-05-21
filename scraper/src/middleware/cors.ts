@@ -21,5 +21,5 @@ export const corsMiddleware = cors({
     "PAYMENT-REQUIRED",
     "PAYMENT-RESPONSE",
   ],
-  maxAge: 86400,
+  maxAge: env.NODE_ENV === "development" ? 60 : 86400,
 });

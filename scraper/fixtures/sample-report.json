@@ -1,7 +1,7 @@
 {
   "requestId": "req_sample_2026_05_mvp",
   "sniffId": "sniff_sample_001",
-  "reportVersion": "2026-05-mvp",
+  "reportVersion": "2026-05-mvp-2",
   "receipt": {
     "network": "eip155:2910",
     "facilitator": "fixture-receipt",
@@ -104,10 +104,35 @@
     }
   ],
   "readyToPaste": {
-    "title": "Pawprint Habits",
-    "subtitle": "Habit Tracker · Streaks & Routines",
-    "keywordsField": "daily,routine,streak,morning,evening,checklist,journal,calendar",
-    "shortDescription": "Pawprint Habits is a friendly habit tracker that turns daily routines into streaks you actually want to keep."
+    "title": {
+      "current": "Pawprint Habits",
+      "recommended": null,
+      "changeReason": null,
+      "charCount": 15,
+      "charLimit": 30
+    },
+    "subtitle": {
+      "current": "Track your daily routine",
+      "recommended": "Habit Tracker · Streaks & Routines",
+      "changeReason": "Promotes \"habit tracker\" (rank 11-30) into the subtitle, paired with a category cue.",
+      "charCount": 34,
+      "charLimit": 30
+    },
+    "keywordsField": {
+      "current": "habit,daily,routine,streak,morning,journal",
+      "recommended": "daily,routine,streak,morning,evening,checklist,journal,calendar",
+      "changeReason": "Adds competitor-coverage terms (evening, checklist, calendar) and drops tokens already in title/subtitle.",
+      "charCount": 64,
+      "charLimit": 100
+    },
+    "shortDescription": {
+      "current": "",
+      "recommended": "Pawprint Habits: habit tracker and streaks for daily routines that stick.",
+      "changeReason": "Leads with your top-intent keywords (habit tracker, streaks) instead of generic copy.",
+      "charCount": 74,
+      "charLimit": 240
+    },
+    "source": "deterministic"
   },
   "targetAppSignals": {
     "ratingsPerDay": 12.4,
