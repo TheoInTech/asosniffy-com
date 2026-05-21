@@ -13,6 +13,7 @@ import { sampleRoute } from "./routes/sample.js";
 import { quoteRoute } from "./routes/quote.js";
 import { diagnoseRoute } from "./routes/diagnose.js";
 import { historyRoute } from "./routes/history.js";
+import { walletRoute } from "./routes/wallet.js";
 
 export function createApp() {
   const app = new Hono();
@@ -63,12 +64,24 @@ export function createApp() {
       perDay: env.RL_HISTORY_PER_MIN * 60 * 12, // generous daily cap
     }),
   );
+  // Wallet/Trail endpoints — free to call (signature is the auth, not x402).
+  // Per-IP cap is generous because legitimate browsers refresh the list
+  // every few minutes; abuse from one IP is bounded by Redis read cost.
+  app.use(
+    "/api/v1/aso/wallet/*",
+    rateLimitPerIp({
+      namespace: "wallet",
+      perMinute: 60,
+      perDay: 60 * 60 * 12,
+    }),
+  );
 
   app.route("/health", healthRoute);
   app.route("/api/v1/aso/sample", sampleRoute);
   app.route("/api/v1/aso/quote", quoteRoute);
   app.route("/api/v1/aso/diagnose", diagnoseRoute);
   app.route("/api/v1/aso/history", historyRoute);
+  app.route("/api/v1/aso/wallet", walletRoute);
 
   return app;
 }

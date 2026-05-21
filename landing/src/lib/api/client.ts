@@ -5,12 +5,16 @@ import {
   type QuoteRequest,
   QuoteResponse,
   SampleResponse,
+  WalletNonceResponse,
+  WalletSessionResponse,
+  WalletSniffsResponse,
 } from "@sniffy/scraper/schemas";
 import {
   ApiError,
   ApiNetworkError,
   ApiValidationError,
   PaymentRequiredError,
+  SiweAuthError,
   type ProtocolTraceEntry,
 } from "./errors";
 
@@ -51,7 +55,7 @@ async function postJSON<T>(
   const url = `${getBaseUrl()}${path}`;
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-Sniffy-Client": SNIFFY_CLIENT_ID,
+    "x-sniffy-client": SNIFFY_CLIENT_ID,
     ...(options.paymentHeader ? { "PAYMENT-SIGNATURE": options.paymentHeader } : {}),
   };
   const startedAt = new Date().toISOString();
@@ -180,7 +184,7 @@ async function getJSON<T>(
   try {
     res = await fetch(url, {
       method: "GET",
-      headers: { "X-Sniffy-Client": SNIFFY_CLIENT_ID },
+      headers: { "x-sniffy-client": SNIFFY_CLIENT_ID },
       signal: options.signal,
     });
   } catch (err) {
@@ -237,5 +241,132 @@ export async function getSample(options: RequestOptions = {}) {
     "/api/v1/aso/sample",
     (raw) => SampleResponse.parse(raw),
     options,
+  );
+}
+
+// ---------- wallet/* (SIWE-authed Trail history) ----------
+
+// Internal helper that wraps fetch with SiweAuthError mapping for the
+// wallet endpoints. The wallet path uses session-token Bearer auth instead
+// of x402, so 401 means "re-sign SIWE" — not "missing payment header".
+async function walletFetch<T>(
+  path: string,
+  init: RequestInit,
+  parser: (raw: unknown) => T,
+): Promise<T> {
+  const url = `${getBaseUrl()}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: {
+        ...(init.method !== "GET" && init.method !== "DELETE"
+          ? { "Content-Type": "application/json" }
+          : {}),
+        "x-sniffy-client": SNIFFY_CLIENT_ID,
+        ...(init.headers as Record<string, string> | undefined),
+      },
+    });
+  } catch (err) {
+    throw new ApiNetworkError(
+      `Request to ${path} failed before reaching the server`,
+      err,
+    );
+  }
+  if (res.status === 401) {
+    let body: { error?: { code?: string; message?: string } } = {};
+    try {
+      body = (await res.json()) as typeof body;
+    } catch {
+      // Best-effort: 401 with non-JSON body still surfaces as SiweAuthError.
+    }
+    throw new SiweAuthError(
+      body.error?.code ?? "session_invalid",
+      body.error?.message,
+    );
+  }
+  if (!res.ok) {
+    throw await buildNonOkApiError(res, path);
+  }
+  // Some wallet endpoints (DELETE /session) return 204 No Content.
+  if (res.status === 204) {
+    return parser(undefined);
+  }
+  let raw: unknown;
+  try {
+    raw = await res.json();
+  } catch (err) {
+    throw new ApiError(res.status, "invalid_json", "Response was not valid JSON", err);
+  }
+  try {
+    return parser(raw);
+  } catch (err) {
+    if (err instanceof Error) {
+      throw new ApiValidationError(err.message, raw);
+    }
+    throw err;
+  }
+}
+
+export async function getWalletNonce(address: string) {
+  return walletFetch(
+    "/api/v1/aso/wallet/nonce",
+    { method: "POST", body: JSON.stringify({ address }) },
+    (raw) => WalletNonceResponse.parse(raw),
+  );
+}
+
+export async function postWalletSession(args: {
+  message: string;
+  signature: string;
+}) {
+  return walletFetch(
+    "/api/v1/aso/wallet/session",
+    { method: "POST", body: JSON.stringify(args) },
+    (raw) => WalletSessionResponse.parse(raw),
+  );
+}
+
+export async function getWalletSniffs(args: {
+  sessionToken: string;
+  cursor?: string;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (args.cursor) params.set("cursor", args.cursor);
+  if (args.limit !== undefined) params.set("limit", String(args.limit));
+  const qs = params.toString();
+  return walletFetch(
+    `/api/v1/aso/wallet/sniffs${qs ? `?${qs}` : ""}`,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${args.sessionToken}` },
+    },
+    (raw) => WalletSniffsResponse.parse(raw),
+  );
+}
+
+export async function getWalletSniff(args: {
+  sessionToken: string;
+  sniffId: string;
+}) {
+  return walletFetch(
+    `/api/v1/aso/wallet/sniff/${encodeURIComponent(args.sniffId)}`,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${args.sessionToken}` },
+    },
+    (raw) => DiagnosePaidResponse.parse(raw),
+  );
+}
+
+export async function deleteWalletSession(sessionToken: string) {
+  return walletFetch(
+    "/api/v1/aso/wallet/session",
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    },
+    () => undefined,
   );
 }

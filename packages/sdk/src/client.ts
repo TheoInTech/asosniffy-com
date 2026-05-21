@@ -15,6 +15,12 @@ import { createPayingFetch, type PayingFetch } from "./x402.js";
 
 const DEFAULT_BASE_URL = "https://api.sniffy.io";
 
+// Identifies this surface to the scraper's soft attestation middleware so
+// the per-request audit log carries clientSurface=sdk. CLI and MCP route
+// through createSniffy() and inherit this value until v0.1 threads a
+// `clientId` option into CreateSniffyOptions.
+const SNIFFY_CLIENT_ID = "@sniffy/sdk@0.0.0";
+
 export interface SignerLike {
   signTypedData: (args: unknown) => Promise<`0x${string}`>;
   address: `0x${string}`;
@@ -88,7 +94,10 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
     async quote(input) {
       const res = await baseFetch(joinUrl(baseUrl, "/api/v1/aso/quote"), {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-sniffy-client": SNIFFY_CLIENT_ID,
+        },
         body: JSON.stringify(input),
       });
       if (res.status !== 200) {
@@ -100,6 +109,7 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
     async sample() {
       const res = await baseFetch(joinUrl(baseUrl, "/api/v1/aso/sample"), {
         method: "GET",
+        headers: { "x-sniffy-client": SNIFFY_CLIENT_ID },
       });
       if (res.status !== 200) {
         await throwApiError(res, "sample request failed");
@@ -109,9 +119,15 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
 
     async diagnose(input, { autoPay = true } = {}) {
       const url = joinUrl(baseUrl, "/api/v1/aso/diagnose");
+      // @x402/fetch preserves init.headers across its 402 → sign → retry
+      // cycle, so setting x-sniffy-client here flows through both the
+      // autoPay path and the manual path below.
       const init: RequestInit = {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-sniffy-client": SNIFFY_CLIENT_ID,
+        },
         body: JSON.stringify(input),
       };
 

@@ -77,3 +77,19 @@ export class ApiValidationError extends SniffyApiError {
     this.raw = raw;
   }
 }
+
+// Thrown when the wallet/* endpoints return 401 with a typed error code.
+// The auth hook catches this and clears its cached SIWE session so the user
+// can re-sign without a stale-session loop.
+export class SiweAuthError extends SniffyApiError {
+  readonly code: string;
+  readonly status = 401;
+  readonly serverMessage?: string;
+
+  constructor(code: string, message?: string) {
+    super(message ?? `SIWE auth failed: ${code}`);
+    this.name = "SiweAuthError";
+    this.code = code;
+    if (message) this.serverMessage = message;
+  }
+}

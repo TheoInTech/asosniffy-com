@@ -30,6 +30,17 @@ export const auditMiddleware = createMiddleware(async (c, next) => {
     await next();
   });
 
+  // Promote the attestation parsed by the per-route origin-attestation
+  // middleware into the audit record. Origin-attestation runs *inside*
+  // next(), so by the time we get here c.get("clientAttestation") is set
+  // for routes that mount it (and a header was present). Undefined on
+  // routes that don't enforce it (e.g. /sample) or anonymous callers.
+  const attestation = c.get("clientAttestation");
+  if (attestation !== undefined) {
+    audit.clientSurface = attestation.clientSurface;
+    audit.clientVersion = attestation.clientVersion;
+  }
+
   // After the handler runs, drop a single structured log line summarizing
   // every provider invocation. Skipped when ENABLE_REQUEST_LOG=false (set in
   // tests) so vitest output stays readable.

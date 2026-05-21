@@ -7,7 +7,13 @@ export const corsMiddleware = cors({
     return env.ALLOWED_ORIGINS.includes(origin) ? origin : null;
   },
   allowMethods: ["GET", "POST", "OPTIONS"],
-  allowHeaders: ["Content-Type", "PAYMENT-SIGNATURE", "X-Request-ID"],
+  allowHeaders: [
+    "Authorization",
+    "Content-Type",
+    "PAYMENT-SIGNATURE",
+    "X-Request-ID",
+    "X-Sniffy-Client",
+  ],
   exposeHeaders: [
     "X-Request-ID",
     "X-Sniffy-Error-Code",

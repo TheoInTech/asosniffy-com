@@ -121,6 +121,11 @@ export function assembleReceipt(input: AssembleReceiptInput): Receipt {
     }
   }
 
+  // Payer is only available from settleResponse (the facilitator's on-chain
+  // commitment). Lowercased to match the wallet-history index. fixture-receipt
+  // mode legitimately has none — Receipt.payer is optional.
+  const payer = input.settleResponse?.payer?.toLowerCase();
+
   const receipt: Receipt = {
     network,
     facilitator: facilitatorLabel,
@@ -130,6 +135,7 @@ export function assembleReceipt(input: AssembleReceiptInput): Receipt {
     asset,
     transactionHash,
     settledAt,
+    ...(payer ? { payer } : {}),
   };
 
   return ReceiptSchema.parse(receipt);

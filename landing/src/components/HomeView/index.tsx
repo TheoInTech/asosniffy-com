@@ -15,7 +15,7 @@ import { QuoteResponseView } from "@/components/QuoteResponse";
 import { Report } from "@/components/Report";
 import { UnlockTrail } from "@/components/UnlockTrail";
 import { useQuote } from "@/lib/api/hooks";
-import type { ProtocolTraceEntry } from "@/lib/api/errors";
+import { ApiNetworkError, type ProtocolTraceEntry } from "@/lib/api/errors";
 
 export function HomeView() {
   const quoteMutation = useQuote();
@@ -66,7 +66,9 @@ export function HomeView() {
           isPending={quoteMutation.isPending}
           serverError={
             quoteMutation.error
-              ? quoteMutation.error.message
+              ? quoteMutation.error instanceof ApiNetworkError
+                ? "Couldn't reach the Sniffy API. Check your connection, or try the public sample instead."
+                : quoteMutation.error.message
               : null
           }
         />

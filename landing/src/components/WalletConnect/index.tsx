@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Wallet } from "lucide-react";
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount, useBalance, useDisconnect } from "wagmi";
@@ -10,6 +11,31 @@ function truncateAddress(addr: string): string {
 }
 
 export function WalletConnect({ className }: { className?: string }) {
+  // Defer mount until after hydration. The Reown AppKit singleton is created
+  // in a useEffect inside <Providers>, so calling useAppKit() during SSR (or
+  // pre-mount in client paint) throws "Please call createAppKit before using
+  // useAppKit hook". The mount guard makes WalletConnect safe to drop into
+  // any parent — including server components that render the Shell on the
+  // /trail and /sample routes.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) {
+    return (
+      <span
+        aria-hidden
+        className={cn(
+          "inline-flex items-center gap-2 border-2 border-transparent px-4 py-2 font-display text-xs font-semibold uppercase tracking-[0.14em] opacity-0",
+          className,
+        )}
+      >
+        Connect wallet
+      </span>
+    );
+  }
+  return <WalletConnectClient className={className} />;
+}
+
+function WalletConnectClient({ className }: { className?: string }) {
   const { open } = useAppKit();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();

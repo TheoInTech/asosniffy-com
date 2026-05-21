@@ -25,6 +25,9 @@ import {
 import { getFacilitator } from "../services/facilitator.js";
 import { generateReportWithMeta } from "../orchestrator/index.js";
 import { recordSlo, SLO_METRICS } from "../observability/slo.js";
+import { getCurrentAudit } from "../observability/audit.js";
+import { recordSniff } from "../wallet/history.js";
+import { tryNormalizeAddress } from "../lib/address.js";
 
 export const diagnoseRoute = new Hono();
 
@@ -168,15 +171,16 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
   // 6) Run the report. Phase 1: /diagnose does NOT allow fixture fallback —
   //    transient provider errors degrade rows to "degraded" rather than fake
   //    fixture substitutes. See PLAN.md "Anti-pattern" list.
-  const { payload: report, providerErrors } = await generateReportWithMeta({
-    requestId,
-    sniffId: body.sniffId,
-    store: body.store,
-    app: body.app,
-    country: body.country,
-    keywords: body.keywords,
-    allowFixtureFallback: false,
-  });
+  const { payload: report, providerErrors, detectedApp } =
+    await generateReportWithMeta({
+      requestId,
+      sniffId: body.sniffId,
+      store: body.store,
+      app: body.app,
+      country: body.country,
+      keywords: body.keywords,
+      allowFixtureFallback: false,
+    });
 
   // SLO S1: iOS US/UK/CA /diagnose should have appMetadata=='live'|'cached'
   //         AND keywordRank ∈ {live, cached}. If both are met, this counts
@@ -240,6 +244,50 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
     receipt,
     ...report,
   };
+
+  // 8a) Wallet-history index. After settle succeeds (and the receipt carries
+  //     a real payer — fixture-receipt mode has none), persist the sniff
+  //     against the payer's wallet so /api/v1/aso/wallet/sniffs can replay
+  //     it without re-charging. Fail open on Redis errors — the user paid,
+  //     so the paid response always returns; only the convenience index
+  //     might be missing one entry. We also stamp the payer onto the current
+  //     request audit for downstream structured log lines.
+  if (env.WALLET_HISTORY_ENABLED && receipt.payer) {
+    const normalizedPayer = tryNormalizeAddress(receipt.payer);
+    if (normalizedPayer) {
+      const audit = getCurrentAudit();
+      if (audit) audit.payer = normalizedPayer;
+      try {
+        await recordSniff({
+          payer: normalizedPayer,
+          sniffId: body.sniffId,
+          store: body.store,
+          country: body.country,
+          keywords: body.keywords,
+          appId: detectedApp.id,
+          appName: detectedApp.name,
+          appDeveloper: detectedApp.developer,
+          appIconUrl: detectedApp.iconUrl,
+          overallScore: report.metadataScore?.overall ?? null,
+          appMetadataProvenance: report.dataProvenance.appMetadata,
+          settledAt: receipt.settledAt,
+          report: paid,
+        });
+      } catch (err) {
+        process.stderr.write(
+          `${JSON.stringify({
+            ts: new Date().toISOString(),
+            level: "warn",
+            requestId,
+            event: "wallet_history_write_failed",
+            payer: normalizedPayer,
+            sniffId: body.sniffId,
+            error: err instanceof Error ? err.message : String(err),
+          })}\n`,
+        );
+      }
+    }
+  }
 
   // x402 V2 spec: PAYMENT-RESPONSE header carries Base64(JSON) of the
   // settlement receipt so x402 clients can pull it without re-parsing the body.

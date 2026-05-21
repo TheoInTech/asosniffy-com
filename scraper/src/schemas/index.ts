@@ -4,3 +4,4 @@ export * from "./shared.js";
 export * from "./quote.js";
 export * from "./diagnose.js";
 export * from "./sample.js";
+export * from "./wallet.js";

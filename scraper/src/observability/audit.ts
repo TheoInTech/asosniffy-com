@@ -34,6 +34,17 @@ export interface RequestAudit {
   route: string;
   startedAt: number;
   invocations: ProviderInvocation[];
+  // Soft attestation parsed from X-Sniffy-Client by the origin-attestation
+  // middleware and promoted into the audit record by the audit middleware
+  // before the structured log line is emitted. Undefined when no header
+  // was present (e.g. anonymous /sample callers).
+  clientSurface?: "landing" | "sdk" | "cli" | "mcp" | "unknown";
+  clientVersion?: string;
+  // Lowercased payer address recovered from the facilitator settle response,
+  // stamped by the /diagnose route after settlement succeeds. Surfaces in
+  // structured logs so paid requests are tied to a wallet for billing
+  // reconciliation. Undefined for unpaid endpoints and fixture-receipt mode.
+  payer?: string;
 }
 
 const storage = new AsyncLocalStorage<RequestAudit>();
@@ -124,12 +135,18 @@ export function summarizeAudit(audit: RequestAudit): {
   route: string;
   totalMs: number;
   invocations: ReadonlyArray<Omit<ProviderInvocation, never>>;
+  clientSurface?: RequestAudit["clientSurface"];
+  clientVersion?: string;
+  payer?: string;
 } {
   return {
     requestId: audit.requestId,
     route: audit.route,
     totalMs: Date.now() - audit.startedAt,
     invocations: audit.invocations,
+    clientSurface: audit.clientSurface,
+    clientVersion: audit.clientVersion,
+    payer: audit.payer,
   };
 }
 

@@ -243,6 +243,11 @@ const EnvSchema = z.object({
     z.string().optional(),
   ),
 
+  // Wallet-history / Trail feature. Kill switch for the SIWE auth + per-wallet
+  // sniff index. When false: /wallet/* endpoints return 503 and /diagnose
+  // skips the wallet index write (still returns the paid response).
+  WALLET_HISTORY_ENABLED: BooleanFromString.default(true),
+
   // OpenAI synthesis (Phase 04). Both optional — when OPENAI_API_KEY is unset
   // (or empty, e.g. `OPENAI_API_KEY= pnpm test`), the orchestrator falls
   // through to the template synthesizer (PLAN.md §14 reliability guarantee).
