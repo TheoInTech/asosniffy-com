@@ -522,13 +522,39 @@ Paid response:
     "recommendations": "inferred"
   },
   "summary": "Your title is underusing the highest-intent keyword...",
-  "keywordDiagnosis": [],
+  "keywordDiagnosis": [
+    {
+      "keyword": "habit tracker",
+      "rankBucket": "11-30",
+      "intentScore": 0.74,
+      "confidence": "medium",
+      "provenance": "live",
+      "recommendation": "...",
+      "popularityScore": 42,
+      "popularitySource": "apple-search-ads",
+      "popularityAsOf": "2026-05-18T09:00:00Z",
+      "relatedTerms": ["habit", "habit goal", "daily habit"],
+      "trend": null,
+      "difficulty": 71,
+      "minDifficulty": 38,
+      "difficultyIsFallback": false,
+      "matchKind": "subtitleAllWords"
+    }
+  ],
   "competitorTrail": [],
   "metadataScore": {},
   "recommendations": [],
-  "readyToPaste": {}
+  "readyToPaste": {},
+  "targetAppSignals": {
+    "ratingsPerDay": 12.4,
+    "momentumLabel": "growing",
+    "daysSinceFirstRelease": 412,
+    "daysSinceLastRelease": 9
+  }
 }
 ```
+
+The `difficulty` / `minDifficulty` / `difficultyIsFallback` / `matchKind` fields on each `keywordDiagnosis` row, plus the top-level `targetAppSignals` block, are derived from a keyword-difficulty formula adapted from [semihcihan/App-Store-Optimization-CLI](https://github.com/semihcihan/App-Store-Optimization-CLI) (MIT — see `LICENSE-THIRD-PARTY.md`). `difficulty` is `null` and `difficultyIsFallback: true` when the top-5 competitor gate trips (rate-limit, niche keyword); we never fabricate the number. `targetAppSignals` is `null` for region-locked listings without a `releaseDate`.
 
 ### `GET /api/v1/aso/sample`
 

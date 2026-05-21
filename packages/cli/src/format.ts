@@ -15,6 +15,7 @@ const MUTED = chalk.dim;
 const PROVENANCE_ICON: Record<Provenance, string> = {
   live: "●",
   cached: "◐",
+  degraded: "◌",
   fixture: "○",
   inferred: "◇",
 };
@@ -33,16 +34,25 @@ function row(left: string, right: string): string {
 }
 
 function table(
-  rows: Array<{ keyword: string; rank: string; intent?: number; prov: Provenance; note?: string }>,
+  rows: Array<{
+    keyword: string;
+    rank: string;
+    intent?: number;
+    difficulty?: number | null;
+    prov: Provenance;
+    note?: string;
+  }>,
 ): string {
   const lines: string[] = [];
   lines.push(
-    `  ${ACCENT("keyword".padEnd(24))} ${ACCENT("rank".padEnd(10))} ${ACCENT("intent".padEnd(8))} ${ACCENT("provenance")}`,
+    `  ${ACCENT("keyword".padEnd(24))} ${ACCENT("rank".padEnd(10))} ${ACCENT("diff".padEnd(6))} ${ACCENT("intent".padEnd(8))} ${ACCENT("provenance")}`,
   );
   for (const r of rows) {
     const intent = r.intent !== undefined ? r.intent.toFixed(2) : "—";
+    const diff =
+      r.difficulty !== undefined && r.difficulty !== null ? String(r.difficulty) : "—";
     lines.push(
-      `  ${r.keyword.padEnd(24)} ${r.rank.padEnd(10)} ${intent.padEnd(8)} ${provLabel(r.prov)}`,
+      `  ${r.keyword.padEnd(24)} ${r.rank.padEnd(10)} ${diff.padEnd(6)} ${intent.padEnd(8)} ${provLabel(r.prov)}`,
     );
     if (r.note !== undefined && r.note.length > 0) {
       lines.push(MUTED(`    └─ ${r.note}`));
@@ -146,11 +156,32 @@ export function formatPaid(r: DiagnosePaidResponse): string {
         keyword: k.keyword,
         rank: k.rankBucket,
         intent: k.intentScore,
+        difficulty: k.difficultyIsFallback ? null : k.difficulty,
         prov: k.provenance,
         note: k.recommendation,
       })),
     ),
   );
+
+  // Phase 6 — target-app momentum block (ratings-per-day + label).
+  // Match `!= null` to handle both nullable and pre-schema-default fixtures.
+  if (r.targetAppSignals != null && r.targetAppSignals.ratingsPerDay !== null) {
+    lines.push(header("App momentum"));
+    lines.push(
+      row(
+        "ratings/day",
+        `${r.targetAppSignals.ratingsPerDay.toFixed(2)} (${r.targetAppSignals.momentumLabel ?? "—"})`,
+      ),
+    );
+    if (r.targetAppSignals.daysSinceFirstRelease !== null) {
+      lines.push(row("days live", String(r.targetAppSignals.daysSinceFirstRelease)));
+    }
+    if (r.targetAppSignals.daysSinceLastRelease !== null) {
+      lines.push(
+        row("days since update", String(r.targetAppSignals.daysSinceLastRelease)),
+      );
+    }
+  }
 
   if (r.competitorTrail.length > 0) {
     lines.push(header("Competitor trail"));

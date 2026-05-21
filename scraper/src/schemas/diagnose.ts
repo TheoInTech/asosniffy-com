@@ -97,6 +97,9 @@ export const Receipt = z.object({
   // so fixture-receipt mode produces a Receipt that still parses.
   transactionHash: z.string().regex(/^0x(?:sample)?[a-fA-F0-9]+$/),
   settledAt: z.string().datetime(),
+  // Payer wallet address recovered from the facilitator settle response.
+  // Lowercased. Optional because fixture-receipt mode has no real payer.
+  payer: EvmAddress.optional(),
 });
 export type Receipt = z.infer<typeof Receipt>;
 
@@ -117,6 +120,19 @@ export const Trend = z.object({
   samplesCount: z.number().int().nonnegative(),
 });
 export type Trend = z.infer<typeof Trend>;
+
+// Keyword-match granularity — where/how the user's listing surfaces the
+// keyword. Ported from semihcihan/App-Store-Optimization-CLI (MIT) so the
+// difficulty formula and our metadata scorer agree on match weight.
+export const KeywordMatchKind = z.enum([
+  "titleExactPhrase",
+  "titleAllWords",
+  "subtitleExactPhrase",
+  "subtitleAllWords",
+  "combinedPhrase",
+  "none",
+]);
+export type KeywordMatchKind = z.infer<typeof KeywordMatchKind>;
 
 export const KeywordDiagnosisItem = z.object({
   keyword: z.string().min(1),
@@ -140,8 +156,31 @@ export const KeywordDiagnosisItem = z.object({
   // Phase 4 — trend over the rank-history series. `null` until at least
   // two paid diagnose calls land in the same (app, country, keyword) tuple.
   trend: Trend.nullable().default(null),
+  // Phase 6 — keyword difficulty derived from the top-5 competitors in the
+  // same iTunes search response. 1..100 scaled. `null` +
+  // `difficultyIsFallback: true` when the top-five gate trips (niche
+  // keyword, rate-limit, etc.); we never fabricate the number.
+  difficulty: z.number().int().min(1).max(100).nullable().default(null),
+  minDifficulty: z.number().int().min(1).max(100).nullable().default(null),
+  difficultyIsFallback: z.boolean().default(false),
+  // How this keyword surfaces on the target listing — exact phrase in the
+  // title, separated tokens, etc. Feeds the synthesis prose so the
+  // recommendation can call out the cheapest single fix.
+  matchKind: KeywordMatchKind.default("none"),
 });
 export type KeywordDiagnosisItem = z.infer<typeof KeywordDiagnosisItem>;
+
+// Phase 6 — target-app momentum block. Surfaces the same ratings-per-day
+// signal the difficulty formula uses to score competitors, applied to the
+// target app so founders see their own trajectory. `null` for region-locked
+// listings without a releaseDate, or when AppRecord couldn't be fetched.
+export const TargetAppSignals = z.object({
+  ratingsPerDay: z.number().nullable(),
+  momentumLabel: z.enum(["growing", "steady", "declining"]).nullable(),
+  daysSinceFirstRelease: z.number().int().positive().nullable(),
+  daysSinceLastRelease: z.number().int().nonnegative().nullable(),
+});
+export type TargetAppSignals = z.infer<typeof TargetAppSignals>;
 
 // Phase 4 — rank-regression alerts. Keywords whose current position dropped
 // ≥10 positions vs their 7-day rolling median.
@@ -267,5 +306,9 @@ export const DiagnosePaidResponse = z.object({
   // produced no usable storefronts. Default null preserves cold-start
   // compatibility with existing fixtures + tests.
   localizationAnalysis: LocalizationAnalysis.nullable().default(null),
+  // Phase 6 — target-app momentum block (ratings-per-day + trajectory).
+  // `null` for region-locked listings without releaseDate or when AppRecord
+  // couldn't be fetched. Default null keeps every existing fixture parsing.
+  targetAppSignals: TargetAppSignals.nullable().default(null),
 });
 export type DiagnosePaidResponse = z.infer<typeof DiagnosePaidResponse>;

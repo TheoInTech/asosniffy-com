@@ -9,5 +9,5 @@
 //   REPORT_VERSION   — bump when the scoring / synthesis logic changes in a
 //                      way that should invalidate previously-cached reports.
 
-export const PROVIDER_VERSION = "p1";
+export const PROVIDER_VERSION = "p2";
 export const REPORT_VERSION = "r1";

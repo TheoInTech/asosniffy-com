@@ -15,8 +15,10 @@ import {
   type SniffId,
   type Store,
   type SuggestedKeyword,
+  type TargetAppSignals,
   type Trend,
 } from "../schemas/index.js";
+import { computeMomentum } from "../scoring/momentum.js";
 import type { AppRecord } from "../providers/apple/types.js";
 import {
   getFullReportData,
@@ -78,9 +80,20 @@ export interface GenerateReportInput {
   allowFixtureFallback?: boolean;
 }
 
+// Lean handle to the detected app's listing identity, surfaced for
+// downstream consumers (wallet/history index) that don't want to re-derive
+// it from the full report payload.
+export interface DetectedAppHandle {
+  id: string;
+  name: string;
+  developer: string;
+  iconUrl: string | null;
+}
+
 export interface GenerateReportResult {
   payload: ReportPayload;
   providerErrors: CoverageProviderError[];
+  detectedApp: DetectedAppHandle;
 }
 
 export async function generateReport(
@@ -202,6 +215,11 @@ export async function generateReportWithMeta(
     targetCountries: env.LOCALIZATION_STOREFRONTS,
   });
 
+  // Phase 6 — target-app momentum block. iOS only (Android record lacks
+  // releaseDate from gplay-scraper today). null when AppRecord wasn't
+  // fetched or the listing is region-locked without a releaseDate.
+  const targetAppSignals = assembleTargetAppSignals(data.detect.appRecord);
+
   // ---------- Assembly ----------
   return {
     payload: {
@@ -242,8 +260,24 @@ export async function generateReportWithMeta(
           })
         : "",
       localizationAnalysis,
+      targetAppSignals,
     },
     providerErrors: data.providerErrors,
+    detectedApp: {
+      id:
+        data.detect.appRecord?.id ??
+        data.detect.androidRecord?.packageName ??
+        data.detectedApp.id,
+      name: data.detect.appRecord?.name ?? data.detectedApp.name,
+      developer:
+        data.detect.appRecord?.developer ??
+        data.detect.androidRecord?.developer ??
+        data.detectedApp.developer,
+      iconUrl:
+        data.detect.appRecord?.iconUrl ??
+        data.detect.androidRecord?.iconUrl ??
+        null,
+    },
   };
 }
 
@@ -333,8 +367,30 @@ function assembleKeywordDiagnosis(
       popularityAsOf: d.popularityAsOf,
       relatedTerms: d.relatedTerms,
       trend,
+      difficulty: d.difficulty,
+      minDifficulty: d.minDifficulty,
+      difficultyIsFallback: d.difficultyIsFallback,
+      matchKind: d.matchKind,
     };
   });
+}
+
+// Compute the target-app momentum block. Returns null when the detected
+// app is Android-only (no releaseDate in our AndroidAppRecord) or when
+// iTunes returned a record without releaseDate (region-locked listing).
+function assembleTargetAppSignals(
+  appRecord: AppRecord | null,
+): TargetAppSignals | null {
+  if (!appRecord || !appRecord.releaseDate) return null;
+  const momentum = computeMomentum({
+    userRatingCount: appRecord.ratingsSummary.count,
+    releaseDate: appRecord.releaseDate,
+    ...(appRecord.currentVersionReleaseDate !== undefined
+      ? { currentVersionReleaseDate: appRecord.currentVersionReleaseDate }
+      : {}),
+  });
+  if (momentum.ratingsPerDay === null) return null;
+  return momentum as TargetAppSignals;
 }
 
 // Compose a series that includes today's sample so computeTrend has a

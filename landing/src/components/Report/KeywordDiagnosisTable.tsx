@@ -58,6 +58,7 @@ export function KeywordDiagnosisTable({ report, scope }: Props) {
               <th className="py-2 pr-3">Rank</th>
               <th className="py-2 pr-3">Trend</th>
               <th className="py-2 pr-3">Popularity</th>
+              <th className="py-2 pr-3">Difficulty</th>
               <th className="py-2 pr-3">Intent</th>
               <th className="py-2 pr-3">Confidence</th>
               <th className="py-2 pr-3">Related</th>
@@ -113,6 +114,17 @@ export function KeywordDiagnosisTable({ report, scope }: Props) {
                   source={row.popularitySource}
                   asOf={row.popularityAsOf}
                 />
+              </dd>
+              <dt className="text-sniffy-ink-mute">Difficulty</dt>
+              <dd>
+                <DifficultyBadge
+                  difficulty={row.difficulty}
+                  isFallback={row.difficultyIsFallback}
+                />
+              </dd>
+              <dt className="text-sniffy-ink-mute">Listing match</dt>
+              <dd className="text-sniffy-ink-2 text-[11px]">
+                {describeMatchKind(row.matchKind)}
               </dd>
               <dt className="text-sniffy-ink-mute">Intent</dt>
               <dd className="text-sniffy-ink-2">
@@ -224,6 +236,12 @@ function Row({
             asOf={row.popularityAsOf}
           />
         </td>
+        <td className="py-2 pr-3">
+          <DifficultyBadge
+            difficulty={row.difficulty}
+            isFallback={row.difficultyIsFallback}
+          />
+        </td>
         <td className="py-2 pr-3 text-sniffy-ink-2">
           {(row.intentScore * 100).toFixed(0)}%
         </td>
@@ -253,7 +271,7 @@ function Row({
       </tr>
       {isOpen ? (
         <tr>
-          <td colSpan={9} className="border-b border-sniffy-rule bg-sniffy-paper-2 p-3">
+          <td colSpan={10} className="border-b border-sniffy-rule bg-sniffy-paper-2 p-3">
             <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <p className="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-sniffy-ink-mute">
@@ -319,6 +337,30 @@ function Row({
                     </p>
                   </div>
                 ) : null}
+                <div className="mt-2">
+                  <p className="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-sniffy-ink-mute">
+                    Competitive context
+                  </p>
+                  <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px]">
+                    <dt className="text-sniffy-ink-mute">Difficulty</dt>
+                    <dd className="text-sniffy-ink">
+                      <DifficultyBadge
+                        difficulty={row.difficulty}
+                        isFallback={row.difficultyIsFallback}
+                      />
+                    </dd>
+                    <dt className="text-sniffy-ink-mute">Weakest top-5</dt>
+                    <dd className="text-sniffy-ink">
+                      {row.minDifficulty !== null
+                        ? `${row.minDifficulty}/100`
+                        : "—"}
+                    </dd>
+                    <dt className="text-sniffy-ink-mute">Listing match</dt>
+                    <dd className="text-sniffy-ink">
+                      {describeMatchKind(row.matchKind)}
+                    </dd>
+                  </dl>
+                </div>
               </div>
             </div>
           </td>
@@ -326,4 +368,56 @@ function Row({
       ) : null}
     </>
   );
+}
+
+// Color-coded difficulty pill. Green 1-33, amber 34-66, red 67-100. Returns
+// an honest "—" when the top-five gate tripped (difficulty is null and
+// difficultyIsFallback is true) — we don't fake the number.
+function DifficultyBadge({
+  difficulty,
+  isFallback,
+}: {
+  difficulty: number | null;
+  isFallback: boolean;
+}) {
+  if (difficulty === null || isFallback) {
+    return <span className="text-sniffy-ink-mute">—</span>;
+  }
+  const tint =
+    difficulty >= 67
+      ? "bg-sniffy-warn text-sniffy-paper"
+      : difficulty >= 34
+        ? "bg-sniffy-yellow text-sniffy-ink"
+        : "bg-sniffy-teal text-sniffy-ink";
+  return (
+    <span
+      className={`inline-flex items-center border-2 border-sniffy-ink px-1.5 py-0.5 ${tint}`}
+      title={
+        difficulty >= 67
+          ? "Hard to rank — strong top-5"
+          : difficulty >= 34
+            ? "Moderate — beatable with effort"
+            : "Soft — weak top-5"
+      }
+    >
+      {difficulty}
+    </span>
+  );
+}
+
+function describeMatchKind(matchKind: KeywordDiagnosisItem["matchKind"]): string {
+  switch (matchKind) {
+    case "titleExactPhrase":
+      return "Title (exact phrase)";
+    case "titleAllWords":
+      return "Title (separated words)";
+    case "subtitleExactPhrase":
+      return "Subtitle (exact phrase)";
+    case "subtitleAllWords":
+      return "Subtitle (separated words)";
+    case "combinedPhrase":
+      return "Spans title + subtitle";
+    case "none":
+      return "Not on listing";
+  }
 }

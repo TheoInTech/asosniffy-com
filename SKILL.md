@@ -5,7 +5,7 @@ description: Pay-per-sniff ASO intelligence for App Store apps. Use when a user 
 
 # Sniffy — ASO Intelligence with x402 Payment
 
-Sniffy returns structured App Store Optimization diagnoses for an `(app, country, keywords)` tuple: keyword rank buckets, competitor trail, metadata score, prioritized recommendations, and ready-to-paste copy. Free `/quote` and `/sample` endpoints let you preview before paying. The `/diagnose` endpoint is paid: it returns HTTP `402 Payment Required` until a valid x402 `PAYMENT-SIGNATURE` is presented, then settles over the Morph facilitator and returns the full report plus a settlement receipt.
+Sniffy returns structured App Store Optimization diagnoses for an `(app, country, keywords)` tuple: per-keyword rank buckets, **keyword difficulty (1-100 derived from the top-5 competitors)**, **listing match granularity** (title-exact-phrase vs title-all-words vs subtitle-exact vs combined), competitor trail, metadata score, **target-app momentum** (ratings-per-day + growing/steady/declining), prioritized recommendations, and ready-to-paste copy. Free `/quote` and `/sample` endpoints let you preview before paying. The `/diagnose` endpoint is paid: it returns HTTP `402 Payment Required` until a valid x402 `PAYMENT-SIGNATURE` is presented, then settles over the Morph facilitator and returns the full report plus a settlement receipt.
 
 Use Sniffy when the user asks any of:
 

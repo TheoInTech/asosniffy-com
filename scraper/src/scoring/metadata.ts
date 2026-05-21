@@ -1,5 +1,6 @@
 import type { AppRecord } from "../providers/apple/types.js";
-import type { DetectedApp } from "../schemas/index.js";
+import type { DetectedApp, Provenance } from "../schemas/index.js";
+import { classifyKeywordMatch } from "./keyword-match.js";
 
 // Deterministic ASO metadata scorer.
 //
@@ -60,11 +61,12 @@ export function scoreMetadata(input: ScoreMetadataInput): MetadataScoringResult 
   // what we couldn't observe.
   const title = input.app?.name ?? input.detectedApp.name;
   const subtitle = input.app?.subtitle ?? "";
+  const subtitleProvenance = input.app?.subtitleProvenance;
   const description = input.app?.description ?? "";
 
   return {
     title: scoreTitle(title, primaryKeyword, lowercased),
-    subtitle: scoreSubtitle(subtitle, primaryKeyword, lowercased),
+    subtitle: scoreSubtitle(subtitle, primaryKeyword, lowercased, subtitleProvenance),
     keywordsField: scoreKeywordsField(lowercased, title, subtitle),
     description: scoreDescription(description, lowercased),
     overall: 0, // populated below
@@ -129,11 +131,21 @@ function scoreTitle(
     reasons.push(`Title length (${len}/${APPLE_CAPS.title}) is acceptable.`);
   }
 
-  // Primary keyword presence in title.
+  // Primary keyword presence in title — distinguish exact-phrase from
+  // separated tokens. Exact phrase is materially better for Apple's
+  // tokenizer; this lets the synthesis layer write copy like
+  // "'habit tracker' is in your title as separate words — moving to an
+  // exact phrase strengthens this keyword".
   if (primary && primary.length > 0) {
-    if (normalizedTitle.includes(primary)) {
-      reasons.push(`Title carries the primary keyword "${primary}".`);
+    const match = classifyKeywordMatch({ keyword: primary, title });
+    if (match === "titleExactPhrase") {
+      reasons.push(`Title carries "${primary}" as an exact phrase.`);
       score += 25;
+    } else if (match === "titleAllWords") {
+      reasons.push(
+        `Title carries "${primary}" only as separated tokens — converting to an exact phrase is the cheapest single fix.`,
+      );
+      score += 10;
     } else {
       reasons.push(
         `Title does not carry the primary keyword "${primary}" — biggest single rank lever.`,
@@ -172,16 +184,27 @@ function scoreSubtitle(
   subtitle: string,
   primary: string | undefined,
   allKeywords: readonly string[],
+  subtitleProvenance: Provenance | undefined,
 ): MetadataSubscoreInternal {
   const reasons: string[] = [];
   const len = subtitle.length;
   const normalized = subtitle.toLowerCase();
 
   if (len === 0) {
+    // When the storefront-page provider successfully fetched the listing
+    // and the subtitle was truly absent, claim "empty" honestly. When the
+    // fetch failed (subtitleProvenance === "degraded") OR was never
+    // attempted (undefined — legacy / fixture path), swap to a "source
+    // unavailable" advisory so we don't tell apps with real subtitles that
+    // they have none.
+    const provenanceKnown =
+      subtitleProvenance === "live" || subtitleProvenance === "cached";
     return {
       score: 25,
       reasons: [
-        "Subtitle is empty — leaving the highest-leverage 30-char keyword slot unused.",
+        provenanceKnown
+          ? "Subtitle is empty — leaving the highest-leverage 30-char keyword slot unused."
+          : "Subtitle source unavailable — re-scan in a few minutes to confirm.",
       ],
     };
   }
@@ -201,15 +224,23 @@ function scoreSubtitle(
   }
 
   if (primary && primary.length > 0) {
-    if (normalized.includes(primary)) {
-      // Bonus when it's at the start of the subtitle (Apple weighs left-of-string).
+    // Reuse the title-vs-keyword classifier on the subtitle text. The
+    // classifier doesn't care about the field's identity — it only checks
+    // for an exact-phrase token match vs separated all-words.
+    const match = classifyKeywordMatch({ keyword: primary, title: subtitle });
+    if (match === "titleExactPhrase") {
       const leadsWith = normalized.startsWith(primary);
       reasons.push(
         leadsWith
-          ? `Subtitle leads with the primary keyword "${primary}" — strong placement.`
-          : `Subtitle includes the primary keyword "${primary}" but not at the front.`,
+          ? `Subtitle leads with "${primary}" as an exact phrase — strong placement.`
+          : `Subtitle includes "${primary}" as an exact phrase but not at the front.`,
       );
       score += leadsWith ? 25 : 15;
+    } else if (match === "titleAllWords") {
+      reasons.push(
+        `Subtitle includes the tokens of "${primary}" but not as a phrase — convert to a contiguous phrase to gain rank weight.`,
+      );
+      score += 8;
     } else {
       reasons.push(
         `Subtitle does not include the primary keyword "${primary}" — the cheapest fix available.`,

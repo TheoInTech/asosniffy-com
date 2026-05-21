@@ -19,6 +19,11 @@ interface ItunesRawResult {
   version?: string;
   artworkUrl100?: string;
   bundleId?: string;
+  // ISO date strings. releaseDate = first release; currentVersionReleaseDate =
+  // last update. Used by scoring/keyword-difficulty (momentum weight) and
+  // scoring/momentum (target-app trajectory).
+  releaseDate?: string;
+  currentVersionReleaseDate?: string;
   // iTunes does not return subtitle via this API; we leave it undefined.
 }
 
@@ -201,6 +206,8 @@ function toAppRecord(raw: ItunesRawResult): AppRecord {
     currentVersion: raw.version ?? "",
     iconUrl: raw.artworkUrl100,
     bundleId: raw.bundleId,
+    releaseDate: raw.releaseDate,
+    currentVersionReleaseDate: raw.currentVersionReleaseDate,
     provenance: "live",
   };
 }

@@ -31,6 +31,8 @@ export {
   RecommendationItem,
   ReadyToPaste,
   SampleResponse,
+  KeywordMatchKind,
+  TargetAppSignals,
 } from "@sniffy/scraper/schemas";
 
 export { PaymentRequiredError } from "./errors.js";

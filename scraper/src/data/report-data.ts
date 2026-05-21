@@ -59,6 +59,12 @@ export interface KeywordRankDatum {
   // Depth we searched to. Surfaces in the response so callers can tell
   // apart "honestly not in top-200" from "we hit a rate-limit at 50".
   searchedDepth: number;
+  // iOS-only: top-N competitors from the same iTunes search response,
+  // surfaced for keyword-difficulty scoring. Always undefined on the
+  // Android path and on error/fixture rows. The companion `returnedCount`
+  // is the total result-set size (used as `appCount` by the difficulty gate).
+  topCompetitors?: AppRecord[];
+  returnedCount?: number;
 }
 
 // Where a competitor candidate came from. iOS uses the "search the first

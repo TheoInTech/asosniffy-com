@@ -6,6 +6,14 @@ import type {
 } from "../schemas/index.js";
 import type { KeywordRankDatum } from "../data/report-data.js";
 import { intentScore, popularityWeightedIntent } from "./intent.js";
+import {
+  classifyKeywordMatch,
+  type KeywordMatchKind,
+} from "./keyword-match.js";
+import {
+  competitorScore,
+  computeKeywordDifficulty,
+} from "./keyword-difficulty.js";
 
 // Phase 3 — popularity + related-terms input per keyword. Optional so
 // pre-Phase-3 callers (or callers with ASA disabled) get heuristic intent
@@ -43,6 +51,15 @@ export interface KeywordDiagnosis {
   popularitySource: "apple-search-ads" | "heuristic";
   popularityAsOf: string | null;
   relatedTerms: string[];
+  // Phase 6 (this PR) — keyword-difficulty signals derived from the top-N
+  // competitors in the same iTunes search response. `difficulty` is null
+  // and `difficultyIsFallback: true` when the top-five gate trips
+  // (rate-limit, niche keyword, etc.). `matchKind` is how the user's
+  // listing surfaces this keyword.
+  difficulty: number | null;
+  minDifficulty: number | null;
+  difficultyIsFallback: boolean;
+  matchKind: KeywordMatchKind;
 }
 
 export interface DiagnoseKeywordsInput {
@@ -60,6 +77,11 @@ export function diagnoseKeywords(
   const title = (input.app?.name ?? "").toLowerCase();
   const subtitle = (input.app?.subtitle ?? "").toLowerCase();
   const description = (input.app?.description ?? "").toLowerCase();
+  // Raw (unlowercased) target metadata for keyword-match classification —
+  // the classifier owns case-folding so it can also strip punctuation
+  // consistently with how match tokenization sees the metadata.
+  const titleRaw = input.app?.name ?? "";
+  const subtitleRaw = input.app?.subtitle ?? "";
 
   // Build a lookup so the order of `ranks` doesn't have to match `keywords`.
   const ranksByKeyword = new Map<string, KeywordRankDatum>();
@@ -70,6 +92,7 @@ export function diagnoseKeywords(
   for (const p of input.popularity ?? []) {
     popularityByKeyword.set(p.keyword.toLowerCase(), p);
   }
+  const now = Date.now();
 
   return input.keywords.map((rawKeyword) => {
     const keyword = rawKeyword.trim();
@@ -82,6 +105,12 @@ export function diagnoseKeywords(
     const coverageInDescription =
       description.length > 0 && description.includes(lower);
 
+    const matchKind = classifyKeywordMatch({
+      keyword,
+      title: titleRaw,
+      subtitle: subtitleRaw,
+    });
+
     const intent = popularityWeightedIntent({
       keyword,
       popularityScore: popularity?.popularityScore ?? null,
@@ -92,6 +121,13 @@ export function diagnoseKeywords(
       intent,
       coverageInTitle,
       coverageInSubtitle,
+    });
+
+    const difficultyOutcome = scoreKeywordDifficulty({
+      keyword,
+      competitors: rank?.topCompetitors,
+      totalReturned: rank?.returnedCount,
+      now,
     });
 
     return {
@@ -108,8 +144,82 @@ export function diagnoseKeywords(
       popularitySource: popularity?.popularitySource ?? "heuristic",
       popularityAsOf: popularity?.popularityAsOf ?? null,
       relatedTerms: popularity?.relatedTerms ?? [],
+      difficulty: difficultyOutcome.difficulty,
+      minDifficulty: difficultyOutcome.minDifficulty,
+      difficultyIsFallback: difficultyOutcome.isFallback,
+      matchKind,
     } satisfies KeywordDiagnosis;
   });
+}
+
+interface ScoreKeywordDifficultyInput {
+  keyword: string;
+  competitors: readonly AppRecord[] | undefined;
+  totalReturned: number | undefined;
+  now: number;
+}
+
+interface ScoreKeywordDifficultyResult {
+  difficulty: number | null;
+  minDifficulty: number | null;
+  isFallback: boolean;
+}
+
+// Score each competitor against the target keyword, then ask the difficulty
+// formula for an aggregate. When the top-five gate trips (rate-limit, niche
+// keyword), `difficulty` is null and `isFallback: true` — we never fabricate
+// a number from partial data.
+function scoreKeywordDifficulty(
+  input: ScoreKeywordDifficultyInput,
+): ScoreKeywordDifficultyResult {
+  if (!input.competitors || input.competitors.length === 0) {
+    return { difficulty: null, minDifficulty: null, isFallback: true };
+  }
+
+  const scores = input.competitors.map((competitor) => {
+    const match = classifyKeywordMatch({
+      keyword: input.keyword,
+      title: competitor.name,
+      subtitle: competitor.subtitle ?? "",
+    });
+    const daysSinceFirstRelease = daysBetween(
+      competitor.releaseDate,
+      input.now,
+    );
+    const daysSinceLastRelease = daysBetween(
+      competitor.currentVersionReleaseDate ?? competitor.releaseDate,
+      input.now,
+    );
+    return competitorScore({
+      averageUserRating: competitor.ratingsSummary.average,
+      userRatingCount: competitor.ratingsSummary.count,
+      daysSinceFirstRelease,
+      daysSinceLastRelease,
+      keywordMatch: match,
+    }).score;
+  });
+
+  const breakdown = computeKeywordDifficulty({
+    competitiveScores: scores,
+    appCount: input.totalReturned ?? input.competitors.length,
+  });
+  if (breakdown.isFallback) {
+    return { difficulty: null, minDifficulty: null, isFallback: true };
+  }
+  return {
+    difficulty: Math.round(breakdown.difficultyScore),
+    minDifficulty: Math.round(breakdown.minDifficultyScore),
+    isFallback: false,
+  };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function daysBetween(iso: string | undefined, now: number): number {
+  if (!iso) return Number.POSITIVE_INFINITY; // upstream treats missing as "ancient"
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return Number.POSITIVE_INFINITY;
+  return Math.max(1, Math.floor((now - t) / DAY_MS));
 }
 
 interface DecideActionInput {

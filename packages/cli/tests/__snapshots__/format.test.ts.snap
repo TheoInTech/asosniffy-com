@@ -14,11 +14,16 @@ Data provenance
   recommendations             ○ fixture
 
 Keyword diagnosis
-  keyword                  rank       intent   provenance
-  habit tracker            11-30      0.82     ○ fixture
-    └─ Move 'habit tracker' from the keywords field into the subtitle — high intent, currently ranking below the fold.
-  daily routine            51-100     0.61     ○ fixture
-    └─ Keep in the keywords field; pair with 'streaks' in the next screenshot caption to reinforce intent.
+  keyword                  rank       diff   intent   provenance
+  habit tracker            11-30      71     0.82     ○ fixture
+    └─ Move 'habit tracker' from the keywords field into the subtitle — high intent, currently ranking below the fold. Difficulty 71/100 (high). Tokens are in the title but not as an exact phrase — promoting to a contiguous phrase is the cheapest single fix.
+  daily routine            51-100     44     0.61     ○ fixture
+    └─ Keep in the keywords field; pair with 'streaks' in the next screenshot caption to reinforce intent. Difficulty 44/100 (medium).
+
+App momentum
+  ratings/day                 12.40 (growing)
+  days live                   412
+  days since update           9
 
 Competitor trail
   Streakly (1000000101)       overlap: habit tracker, daily routine   ○ fixture

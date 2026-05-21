@@ -2,12 +2,23 @@ import type { Provenance } from "../../schemas/index.js";
 
 // Normalized App Store record. Subset of the iTunes Search API result —
 // only the fields we actually consume downstream (quote/diagnose).
+//
+// `subtitle` is populated by the storefront-page provider (the iTunes Search
+// API never returns it). `subtitleProvenance` records the storefront fetch's
+// outcome:
+//   live | cached → fetched/served successfully (subtitle may still be empty
+//                   if the app genuinely has no subtitle)
+//   degraded     → storefront fetch failed; subtitle is intentionally absent
+//   undefined    → storefront fetch was not attempted (legacy path / fixture)
+// Scoring uses this to swap the "subtitle is empty" advisory for "subtitle
+// source unavailable" when we can't honestly claim the field is empty.
 export interface AppRecord {
   id: string;
   name: string;
   developer: string;
   primaryCategory: string;
   subtitle?: string;
+  subtitleProvenance?: Provenance;
   description: string;
   ratingsSummary: {
     average: number;
@@ -17,6 +28,12 @@ export interface AppRecord {
   currentVersion: string;
   iconUrl?: string;
   bundleId?: string;
+  // iTunes returns ISO date strings for both fields when the app has been
+  // released in the queried country. Region-locked apps occasionally come
+  // back without one or both. Consumers (scoring/keyword-difficulty,
+  // scoring/momentum) treat missing dates as honest unknowns.
+  releaseDate?: string;
+  currentVersionReleaseDate?: string;
   provenance: Provenance;
 }
 

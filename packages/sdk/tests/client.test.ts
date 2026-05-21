@@ -158,6 +158,58 @@ describe("createSniffy — sample", () => {
   });
 });
 
+describe("createSniffy — X-Sniffy-Client attestation", () => {
+  it("sets x-sniffy-client on quote", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(QUOTE_FIXTURE));
+    const sniffy = createSniffy({
+      baseUrl: "http://test",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+    await sniffy.quote({
+      store: "ios",
+      app: "https://apps.apple.com/us/app/example/id123456789",
+      country: "US",
+      keywords: ["habit tracker"],
+    });
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-sniffy-client"]).toMatch(/^@sniffy\/sdk@/);
+  });
+
+  it("sets x-sniffy-client on sample", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...FIXTURE, sample: true }));
+    const sniffy = createSniffy({
+      baseUrl: "http://test",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+    await sniffy.sample();
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-sniffy-client"]).toMatch(/^@sniffy\/sdk@/);
+  });
+
+  it("sets x-sniffy-client on diagnose (manual path)", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(FIXTURE));
+    const sniffy = createSniffy({
+      baseUrl: "http://test",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+    await sniffy.diagnose(
+      {
+        sniffId: "sniff_q1",
+        store: "ios",
+        app: "x",
+        country: "US",
+        keywords: ["habit tracker"],
+      },
+      { autoPay: false },
+    );
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-sniffy-client"]).toMatch(/^@sniffy\/sdk@/);
+  });
+});
+
 describe("createSniffy — diagnose", () => {
   it("returns the parsed paid response on 200", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(FIXTURE));

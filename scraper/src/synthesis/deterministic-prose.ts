@@ -15,25 +15,57 @@ import type {
 
 export function buildKeywordRecommendation(d: KeywordDiagnosis): string {
   const rankPhrase = describeRank(d.rankBucket);
+  const difficultyTail = describeDifficulty(d.difficulty);
+  const matchTail = describeMatchKind(d.matchKind);
+  const decoration = [difficultyTail, matchTail].filter(Boolean).join(" ");
+  const suffix = decoration ? ` ${decoration}` : "";
+
   switch (d.action) {
     case "add_to_title":
-      return `Move "${d.keyword}" into the app title — high intent and ${rankPhrase}. Title gets the heaviest Apple search weight.`;
+      return `Move "${d.keyword}" into the app title — high intent and ${rankPhrase}. Title gets the heaviest Apple search weight.${suffix}`;
     case "add_to_subtitle":
-      return `Promote "${d.keyword}" into the subtitle — ${rankPhrase}, and subtitle is the cheapest visible-field win.`;
+      return `Promote "${d.keyword}" into the subtitle — ${rankPhrase}, and subtitle is the cheapest visible-field win.${suffix}`;
     case "drop":
-      return `Drop "${d.keyword}" — low intent and ${rankPhrase}. Reclaim the slot for a more competitive term.`;
+      return `Drop "${d.keyword}" — low intent and ${rankPhrase}. Reclaim the slot for a more competitive term.${suffix}`;
     case "keep_in_keywords_field":
       if (d.coverageInTitle) {
-        return `Keep "${d.keyword}" in the keywords field — already covered by the title.`;
+        return `Keep "${d.keyword}" in the keywords field — already covered by the title.${suffix}`;
       }
       if (d.coverageInSubtitle) {
-        return `Keep "${d.keyword}" in the keywords field — subtitle already carries it; further promotion risks displacing brand.`;
+        return `Keep "${d.keyword}" in the keywords field — subtitle already carries it; further promotion risks displacing brand.${suffix}`;
       }
-      return `Keep "${d.keyword}" in the keywords field — ${rankPhrase}; better fit there than in visible metadata.`;
+      return `Keep "${d.keyword}" in the keywords field — ${rankPhrase}; better fit there than in visible metadata.${suffix}`;
     default: {
       const exhaustive: never = d.action;
       throw new Error(`Unhandled keyword action: ${String(exhaustive)}`);
     }
+  }
+}
+
+// "Difficulty 71/100 (high)" etc. Returns empty when we have no honest
+// number — happens when the top-five gate trips (rate-limit, niche keyword).
+function describeDifficulty(difficulty: number | null): string {
+  if (difficulty === null) return "";
+  const band = difficulty >= 67 ? "high" : difficulty >= 34 ? "medium" : "low";
+  return `Difficulty ${difficulty}/100 (${band}).`;
+}
+
+// Match-kind colour for the keyword's placement on the user's listing.
+// Only the actionable distinctions surface — "titleExactPhrase" is the
+// strongest signal so we don't say anything (no improvement available).
+function describeMatchKind(matchKind: KeywordDiagnosis["matchKind"]): string {
+  switch (matchKind) {
+    case "titleAllWords":
+      return "Tokens are in the title but not as an exact phrase — promoting to a contiguous phrase is the cheapest single fix.";
+    case "subtitleExactPhrase":
+      return "Listed as an exact phrase in the subtitle.";
+    case "subtitleAllWords":
+      return "Subtitle has the tokens but not as a phrase.";
+    case "combinedPhrase":
+      return "Tokens span the title and subtitle — fragments dilute rank weight.";
+    case "titleExactPhrase":
+    case "none":
+      return "";
   }
 }
 

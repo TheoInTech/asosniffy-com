@@ -103,7 +103,7 @@ export function buildTools(client: SniffyClient): ToolDef[] {
       name: "sniffy_diagnose",
       config: {
         description:
-          "PAID. Full ASO diagnosis: keyword rank, competitor trail, metadata score, recommendations, ready-to-paste copy, plus an x402 settlement receipt. Auto-pays from SNIFFY_PRIVATE_KEY. Requires a sniffId from a prior sniffy_quote. Costs `pricing.estimatedTotal` USDC on Morph Mainnet. " +
+          "PAID. Full ASO diagnosis: keyword rank, keyword difficulty (1-100, derived from the top-5 competitors), per-keyword match granularity (title-exact vs title-all-words vs subtitle-exact etc.), competitor trail, metadata score, target-app momentum (ratings-per-day + growing/steady/declining), recommendations, ready-to-paste copy, plus an x402 settlement receipt. Auto-pays from SNIFFY_PRIVATE_KEY. Requires a sniffId from a prior sniffy_quote. Costs `pricing.estimatedTotal` USDC on Morph Mainnet. " +
           MAINNET_NOTE,
         inputSchema: diagnoseShape,
       },

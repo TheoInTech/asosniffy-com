@@ -6,6 +6,12 @@ import {
   type ProviderStatus,
 } from "../../scoring/confidence.js";
 import { searchApps } from "./itunes.js";
+import type { AppRecord } from "./types.js";
+
+// Top-N apps we surface for downstream keyword-difficulty scoring. Five is
+// the upstream `TOP_DIFFICULTY_DOC_LIMIT` and matches the top-five gate in
+// scoring/keyword-difficulty.ts.
+const TOP_COMPETITOR_LIMIT = 5;
 
 export interface SampleKeywordRankInput {
   keyword: string;
@@ -30,6 +36,12 @@ export interface KeywordRankResult {
   confidence: Confidence;
   provenance: Provenance;
   searchedDepth: number;
+  // Top-N competing apps in the iTunes search response (excluding the
+  // target app). Surfaced so scoring/keyword-difficulty can score them
+  // without a second network round-trip. Total result-set size (for the
+  // appCount input to the difficulty formula) is `returnedCount`.
+  topCompetitors?: AppRecord[];
+  returnedCount?: number;
 }
 
 export type KeywordRankOutcome =
@@ -76,6 +88,7 @@ export async function sampleKeywordRank(
       depth,
       returnedCount: primary.length,
       identityConfidence: input.identityConfidence ?? "medium",
+      topCompetitors: extractTopCompetitors(primary, input.appId),
     });
   }
 
@@ -98,6 +111,8 @@ export async function sampleKeywordRank(
           confidence: "low",
           provenance: "live",
           searchedDepth: depth,
+          topCompetitors: extractTopCompetitors(primary, input.appId),
+          returnedCount: primary.length,
         };
       }
     }
@@ -109,6 +124,7 @@ export async function sampleKeywordRank(
     depth,
     returnedCount: primary.length,
     identityConfidence: input.identityConfidence ?? "medium",
+    topCompetitors: extractTopCompetitors(primary, input.appId),
   });
 }
 
@@ -118,6 +134,7 @@ interface BuildResultInput {
   depth: number;
   returnedCount: number;
   identityConfidence: Confidence;
+  topCompetitors?: AppRecord[];
 }
 
 function buildResult(input: BuildResultInput): KeywordRankResult {
@@ -137,7 +154,21 @@ function buildResult(input: BuildResultInput): KeywordRankResult {
     confidence,
     provenance: "live",
     searchedDepth: input.depth,
+    ...(input.topCompetitors !== undefined
+      ? { topCompetitors: input.topCompetitors }
+      : {}),
+    returnedCount: input.returnedCount,
   };
+}
+
+// Top-N competing apps in the search response, excluding the target.
+function extractTopCompetitors(
+  results: readonly AppRecord[],
+  targetAppId: string,
+): AppRecord[] {
+  return results
+    .filter((r) => r.id !== targetAppId)
+    .slice(0, TOP_COMPETITOR_LIMIT);
 }
 
 function clamp(value: number, min: number, max: number): number {

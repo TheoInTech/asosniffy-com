@@ -13,6 +13,7 @@ import { Recommendations } from "./Recommendations";
 import { Regressions } from "./Regressions";
 import { SuggestedKeywords } from "./SuggestedKeywords";
 import { Summary } from "./Summary";
+import { TargetAppSignals } from "./TargetAppSignals";
 import type { ReportScope } from "./types";
 
 export interface ReportProps {
@@ -55,8 +56,11 @@ export function Report({
       <Regressions report={report} />
       <Summary report={report} />
       <SpendTrail report={report} protocolTrace={protocolTrace} />
+      {/* Phase 6 — target-app momentum (ratings-per-day + growing/steady/
+          declining). Renders nothing when targetAppSignals is null. */}
+      <TargetAppSignals report={report} />
       <KeywordDiagnosisTable report={report} scope={scope} />
-      <CompetitorTrail report={report} />
+      <CompetitorTrail report={report} scope={scope} />
       {/* Phase 5 — multi-storefront localization gap analysis. Renders nothing
           when localizationAnalysis is null (LOCALIZATION_ENABLED=false). */}
       <LocalizationAnalysis report={report} />

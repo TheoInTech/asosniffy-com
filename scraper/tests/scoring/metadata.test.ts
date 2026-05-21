@@ -73,6 +73,26 @@ describe("scoreMetadata", () => {
     expect(result.subtitle.score).toBeLessThanOrEqual(30);
   });
 
+  it("emits 'source unavailable' (not 'empty') when storefront fetch was degraded", () => {
+    const result = scoreMetadata({
+      app: makeApp({ subtitle: "", subtitleProvenance: "degraded" }),
+      detectedApp: { id: "1", name: "Brand", developer: "X" },
+      keywords: ["habit"],
+    });
+    expect(result.subtitle.reasons[0]?.toLowerCase()).toContain(
+      "source unavailable",
+    );
+  });
+
+  it("claims subtitle empty honestly when storefront fetch succeeded", () => {
+    const result = scoreMetadata({
+      app: makeApp({ subtitle: "", subtitleProvenance: "live" }),
+      detectedApp: { id: "1", name: "Brand", developer: "X" },
+      keywords: ["habit"],
+    });
+    expect(result.subtitle.reasons[0]?.toLowerCase()).toContain("empty");
+  });
+
   it("flags keyword-field duplicates with title/subtitle words", () => {
     const result = scoreMetadata({
       app: makeApp({ name: "Habit Brand", subtitle: "Tracker Streaks" }),

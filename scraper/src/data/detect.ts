@@ -12,6 +12,11 @@ import { normalizeAppIdentifier } from "../lib/app-identifier.js";
 import { sampleQuote } from "./fixtures.js";
 import { lookupApp, searchApps } from "../providers/apple/itunes.js";
 import {
+  fetchStorefrontPage,
+  type StorefrontPageError,
+  type StorefrontPageResult,
+} from "../providers/apple/storefront-page.js";
+import {
   lookupApp as lookupAndroidApp,
   searchApps as searchAndroidApps,
 } from "../providers/android/play-store.js";
@@ -61,7 +66,60 @@ export interface DetectResult {
 }
 
 const APPLE_PROVIDER = "apple-itunes";
+const APPLE_STOREFRONT_PROVIDER = "apple-storefront-page";
 const GOOGLE_PROVIDER = "google-play";
+
+// Storefront-page fetch fronts the apps.apple.com HTML scrape that supplies
+// the App Store subtitle field (iTunes Search /lookup does not). Wrapped in
+// withCache so a single per-(appId, country) fetch serves all subsequent
+// callers within the appMetadata TTL.
+function fetchStorefrontWithCache(
+  appId: string,
+  country: string,
+): Promise<StorefrontPageResult | StorefrontPageError> {
+  return withCache(
+    () => fetchStorefrontPage({ appId, country }),
+    {
+      key: cacheKey({
+        namespace: "apple:storefront-page",
+        country,
+        appId,
+      }),
+      ttlSeconds: CACHE_TTL.appMetadata,
+      namespace: "apple:storefront-page",
+      audit: {
+        provider: APPLE_STOREFRONT_PROVIDER,
+        endpoint: "/app/id",
+      },
+    },
+  );
+}
+
+// Fold a storefront-page outcome into an iTunes AppRecord.
+// - On success with a subtitle: copy it in + inherit the storefront's
+//   provenance (live on fresh fetch, cached on cache hit).
+// - On success without a subtitle (page rendered, selectors missed, or the
+//   app genuinely has no subtitle): keep subtitle undefined but mark
+//   provenance from the storefront so scoring can distinguish "we tried"
+//   from "we never tried".
+// - On error: mark subtitleProvenance="degraded" so scoring can swap the
+//   "subtitle is empty" advisory for "subtitle source unavailable".
+function applyStorefront(
+  record: AppRecord,
+  storefront: StorefrontPageResult | StorefrontPageError,
+): AppRecord {
+  if ("error" in storefront) {
+    return { ...record, subtitleProvenance: "degraded" };
+  }
+  if (storefront.subtitle !== undefined) {
+    return {
+      ...record,
+      subtitle: storefront.subtitle,
+      subtitleProvenance: storefront.provenance,
+    };
+  }
+  return { ...record, subtitleProvenance: storefront.provenance };
+}
 
 // Resolve app identity from a user-supplied identifier.
 //
@@ -94,24 +152,30 @@ async function resolveIos(input: DetectInput): Promise<DetectResult> {
   const normalized = normalizeAppIdentifier(input.app);
 
   if (normalized.kind === "appId") {
-    const result = await withCache(
-      () => lookupApp({ id: normalized.value, country: input.country }),
-      {
-        key: cacheKey({
+    // Fan out iTunes /lookup and apps.apple.com page fetch in parallel —
+    // they share no state, so wall-clock latency stays single-fetch.
+    const [result, storefront] = await Promise.all([
+      withCache(
+        () => lookupApp({ id: normalized.value, country: input.country }),
+        {
+          key: cacheKey({
+            namespace: "apple:lookup",
+            country: input.country,
+            appId: normalized.value,
+          }),
+          ttlSeconds: CACHE_TTL.appMetadata,
           namespace: "apple:lookup",
-          country: input.country,
-          appId: normalized.value,
-        }),
-        ttlSeconds: CACHE_TTL.appMetadata,
-        namespace: "apple:lookup",
-        audit: { provider: APPLE_PROVIDER, endpoint: "/lookup" },
-      },
-    );
+          audit: { provider: APPLE_PROVIDER, endpoint: "/lookup" },
+        },
+      ),
+      fetchStorefrontWithCache(normalized.value, input.country),
+    ]);
     if (!("error" in result)) {
+      const enriched = applyStorefront(result, storefront);
       return {
-        detectedApp: extractDetectedApp(result),
-        provenance: result.provenance,
-        appRecord: result,
+        detectedApp: extractDetectedApp(enriched),
+        provenance: enriched.provenance,
+        appRecord: enriched,
         androidRecord: null,
         identityConfidence: "high",
         candidates: [],
@@ -174,7 +238,17 @@ async function resolveIos(input: DetectInput): Promise<DetectResult> {
         ],
       };
     }
-    return disambiguateIos(normalized.value, results);
+    const detected = disambiguateIos(normalized.value, results);
+    // Name-path enrichment runs after disambiguation: the selected appId
+    // isn't known until we score the search results.
+    if (detected.appRecord) {
+      const storefront = await fetchStorefrontWithCache(
+        detected.appRecord.id,
+        input.country,
+      );
+      detected.appRecord = applyStorefront(detected.appRecord, storefront);
+    }
+    return detected;
   }
 
   return appleErrorOrFixture({
