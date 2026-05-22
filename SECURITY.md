@@ -42,7 +42,44 @@ Out of scope (please report to the upstream project instead):
 
 ## Hackathon Note
 
-For the hackathon-period demo, Sniffy uses the **Morph Hoodi testnet**. Tokens
-on Hoodi have no monetary value. Reports of "funds drained on Hoodi" are still
-welcome — they indicate real bugs even when the loss isn't economic — but
-should be flagged as testnet so we can triage correctly.
+Sniffy runs on **Morph Mainnet only** (`eip155:2818`). Hoodi testnet support
+was dropped on 2026-05-21; all paid `/diagnose` calls settle on mainnet and
+are **non-refundable**. Treat any "funds drained" or "stuck payment" report
+as production-priority.
+
+## Apple Search Ads — JWT Key Rotation Runbook
+
+Sniffy authenticates to Apple Search Ads (`/keywords/popularity` and, from
+Phase 9 onward, `/keywords/recommendations`) using a `.p8` private key issued
+in the Apple Ads UI. The key is held in the `APPLE_SEARCH_ADS_PRIVATE_KEY_PEM`
+environment variable. If the key leaks, anyone holding it can call the Apple
+Search Ads API as the org until the key is revoked.
+
+**Rotation procedure (5 steps, ~5 minutes):**
+
+1. **Generate a new key in the Apple Ads UI.** *Settings → API → Create Key*.
+   Note the new `keyId`.
+2. **Deploy the new key alongside the old one.** Add it to Railway env as a
+   second variable, e.g. `APPLE_SEARCH_ADS_PRIVATE_KEY_PEM_NEW`. Do not
+   delete the old key yet.
+3. **Flip the primary.** Swap `APPLE_SEARCH_ADS_PRIVATE_KEY_PEM` to the new
+   value (rename `_NEW` to the live name). Redeploy. Watch the deploy log
+   for the `asa_jwt_key_fingerprint` line — the `fingerprint` field's last
+   8 hex chars MUST match what Apple's UI shows for the new key.
+4. **Revoke the old key.** Once the new fingerprint is observed in logs and
+   `/api/v1/aso/diagnose` is still returning popularity data, return to the
+   Apple Ads UI and revoke the old key. Old key can no longer be used.
+5. **Verify.** Run one paid `/diagnose` call. Check the response includes
+   `popularityScore` and `popularitySource: "apple-search-ads"` for at
+   least one keyword. If not, roll back the env var swap and re-investigate.
+
+The `asa_jwt_key_fingerprint` startup log is the only safe way to confirm
+which key is live in production — the private material itself never appears
+in logs. Sample log line:
+
+```json
+{"ts":"2026-05-22T01:46:08.513Z","level":"info","event":"asa_jwt_key_fingerprint","keyId":"ABCD1234EF","fingerprint":"a3b9f2c1"}
+```
+
+If a leak is suspected, rotate immediately. Steps 1-4 can be completed in
+under 5 minutes if the new key is generated in advance.

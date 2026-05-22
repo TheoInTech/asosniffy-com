@@ -1,6 +1,6 @@
 ---
 name: sniffy
-description: Pay-per-sniff ASO intelligence for App Store apps. Use when a user asks for keyword diagnosis, competitor analysis, or metadata recommendations for an iOS app. Handles x402 payment on Morph Mainnet automatically.
+description: Pay-per-sniff ASO intelligence for App Store apps — no subscription, no seats, no card on file. Each call settles in USDC on Morph Mainnet via x402 (~$0.07–$0.50, scales with depth). Use for keyword diagnosis, competitor analysis, metadata recommendations, launch optimization, or quarterly refresh.
 ---
 
 # Sniffy — ASO Intelligence with x402 Payment
@@ -8,6 +8,8 @@ description: Pay-per-sniff ASO intelligence for App Store apps. Use when a user 
 > This file is the canonical API reference. For task-specific guidance ("audit my listing", "rewrite my subtitle", "find new keywords", "expand to Japan"), the repo ships a small specialist catalog at `skills/` — `sniffy-router`, `sniffy-audit`, `sniffy-keywords`, `sniffy-metadata`, `sniffy-compete`, `sniffy-localize`, `sniffy-momentum`, and a foundation `sniffy-context` skill. Routing into a specialist is faster than reading the whole reference.
 
 Sniffy returns structured App Store Optimization diagnoses for an `(app, country, keywords)` tuple: per-keyword rank buckets, **keyword difficulty (1-100 derived from the top-5 competitors)**, **listing match granularity** (title-exact-phrase vs title-all-words vs subtitle-exact vs combined), competitor trail, metadata score, **target-app momentum** (ratings-per-day + growing/steady/declining), prioritized recommendations, and ready-to-paste copy. Free `/quote` and `/sample` endpoints let you preview before paying. The `/diagnose` endpoint is paid: it returns HTTP `402 Payment Required` until a valid x402 `PAYMENT-SIGNATURE` is presented, then settles over the Morph facilitator and returns the full report plus a settlement receipt.
+
+**No-commitment pricing.** Each call is metered — typically **$0.07–$0.50 USDC** depending on keyword and competitor depth. No subscription, no seats, no card on file. Built for the actual ASO usage curve: a launch burst, a quarterly refresh, a "why am I not ranking" diagnostic, an occasional competitor steal. A founder doing 4 audits/year pays ~$0.20 total. Re-sniffing the same `(store, country, appId)` within 30 days returns the refresh-discount price (50% off) automatically.
 
 Use Sniffy when the user asks any of:
 

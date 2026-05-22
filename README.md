@@ -1,17 +1,22 @@
 # Sniffy
 
-> Pay-per-sniff ASO intelligence for founders and agents.
+> Pay-per-sniff ASO intelligence for founders and agents. No subscription. No seats. No card on file.
 
 Sniffy turns App Store optimization into an **agent-buyable HTTP resource**.
 A founder or AI agent submits an iOS app, a country, and a few keywords;
-Sniffy quotes the cost, gates the diagnosis behind **x402 on Morph Hoodi**,
+Sniffy quotes the cost, gates the diagnosis behind **x402 on Morph Mainnet**,
 and returns a structured visibility report with competitor gaps, metadata
-fixes, and ready-to-paste listing copy.
+fixes, and ready-to-paste listing copy. Each call costs roughly **$0.07–$0.50 USDC**
+depending on depth — built for the actual ASO usage curve (launch burst, quarterly
+refresh, "why am I not ranking" diagnostic) rather than the dashboard assumption
+of constant use. A founder doing four audits a year pays under a dollar total.
 
 This repo is a hackathon submission for the **x402 Agentic Payments** track,
 but it's designed to outlive the hackathon as a real indie-hacker tool.
 
-🐾 **Tagline:** _Sniff out what is costing your app rankings._
+🐾 **Tagline:** _Pay-per-sniff ASO. No commitment, no seats, no card on file._
+
+🐾 **Mantra:** _Sniff out what is costing your app rankings._
 
 ---
 
@@ -92,12 +97,12 @@ The canonical surface is three HTTP endpoints documented in `PLAN.md` §9:
 | Endpoint | Auth | Returns |
 |---|---|---|
 | `POST /api/v1/aso/quote` | None | Price, coverage estimate, **shallow scan** teaser |
-| `POST /api/v1/aso/diagnose` | x402 (Morph Hoodi) | Full report + receipt + provenance |
+| `POST /api/v1/aso/diagnose` | x402 (Morph Mainnet) | Full report + receipt + provenance |
 | `GET /api/v1/aso/sample` | None | Fixture report for inspection |
 
 Unpaid calls to `/diagnose` return a real `402 Payment Required` with
 machine-readable x402 payment requirements. Agents read the 402, sign on
-Morph Hoodi (`eip155:2910`), and retry — exactly the agentic-payments flow
+Morph Mainnet (`eip155:2818`), and retry — exactly the agentic-payments flow
 the track is built around.
 
 ---
@@ -146,7 +151,7 @@ flowchart LR
 
     subgraph Morph["Morph"]
         FAC["x402 Facilitator<br/>morph-rails.morph.network/x402"]
-        CHAIN["Morph Hoodi<br/>eip155:2910"]
+        CHAIN["Morph Mainnet<br/>eip155:2818"]
     end
 
     subgraph External["External providers"]
@@ -315,7 +320,7 @@ The owner pushes directly to `main`; all other contributors open PRs.
 ## Hackathon
 
 - Track: x402 Agentic Payments on Morph.
-- Network: Morph Hoodi testnet (`eip155:2910`).
+- Network: Morph Mainnet (`eip155:2818`). Hoodi testnet support was dropped 2026-05-21; Sniffy is mainnet-only.
 - Facilitator: `https://morph-rails.morph.network/x402` (official).
 - Build diary: tagged `#MorphBuildSprint` and `#MorphBuildPH`.
 
