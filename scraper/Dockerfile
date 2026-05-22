@@ -35,12 +35,13 @@ COPY packages/aso-knowledge/package.json ./packages/aso-knowledge/
 # scraper has zero @sniffy/* deps today but the suffix is forward-compatible.
 RUN pnpm install --frozen-lockfile --filter @sniffy/scraper...
 
-# Copy source + tsconfig + scripts. .dockerignore keeps tests, fixtures
-# beyond what's imported, and the local .env out of the image.
+# Copy source + tsconfig only. scripts/ is dev tooling (baseline:shapes)
+# whose output (src/data/shape-baselines.json) is already committed — don't
+# ship the script into the image. .dockerignore keeps tests + the local
+# .env out.
 COPY scraper/tsconfig.json ./scraper/
 COPY scraper/src ./scraper/src
 COPY scraper/fixtures ./scraper/fixtures
-COPY scraper/scripts ./scraper/scripts
 
 RUN pnpm --filter @sniffy/scraper build
 
