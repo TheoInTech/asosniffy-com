@@ -1,53 +1,71 @@
 # Build context for `docker build -f scraper/Dockerfile .` is the repo root,
-# so Docker reads this file (NOT a scraper/.dockerignore — Docker only honors
-# the .dockerignore at the build context root). Anything matched here is
-# invisible to COPY during the build; the Dockerfile's explicit COPY commands
-# put back exactly what the scraper image needs.
+# so Docker reads THIS file (NOT scraper/.dockerignore — Docker only honors
+# the .dockerignore at the build context root).
+#
+# STRICT ALLOWLIST style.
+#
+# Why: Railway's "Metal" builder uses incremental snapshot uploads. With a
+# denylist .dockerignore, the snapshot diff algorithm was silently dropping
+# paths that hadn't been touched in many commits (scraper/fixtures,
+# scraper/scripts), causing COPY layers to fail with "/scraper/<dir>: not
+# found" even though the files were on origin/main. An allowlist forces the
+# snapshot manifest to include every explicitly-allowed path on every build,
+# making the snapshot deterministic across rebuilds.
 
-# Build output — recreated inside the container.
-**/dist
-**/.next
+# Deny everything by default
+*
+
+# Root workspace metadata (needed for `pnpm install --frozen-lockfile`)
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+
+# Scraper service — full source + fixtures (this is what ships)
+!scraper
+
+# Re-deny noise inside scraper
+scraper/.env
+scraper/.env.*
+!scraper/.env.example
+scraper/node_modules
+scraper/dist
+scraper/coverage
+scraper/tests
+scraper/eval
+scraper/docs
+scraper/scripts
+
+# Packages — pnpm workspace needs every workspace package.json present to
+# resolve the lockfile, even for packages we don't COPY into the image.
+!packages
+packages/*/src
+packages/*/tests
+packages/*/dist
+packages/*/node_modules
+packages/*/tsup.config.ts
+packages/*/tsconfig.json
+packages/*/CHANGELOG.md
+packages/*/README.md
+
+# Landing — only its package.json (same workspace-resolution reason as
+# packages above). Docker requires un-excluding the parent directory before
+# a file-level `!path/file` rule can reach in: allow landing/, deny all its
+# contents, then re-allow the one file.
+!landing
+landing/*
+!landing/package.json
+
+# Global denies — never bake into any image
+**/node_modules
 **/.turbo
 **/.vitest-cache
-
-# Dependencies — installed inside the container.
-**/node_modules
-
-# Secrets — never bake into an image.
-.env
-.env.*
-!.env.example
-**/.env
-**/.env.*
-!**/.env.example
-
-# Tests / coverage — runtime container doesn't need them. Test fixtures
-# scraper actually reads (scraper/fixtures/*.json) are not matched.
 **/coverage
 **/*.test.ts
 **/*.test.tsx
-**/tests
-landing/playwright-report
-landing/test-results
-
-# Apps unrelated to the scraper image. Keeps the build context small.
-landing
-packages/cli/dist
-packages/mcp/dist
-packages/sdk/dist
-packages/cli/tests
-packages/mcp/tests
-packages/sdk/tests
-
-# Local tooling
 .git
-.gitignore
 .github
 .vscode
 .idea
 *.log
 .DS_Store
-
-# Docs
-*.md
-**/*.md
