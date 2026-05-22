@@ -19,18 +19,56 @@ function makeApp(overrides: Partial<AppRecord> = {}): AppRecord {
 }
 
 describe("analyzeCompetitors", () => {
-  it("returns at most three analyses", () => {
+  it("returns at most fifteen analyses (Phase A: raised from 3 → 15 with tier stratification)", () => {
+    // Generate 20 candidates so we cross the 15-cap and verify it holds.
+    const candidates = Array.from({ length: 20 }, (_, i) => ({
+      appId: String(i + 2),
+      name: `Candidate ${i + 2}`,
+      provenance: "live" as const,
+    }));
+    const result = analyzeCompetitors({
+      target: makeApp(),
+      targetKeywords: ["habit tracker"],
+      candidates,
+    });
+    expect(result.length).toBeLessThanOrEqual(15);
+  });
+
+  it("Phase A: threads tier + searchPosition from candidate through to analysis", () => {
     const result = analyzeCompetitors({
       target: makeApp(),
       targetKeywords: ["habit tracker"],
       candidates: [
-        { appId: "2", name: "A", provenance: "live" },
-        { appId: "3", name: "B", provenance: "live" },
-        { appId: "4", name: "C", provenance: "live" },
-        { appId: "5", name: "D", provenance: "live" },
+        {
+          appId: "2",
+          name: "Streakly",
+          provenance: "live",
+          tier: "leader",
+          searchPosition: 1,
+        },
+        {
+          appId: "3",
+          name: "Routinely",
+          provenance: "live",
+          tier: "shoulder",
+          searchPosition: 12,
+        },
       ],
     });
-    expect(result.length).toBeLessThanOrEqual(3);
+    expect(result[0]!.tier).toBe("leader");
+    expect(result[0]!.searchPosition).toBe(1);
+    expect(result[1]!.tier).toBe("shoulder");
+    expect(result[1]!.searchPosition).toBe(12);
+  });
+
+  it("Phase A: legacy candidates without tier produce analyses with tier undefined", () => {
+    const result = analyzeCompetitors({
+      target: makeApp(),
+      targetKeywords: ["habit tracker"],
+      candidates: [{ appId: "2", name: "Streakly", provenance: "live" }],
+    });
+    expect(result[0]!.tier).toBeUndefined();
+    expect(result[0]!.searchPosition).toBeUndefined();
   });
 
   it("computes overlap from user keywords appearing in competitor surface", () => {

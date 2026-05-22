@@ -471,16 +471,30 @@ function collectOpportunityKeywords(
     }
   }
 
-  // Competitor-unique terms anchor at 0.5 (on-topic) or 0.4 (adjacent) —
-  // below most user keywords but above truly dead-weight terms. The
-  // off-topic label drops the term entirely.
+  // Phase A — Tier-aware competitor weighting. Each competitor's tier
+  // (leader/peer/shoulder, derived from search-result position in the
+  // data layer) shifts the base weight so a leader's unique terms outrank
+  // a shoulder's at the same on-topic/adjacent label. Legacy callers /
+  // tests that omit tier fall through to the previous flat scheme.
+  //
+  //   Tier     | on-topic | adjacent
+  //   ---------|----------|---------
+  //   leader   |   0.60   |  0.50
+  //   peer     |   0.50   |  0.40   (= legacy default)
+  //   shoulder |   0.35   |  0.25
+  //   <none>   |   0.50   |  0.40   (legacy back-compat)
+  //
+  // The off-topic label still drops the term entirely; tier only shifts
+  // the weight of terms that already passed the relevance gate.
   for (const c of input.scoring.competitors) {
+    const tier = c.tier;
     for (const term of c.uniqueToCompetitor) {
       const key = term.toLowerCase();
       if (seen.has(key)) continue;
       if (offTopicByKeyword.has(key)) continue;
       seen.add(key);
-      const weight = adjacentByKeyword.has(key) ? 0.4 : 0.5;
+      const adjacent = adjacentByKeyword.has(key);
+      const weight = tierWeightForCompetitorUnique(tier, adjacent);
       out.push({
         keyword: key,
         originalKeyword: term,
@@ -498,6 +512,26 @@ function collectOpportunityKeywords(
   }
 
   return out.sort((a, b) => b.weight - a.weight);
+}
+
+// Phase A — Tier-aware weight for competitor-unique terms. See the table
+// at the call site; legacy callers (tier undefined) get the previous
+// flat scheme so existing tests don't break and the relevance-gate
+// contract is unchanged.
+function tierWeightForCompetitorUnique(
+  tier: import("../data/report-data.js").CompetitorTier | undefined,
+  adjacent: boolean,
+): number {
+  switch (tier) {
+    case "leader":
+      return adjacent ? 0.5 : 0.6;
+    case "shoulder":
+      return adjacent ? 0.25 : 0.35;
+    case "peer":
+    case undefined:
+    default:
+      return adjacent ? 0.4 : 0.5;
+  }
 }
 
 // Apple's keyword indexer tokenizes on whitespace + punctuation and matches
