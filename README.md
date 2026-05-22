@@ -331,6 +331,22 @@ The owner pushes directly to `main`; all other contributors open PRs.
 
 Two apps, two hosts (per `PLAN.md` §10.4): `scraper/` → Railway via Docker (`node:22-slim`); `landing/` → Vercel via the native Next.js flow. `packages/*` publish to npm via Changesets. None of these are containerized together — each ships independently.
 
+**Live deployment** (Mainnet):
+
+| Surface | URL |
+|---|---|
+| Demo UI | https://gosniffy.vercel.app/ |
+| API | https://gosniffyscraper-production.up.railway.app/ |
+| Health | https://gosniffyscraper-production.up.railway.app/health |
+| Sample report | https://gosniffyscraper-production.up.railway.app/api/v1/aso/sample |
+
+npm packages (all at v0.2.0 in the `@gosniffy` org):
+
+- [`@gosniffy/sdk`](https://www.npmjs.com/package/@gosniffy/sdk) — `npm i @gosniffy/sdk`
+- [`@gosniffy/cli`](https://www.npmjs.com/package/@gosniffy/cli) — `npx @gosniffy/cli quote …` (or `npx sniffy …`)
+- [`@gosniffy/mcp`](https://www.npmjs.com/package/@gosniffy/mcp) — paid MCP server for Claude Desktop / Cursor
+- [`@gosniffy/aso-knowledge`](https://www.npmjs.com/package/@gosniffy/aso-knowledge) — free MCP server (curated ASO citations)
+
 ### Local Docker smoke (before pushing)
 
 ```bash
@@ -387,22 +403,27 @@ pnpm changeset publish         # publish to npm (requires `npm login`)
 git push --follow-tags
 ```
 
-### End-to-end smoke (against live URLs)
+### End-to-end smoke (against the live API)
 
 ```bash
-# Sample — no wallet
-curl -s -X POST https://<railway>/api/v1/aso/sample | jq '.scoring.metadata.score'
+# 1. Sample — GET, no wallet, no header required
+curl -s https://gosniffyscraper-production.up.railway.app/api/v1/aso/sample \
+  | jq '.scoring.metadata.score'
 
-# Quote — no wallet
-curl -s -X POST https://<railway>/api/v1/aso/quote \
+# 2. Quote — POST, no wallet. X-Sniffy-Client is required by the soft
+#    origin-attestation middleware on the paid-track endpoints.
+curl -s -X POST https://gosniffyscraper-production.up.railway.app/api/v1/aso/quote \
   -H 'content-type: application/json' \
-  -d '{"store":"ios","country":"US","app":{"appId":"284882215"},"keywords":["facebook"]}' \
+  -H 'X-Sniffy-Client: @gosniffy/cli@0.2.0' \
+  -d '{"store":"ios","country":"US","app":"https://apps.apple.com/us/app/facebook/id284882215","keywords":["facebook"]}' \
   | jq '.shallowScan, .pricing, .savingsNote'
 
-# Diagnose without payment MUST return real 402 with the PAYMENT-REQUIRED header
-curl -s -i -X POST https://<railway>/api/v1/aso/diagnose \
+# 3. Diagnose without payment MUST return real HTTP 402 + the PAYMENT-REQUIRED header.
+#    The header carries Base64 JSON of the x402 offer (eip155:2818, USDC, EIP-3009).
+curl -s -i -X POST https://gosniffyscraper-production.up.railway.app/api/v1/aso/diagnose \
   -H 'content-type: application/json' \
-  -d '{"store":"ios","country":"US","app":{"appId":"284882215"},"keywords":["facebook"]}' \
+  -H 'X-Sniffy-Client: @gosniffy/cli@0.2.0' \
+  -d '{"store":"ios","country":"US","app":"https://apps.apple.com/us/app/facebook/id284882215","keywords":["facebook"],"sniffId":"sniff_smoke"}' \
   | head -30
 ```
 
