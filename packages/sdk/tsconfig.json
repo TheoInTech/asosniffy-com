@@ -2,14 +2,24 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
+    // No rootDir — the build path inlines scraper/src/schemas via the
+    // `paths` alias below; tsup emits a single bundled output regardless,
+    // so per-file rootDir constraints would only block the d.ts step.
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM"],
-    "types": ["node"]
+    "types": ["node"],
+    // Alias the scraper schemas to their workspace source files so the SDK
+    // build (tsup + rollup-plugin-dts) inlines them into dist/index.{js,d.ts}.
+    // The published @sniffy/sdk is then self-contained — npm consumers don't
+    // need to install @sniffy/scraper (which never publishes; it's an app).
+    // Runtime test resolution still goes through pnpm workspace symlink.
+    "paths": {
+      "@sniffy/scraper/schemas": ["../../scraper/src/schemas/index.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

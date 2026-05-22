@@ -1,11 +1,19 @@
 {
-  "name": "@sniffy/mcp",
+  "name": "@sniffy/aso-knowledge",
   "version": "0.1.0",
-  "description": "Model Context Protocol server for the Sniffy ASO API. Exposes sniffy_quote, sniffy_diagnose, sniffy_sample over stdio.",
+  "description": "MCP server for curated App Store Optimization best practices. Three tools: list topics, get a topic's primary-source citation, and look up the best topic match for free-form text. No payment, no wallet — pure knowledge.",
   "license": "MIT",
   "type": "module",
+  "main": "./dist/public.js",
+  "types": "./dist/public.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/public.d.ts",
+      "default": "./dist/public.js"
+    }
+  },
   "bin": {
-    "sniffy-mcp": "./dist/index.js"
+    "sniffy-aso-knowledge": "./dist/index.js"
   },
   "files": [
     "dist",
@@ -20,8 +28,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@sniffy/sdk": "workspace:*",
-    "viem": "^2.21.55",
     "zod": "^3.24.1"
   },
   "devDependencies": {

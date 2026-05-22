@@ -28,6 +28,7 @@ COPY landing/package.json ./landing/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/mcp/package.json ./packages/mcp/
+COPY packages/aso-knowledge/package.json ./packages/aso-knowledge/
 
 # Install only scraper's dependency closure. `...` (three dots) tells pnpm
 # to also pull anything scraper depends on transitively across workspaces;
