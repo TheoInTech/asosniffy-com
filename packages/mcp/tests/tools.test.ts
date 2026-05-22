@@ -4,6 +4,11 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+// Gated: only runs when RUN_INTEGRATION=1 (so default `pnpm test` stays fast).
+// Mirrors the @gosniffy/sdk integration test convention. Local invocation:
+//   RUN_INTEGRATION=1 pnpm --filter @gosniffy/mcp test
+const isGated = process.env["RUN_INTEGRATION"] !== "1";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..", "..", "..");
 const MCP_ENTRY = join(__dirname, "..", "dist", "index.js");
@@ -42,6 +47,7 @@ async function startMcp(): Promise<void> {
 }
 
 beforeAll(async () => {
+  if (isGated) return;
   scraper = spawn("pnpm", ["--filter", "@sniffy/scraper", "dev"], {
     cwd: REPO_ROOT,
     env: {
@@ -135,7 +141,7 @@ async function initialize(proc: ChildProcess): Promise<void> {
   await wait(100);
 }
 
-describe("MCP server — stdio harness", () => {
+describe.skipIf(isGated)("MCP server — stdio harness", () => {
   it("lists exactly three tools (sniffy_quote, sniffy_diagnose, sniffy_sample)", async () => {
     if (mcp === null) throw new Error("MCP process not started");
     await initialize(mcp);

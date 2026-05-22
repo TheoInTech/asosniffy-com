@@ -44,6 +44,12 @@ jobs:
       - name: Build @sniffy/scraper (landing import resolution)
         run: pnpm --filter @sniffy/scraper run build
 
+      # packages/cli + packages/mcp depend on @gosniffy/sdk via workspace:*.
+      # The SDK's exports map points at dist/, so consumers cannot typecheck
+      # until tsup has produced that dist. Mirrors the scraper prebuild above.
+      - name: Build @gosniffy/sdk (cli + mcp import resolution)
+        run: pnpm --filter @gosniffy/sdk run build
+
       - name: Typecheck workspace
         run: pnpm -r typecheck
 
