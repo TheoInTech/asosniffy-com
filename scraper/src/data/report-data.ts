@@ -83,6 +83,18 @@ export interface KeywordRankDatum {
 // the two methods.
 export type CompetitorSource = "search" | "similar";
 
+// Phase A — Competitor tier. Derived from the candidate's position in the
+// upstream search response (iOS) or similar-apps ordering (Android):
+//   • leader   — positions 1-5: the incumbents winning rank for the user's
+//                keywords. Highest-value uniqueToCompetitor terms.
+//   • peer     — positions 6-10: apps competing but not winning. Mid-tier
+//                signal; usually still on-category.
+//   • shoulder — positions 11-15: long-tail / adjacent apps. Lower-value
+//                terms but useful for niche/adjacent keyword mining.
+// Optional so legacy callers (tests, fixtures) can omit it. Synthesis
+// falls back to flat weighting when tier is undefined.
+export type CompetitorTier = "leader" | "peer" | "shoulder";
+
 export interface CompetitorCandidate {
   appId: string;
   name: string;
@@ -93,6 +105,12 @@ export interface CompetitorCandidate {
   // carry AndroidAppRecord (the search-hit shape, lighter weight).
   record?: AppRecord;
   androidRecord?: AndroidAppRecord;
+  // Phase A — competitor tier + search-result position (1-indexed). The
+  // synthesis layer weights tier into the OpportunityKeyword weight so the
+  // leader's unique terms outrank a shoulder competitor's. Both are
+  // optional; absence triggers the legacy flat-weight code path.
+  tier?: CompetitorTier;
+  searchPosition?: number;
 }
 
 export interface ReportData {
@@ -596,18 +614,21 @@ async function collectIosCompetitorsByFirstKeyword(
   detect: DetectResult,
 ): Promise<CompetitorsOutcome> {
   const firstKeyword = input.keywords[0]!;
+  // Phase A — search limit raised 20 → 30 so the top-15 slice has headroom
+  // after excluding the target app. Same cache namespace; warmer caches
+  // continue to serve the older limit=20 entries until they age out.
   const results = await withCache(
     () =>
       searchApps({
         term: firstKeyword,
         country: input.country,
-        limit: 20,
+        limit: 30,
       }),
     {
       key: cacheKey({
         namespace: "apple:competitor-search",
         country: input.country,
-        extra: { keyword: firstKeyword.toLowerCase(), limit: 20 },
+        extra: { keyword: firstKeyword.toLowerCase(), limit: 30 },
       }),
       ttlSeconds: CACHE_TTL.appMetadata,
       namespace: "apple:competitor-search",
@@ -633,15 +654,20 @@ async function collectIosCompetitorsByFirstKeyword(
     };
   }
 
+  // Phase A — slice 5 → 15 with tier-by-position. Tier feeds the synthesis
+  // layer's OpportunityKeyword weighting so a leader's unique terms beat
+  // a shoulder app's in subtitle/keywords-field picks.
   const rows: CompetitorCandidate[] = results
     .filter((r) => r.id !== detect.detectedApp.id)
-    .slice(0, 5)
-    .map((r) => ({
+    .slice(0, 15)
+    .map((r, i) => ({
       appId: r.id,
       name: r.name,
       provenance: r.provenance,
       source: "search" as CompetitorSource,
       record: r,
+      tier: tierForPosition(i + 1),
+      searchPosition: i + 1,
     }));
   return { rows, errors: [] };
 }
@@ -683,15 +709,18 @@ async function collectAndroidCompetitors(
         ],
       };
     }
+    // Phase A — slice 5 → 15 with tier-by-position (Android similar-apps).
     const rows: CompetitorCandidate[] = results
       .filter((r) => r.packageName !== detect.androidRecord!.packageName)
-      .slice(0, 5)
-      .map((r) => ({
+      .slice(0, 15)
+      .map((r, i) => ({
         appId: r.packageName,
         name: r.name,
         provenance: r.provenance,
         source: "similar" as CompetitorSource,
         androidRecord: r,
+        tier: tierForPosition(i + 1),
+        searchPosition: i + 1,
       }));
     return { rows, errors: [] };
   }
@@ -728,17 +757,30 @@ async function collectAndroidCompetitors(
       ],
     };
   }
+  // Phase A — slice 5 → 15 with tier-by-position (Android first-keyword search).
   const rows: CompetitorCandidate[] = results
     .filter((r) => r.packageName !== detect.detectedApp.id)
-    .slice(0, 5)
-    .map((r) => ({
+    .slice(0, 15)
+    .map((r, i) => ({
       appId: r.packageName,
       name: r.name,
       provenance: r.provenance,
       source: "search" as CompetitorSource,
       androidRecord: r,
+      tier: tierForPosition(i + 1),
+      searchPosition: i + 1,
     }));
   return { rows, errors: [] };
+}
+
+// Phase A — Tier-by-position helper. Positions are 1-indexed (the rank in
+// the upstream iTunes search response / gplay.similar() ordering, after
+// filtering out the target app itself). Exported so the intersection path
+// (competitor-intersection.ts) tags its output with the same scheme.
+export function tierForPosition(position: number): CompetitorTier {
+  if (position <= 5) return "leader";
+  if (position <= 10) return "peer";
+  return "shoulder";
 }
 
 interface PopularityOutcome2 {
