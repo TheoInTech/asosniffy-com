@@ -25,13 +25,16 @@
     "baseline:shapes": "tsx scripts/baseline-shapes.ts"
   },
   "dependencies": {
+    "@browserbasehq/sdk": "^2.12.0",
     "@hono/node-server": "^1.13.7",
     "@upstash/redis": "^1.34.3",
+    "cheerio": "^1.2.0",
     "franc-min": "^6.2.0",
     "google-play-scraper": "10.1.2",
     "hono": "^4.6.14",
     "nanoid": "^5.1.11",
     "openai": "^4.104.0",
+    "playwright-core": "^1.60.0",
     "viem": "^2.21.55",
     "zod": "^3.24.1"
   },

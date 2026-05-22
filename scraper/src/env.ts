@@ -304,6 +304,29 @@ const EnvSchema = z.object({
     (v) => (typeof v === "string" && v.trim().length === 0 ? undefined : v),
     z.string().url().optional(),
   ),
+
+  // Phase B — product-context provider (fetch + cheerio + Browserbase fallback).
+  // PRODUCT_CONTEXT_ENABLED gates the provider at all; when false the
+  // synthesis path skips it and behaves identically to pre-Phase-B.
+  //
+  // The provider's static path (fetch + cheerio) requires no credentials —
+  // it works on any indie-founder marketing site rendered to HTML at request
+  // time (Carrd, Webflow SSR, Framer SSR, GitHub Pages, Next.js SSR/SSG,
+  // Astro, etc. — roughly 70-80% of indie founder sites).
+  //
+  // BROWSERBASE_API_KEY + BROWSERBASE_PROJECT_ID enable the headless
+  // fallback for pure-SPA sites that don't serve content statically. Both
+  // optional; if either is unset the fallback is silently skipped and the
+  // provider returns provenance:"degraded" on a thin static fetch.
+  PRODUCT_CONTEXT_ENABLED: BooleanFromString.default(false),
+  BROWSERBASE_API_KEY: z.preprocess(
+    (v) => (typeof v === "string" && v.trim().length === 0 ? undefined : v),
+    z.string().min(1).optional(),
+  ),
+  BROWSERBASE_PROJECT_ID: z.preprocess(
+    (v) => (typeof v === "string" && v.trim().length === 0 ? undefined : v),
+    z.string().min(1).optional(),
+  ),
 });
 
 type RawEnv = z.infer<typeof EnvSchema>;
@@ -437,6 +460,25 @@ function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
       "RANK_HISTORY_ENABLED=true but SNIFFY_HISTORY_HMAC_SECRET is unset. " +
         "Generate one with `openssl rand -hex 32` and set it in Railway env, " +
         "or flip RANK_HISTORY_ENABLED=false to disable history persistence.",
+    );
+  }
+
+  // Phase B — product-context provider doesn't require Browserbase
+  // credentials to function (the static fetch + cheerio path works on
+  // most indie founder sites without any key). The boot-time guard only
+  // fires when Browserbase is partially configured — having one var
+  // without the other is always a misconfiguration that would silently
+  // skip the fallback even when intended.
+  if (
+    parsed.NODE_ENV === "production" &&
+    parsed.PRODUCT_CONTEXT_ENABLED &&
+    Boolean(parsed.BROWSERBASE_API_KEY) !==
+      Boolean(parsed.BROWSERBASE_PROJECT_ID)
+  ) {
+    throw new Error(
+      "BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID must both be set " +
+        "(headless fallback) or both unset (static-only). One without " +
+        "the other is a misconfiguration.",
     );
   }
 

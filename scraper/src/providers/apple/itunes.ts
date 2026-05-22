@@ -24,6 +24,13 @@ interface ItunesRawResult {
   // scoring/momentum (target-app trajectory).
   releaseDate?: string;
   currentVersionReleaseDate?: string;
+  // Phase B — additional iTunes Search fields we now surface on AppRecord.
+  // sellerUrl is the highest-leverage off-store signal (developer's
+  // marketing site → product-context provider). Others feed Phase C/D.
+  sellerUrl?: string;
+  artistViewUrl?: string;
+  releaseNotes?: string;
+  genres?: string[];
   // iTunes does not return subtitle via this API; we leave it undefined.
 }
 
@@ -208,6 +215,13 @@ function toAppRecord(raw: ItunesRawResult): AppRecord {
     bundleId: raw.bundleId,
     releaseDate: raw.releaseDate,
     currentVersionReleaseDate: raw.currentVersionReleaseDate,
+    // Phase B — surface previously-ignored iTunes fields. All optional;
+    // if iTunes omits one (region-locked apps, schema drift) the property
+    // is just absent on the AppRecord.
+    sellerUrl: raw.sellerUrl,
+    artistViewUrl: raw.artistViewUrl,
+    releaseNotes: raw.releaseNotes,
+    genres: raw.genres,
     provenance: "live",
   };
 }
