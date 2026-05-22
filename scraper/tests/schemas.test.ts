@@ -53,6 +53,13 @@ const exampleQuote = {
       provenance: "live" as const,
     },
   },
+  savingsNote: {
+    message:
+      "This sniff: $0.05 USDC. Typical ASO subscription: $59/month (or $589/year). Pay only when you sniff — no subscription, no seats, no card on file.",
+    estimatedSniffCost: "0.05",
+    typicalSubscriptionMonthlyUSD: 59,
+    typicalSubscriptionAnnualUSD: 589,
+  },
   next: { paidEndpoint: "/api/v1/aso/diagnose" },
 };
 

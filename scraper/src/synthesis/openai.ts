@@ -10,6 +10,7 @@ import { env } from "../env.js";
 import { getOpenAiClient } from "./openai-client.js";
 import {
   buildFullReportPrompt,
+  findOffPoolTokens,
   FULL_REPORT_RESPONSE_SCHEMA,
   FULL_REPORT_SCHEMA_NAME,
 } from "./prompts/full-report.js";
@@ -152,6 +153,32 @@ export async function synthesizeReportOpenAi(
         usage: completion.usage,
         reason: `schema_validation_failed:${validated.error.issues[0]?.path.join(".") ?? "unknown"}`,
       });
+    }
+
+    // Phase 9 — Post-hoc relevance validator. If the gate populated a
+    // candidate pool, every token in keywordsField.recommended must be
+    // either a user-supplied input keyword or a relevance-gated pool
+    // entry. Tokens outside both lists indicate the model invented or
+    // promoted an off-topic term despite the prompt rule. Fall back to
+    // the deterministic template so the paid /diagnose never ships
+    // off-pool keywords. This is the suspenders to the prompt's belt.
+    if (input.scoredCandidates && input.scoredCandidates.length > 0) {
+      const pool = input.scoredCandidates
+        .filter((c) => c.relevanceLabel !== "off-topic")
+        .map((c) => c.keyword);
+      const offPool = findOffPoolTokens({
+        keywordsFieldRecommended: validated.data.readyToPaste.keywordsField.recommended,
+        inputKeywords: input.context.keywords,
+        relevantKeywordPool: pool,
+      });
+      if (offPool.size > 0) {
+        return fallbackWithTelemetry({
+          input,
+          requestId: options.requestId,
+          usage: completion.usage,
+          reason: `off_pool_tokens:${Array.from(offPool).slice(0, 3).join(",")}`,
+        });
+      }
     }
 
     // Renumber rank to guarantee 1..N ascending — the model usually does, but

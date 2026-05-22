@@ -12,6 +12,7 @@ import {
   type DescriptionDensityRow,
   type KeywordDiagnosis,
   type MetadataScoringResult,
+  type ScoredCandidate,
 } from "../scoring/index.js";
 import {
   buildCompetitorNotes,
@@ -62,6 +63,12 @@ export interface SynthesisInput {
   // Worst-case provenance among the report-data inputs. Drives the gating
   // decision below (fixture/degraded → sample-disclaimer copy).
   inputProvenance: Provenance;
+  // Phase 9 — relevance-gate scored candidate pool. When populated, the
+  // template uses it to filter off-topic competitor terms before they
+  // reach readyToPaste.keywordsField / subtitle. When omitted/empty
+  // (legacy callers, older tests), the previous unfiltered behavior holds.
+  // The orchestrator always populates this on production paid /diagnose.
+  scoredCandidates?: readonly ScoredCandidate[];
 }
 
 export interface SynthesisOutput {
@@ -430,19 +437,42 @@ function collectOpportunityKeywords(
     });
   }
 
-  // Competitor-unique terms anchor at 0.5 — below most user keywords but
-  // above truly dead-weight terms. Real intent for these would require
-  // a separate scoring pass, which we defer until plumbing is justified.
+  // Phase 9 — Relevance gate filter. When the orchestrator has scored the
+  // competitor-keyword candidates, drop anything labeled off-topic before
+  // it can land in subtitle / keywords-field. Without this, an off-
+  // category competitor's terms ("tournament_bracket" surfacing through a
+  // Productivity competitor for a Sports app) would bleed straight into
+  // readyToPaste.keywordsField.recommended. Legacy callers (older tests
+  // that don't populate scoredCandidates) keep the previous behavior so
+  // existing tests don't break — only the orchestrator path is gated.
+  const offTopicByKeyword = new Set<string>();
+  const adjacentByKeyword = new Set<string>();
+  if (input.scoredCandidates && input.scoredCandidates.length > 0) {
+    for (const c of input.scoredCandidates) {
+      if (c.origin !== "competitor") continue;
+      if (c.relevanceLabel === "off-topic") {
+        offTopicByKeyword.add(c.keyword.toLowerCase());
+      } else if (c.relevanceLabel === "adjacent") {
+        adjacentByKeyword.add(c.keyword.toLowerCase());
+      }
+    }
+  }
+
+  // Competitor-unique terms anchor at 0.5 (on-topic) or 0.4 (adjacent) —
+  // below most user keywords but above truly dead-weight terms. The
+  // off-topic label drops the term entirely.
   for (const c of input.scoring.competitors) {
     for (const term of c.uniqueToCompetitor) {
       const key = term.toLowerCase();
       if (seen.has(key)) continue;
+      if (offTopicByKeyword.has(key)) continue;
       seen.add(key);
+      const weight = adjacentByKeyword.has(key) ? 0.4 : 0.5;
       out.push({
         keyword: key,
         originalKeyword: term,
         origin: "competitor-unique",
-        weight: 0.5,
+        weight,
         coverageInTitle: false,
         coverageInSubtitle: false,
         // Competitor-unique terms have no Sniffy rank data for the target

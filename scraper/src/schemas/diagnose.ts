@@ -235,9 +235,30 @@ export const LocalizationAnalysis = z.object({
 });
 export type LocalizationAnalysis = z.infer<typeof LocalizationAnalysis>;
 
+// Phase 9 — Relevance gate annotations. Surface per-candidate-keyword
+// labels so consumers (SDK, UI, agents) can see WHY a term was suggested
+// and where it came from.
+export const RelevanceLabelSchema = z.enum([
+  "on-topic",
+  "adjacent",
+  "off-topic",
+]);
+export type RelevanceLabelSchema = z.infer<typeof RelevanceLabelSchema>;
+
+export const CandidateOriginSchema = z.enum([
+  "user",
+  "competitor",
+  "autocomplete",
+  "asa-rec",
+  "review",
+]);
+export type CandidateOriginSchema = z.infer<typeof CandidateOriginSchema>;
+
 // Suggested keywords — Phase 3. Terms the user *should* have submitted
 // but didn't, derived from review-frequency analysis + competitor-overlap.
-// Always live behind a paid /diagnose response.
+// Always live behind a paid /diagnose response. Phase 9 additions are
+// .nullable().default(null) for SDK backward compatibility — older
+// consumers see the field as null rather than a missing-key error.
 export const SuggestedKeyword = z.object({
   keyword: z.string().min(1),
   reason: z.enum(["review-frequency", "competitor-overlap"]),
@@ -247,6 +268,14 @@ export const SuggestedKeyword = z.object({
   // reviews this token appeared in. Helps the UI decide which to surface
   // prominently.
   reviewCount: z.number().int().nonnegative().optional(),
+  // Phase 9 — relevance gate annotations. Null defaults preserve back-
+  // compat with pre-phase-9 fixtures and SDK consumers.
+  relevanceScore: z.number().min(0).max(1).nullable().default(null),
+  relevanceLabel: RelevanceLabelSchema.nullable().default(null),
+  relevanceSource: z.string().nullable().default(null),
+  categoryMatch: z.boolean().nullable().default(null),
+  origin: CandidateOriginSchema.nullable().default(null),
+  popularity: z.number().nullable().default(null),
 });
 export type SuggestedKeyword = z.infer<typeof SuggestedKeyword>;
 

@@ -14,6 +14,7 @@ function makeQuote(overrides: Partial<QuoteResponse> = {}): QuoteResponse {
       network: "eip155:2910",
       estimatedTotal: "0.05",
       breakdown: [{ label: "base", amount: "0.03" }],
+      discounts: [],
     },
     coverage: {
       appMetadata: "high",
@@ -37,6 +38,13 @@ function makeQuote(overrides: Partial<QuoteResponse> = {}): QuoteResponse {
       detectionConfidence: "high",
       candidates: [],
       localizationAvailable: true,
+      metadataLengths: [],
+    },
+    savingsNote: {
+      message: "This sniff: $0.05 USDC. Typical ASO subscription: $59/month.",
+      estimatedSniffCost: "0.05",
+      typicalSubscriptionMonthlyUSD: 59,
+      typicalSubscriptionAnnualUSD: 589,
     },
     next: { paidEndpoint: "/api/v1/aso/diagnose" },
   };

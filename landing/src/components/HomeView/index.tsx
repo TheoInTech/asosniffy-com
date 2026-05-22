@@ -10,6 +10,7 @@ import type {
 import { Hero } from "@/components/Hero";
 import { NoScent } from "@/components/NoScent";
 import { shouldShowNoScent, type NoScentReason } from "@/components/NoScent/triggers";
+import { PricingComparison } from "@/components/PricingComparison";
 import { QuoteForm } from "@/components/QuoteForm";
 import { QuoteResponseView } from "@/components/QuoteResponse";
 import { Report } from "@/components/Report";
@@ -107,6 +108,12 @@ export function HomeView() {
               }}
             />
           ) : null}
+        </div>
+      ) : null}
+
+      {!paidReport && !quote ? (
+        <div className="mt-8">
+          <PricingComparison />
         </div>
       ) : null}
 

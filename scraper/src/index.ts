@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { env } from "./env.js";
+import { logAsaKeyFingerprintAtStart } from "./lib/asa-jwt.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
 import { loggerMiddleware } from "./middleware/logger.js";
 import { corsMiddleware } from "./middleware/cors.js";
@@ -17,6 +18,11 @@ import { walletRoute } from "./routes/wallet.js";
 
 export function createApp() {
   const app = new Hono();
+
+  // Phase 9 — emit ASA JWT public-key fingerprint at startup so the
+  // rotation runbook in SECURITY.md can be verified from deploy logs.
+  // Silent when ASA is disabled.
+  logAsaKeyFingerprintAtStart();
 
   app.use("*", requestIdMiddleware);
   // Audit middleware sits after request-id (it reads c.get("requestId")) and

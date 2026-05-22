@@ -27,6 +27,7 @@ import { generateReportWithMeta } from "../orchestrator/index.js";
 import { recordSlo, SLO_METRICS } from "../observability/slo.js";
 import { getCurrentAudit } from "../observability/audit.js";
 import { recordSniff } from "../wallet/history.js";
+import { markDiagnoseCompleted } from "../wallet/refresh-sniff.js";
 import { tryNormalizeAddress } from "../lib/address.js";
 import { clampReportToContract } from "../lib/clamp-report.js";
 
@@ -264,7 +265,17 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
     ...report,
   };
 
-  // 8a) Wallet-history index. After settle succeeds (and the receipt carries
+  // 8a) Refresh-sniff marker. Sets a 30-day TTL key keyed by (store, country,
+  //     appId) so the next /quote for the same tuple returns at 50% off. Fail
+  //     open on Redis errors (the helper swallows them) — a missed marker just
+  //     means the next quote pays full price, never that we overcharge.
+  void markDiagnoseCompleted({
+    store: body.store,
+    country: body.country,
+    appId: detectedApp.id,
+  });
+
+  // 8b) Wallet-history index. After settle succeeds (and the receipt carries
   //     a real payer — fixture-receipt mode has none), persist the sniff
   //     against the payer's wallet so /api/v1/aso/wallet/sniffs can replay
   //     it without re-charging. Fail open on Redis errors — the user paid,

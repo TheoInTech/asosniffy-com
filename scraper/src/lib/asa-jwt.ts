@@ -1,4 +1,10 @@
-import { createHash, createPrivateKey, createSign, randomUUID } from "node:crypto";
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  createSign,
+  randomUUID,
+} from "node:crypto";
 import { env } from "../env.js";
 import { getCacheClient } from "../cache/redis.js";
 
@@ -196,4 +202,44 @@ export function signingInputHash(token: string): string {
   const [header, payload] = token.split(".");
   if (!header || !payload) return "";
   return createHash("sha256").update(`${header}.${payload}`).digest("hex");
+}
+
+// Phase 9 — public-key fingerprint helper. Derived from the .p8 private
+// key in env, hashed over the DER-encoded SPKI public key. Last 8 hex
+// chars are emitted at server start so ops can verify which ASA key is
+// active without exposing the private material. Returns null when ASA
+// auth env is missing — the startup logger silently skips the line.
+//
+// Used by SECURITY.md's ASA JWT rotation runbook: after rotating the
+// .p8 file in Apple Ads UI and updating the env, the deploy logs should
+// show a new fingerprint matching what's listed in Apple's UI.
+export function publicKeyFingerprint(privateKeyPem: string): string | null {
+  try {
+    const priv = createPrivateKey({ key: privateKeyPem, format: "pem" });
+    const pub = createPublicKey(priv);
+    const der = pub.export({ format: "der", type: "spki" });
+    return createHash("sha256").update(der).digest("hex").slice(-8);
+  } catch {
+    return null;
+  }
+}
+
+// Emit one line at server start when ASA is enabled and the key parses.
+// Goes through console.log so it shows up in Railway's stdout pipe; if
+// the project introduces structured logger later, swap to that. Silent
+// when ASA is disabled or env is missing — startup must not throw.
+export function logAsaKeyFingerprintAtStart(): void {
+  if (!env.APPLE_SEARCH_ADS_ENABLED) return;
+  if (!env.APPLE_SEARCH_ADS_PRIVATE_KEY_PEM) return;
+  const fp = publicKeyFingerprint(env.APPLE_SEARCH_ADS_PRIVATE_KEY_PEM);
+  if (!fp) return;
+  console.log(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      level: "info",
+      event: "asa_jwt_key_fingerprint",
+      keyId: env.APPLE_SEARCH_ADS_KEY_ID ?? null,
+      fingerprint: fp,
+    }),
+  );
 }

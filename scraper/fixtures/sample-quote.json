@@ -33,7 +33,17 @@
       "rankBucket": "11-30",
       "confidence": "medium",
       "provenance": "fixture"
-    }
+    },
+    "metadataLengths": [
+      { "field": "title", "used": 15, "max": 30, "note": "indexed for search" },
+      { "field": "subtitle", "used": 23, "max": 30, "note": "indexed for search; should not repeat title keywords" }
+    ]
+  },
+  "savingsNote": {
+    "message": "This sniff: $0.05 USDC. Typical ASO subscription: $59/month (or $589/year). Pay only when you sniff — no subscription, no seats, no card on file.",
+    "estimatedSniffCost": "0.05",
+    "typicalSubscriptionMonthlyUSD": 59,
+    "typicalSubscriptionAnnualUSD": 589
   },
   "next": {
     "paidEndpoint": "/api/v1/aso/diagnose"

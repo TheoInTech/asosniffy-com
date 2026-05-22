@@ -30,7 +30,12 @@ Output rules:
   - Never echo the current value back. Never invent a recommendation just to fill the slot — if the current value already covers the top-intent keyword and uses the character budget well, return null.
   - changeReason is one short sentence (under 100 chars) referencing a scoring datum that justifies the change. Set to null whenever recommended is null.
   - shortDescription (Android Play short description) — always emit a recommendation when at least one user keyword has rank data, since the user hasn't given us their current short description and the field starts empty.
-  - keywordsField recommended MUST be a comma-separated lowercase token list, NO spaces, no duplicates, and must NOT repeat any token already present in the recommended (or current) title or subtitle.`;
+  - keywordsField recommended MUST be a comma-separated lowercase token list, NO spaces, no duplicates, and must NOT repeat any token already present in the recommended (or current) title or subtitle.
+
+Relevance gate (Phase 9 — the bleed fix):
+- The input includes a "relevantKeywordPool" field — a pre-filtered list of keywords vetted for category and intent fit with this specific app. Every token you place in keywordsField.recommended, title.recommended, or subtitle.recommended MUST be either: (a) already present in inputKeywords, or (b) in relevantKeywordPool. Tokens not in either list are off-topic for this app and MUST be omitted from every readyToPaste field.
+- For each competitor in the "competitors" array, "relevantOpportunities" is the per-competitor subset of relevantKeywordPool that came from that competitor. Use these names for narrative ("Streakly leans on 'mindful'"), but apply the same gate: only tokens in relevantKeywordPool may be promoted into readyToPaste.
+- If the relevantKeywordPool is empty, you MUST NOT invent new keywords. Set readyToPaste.keywordsField.recommended to null and explain in changeReason that no on-topic candidates were found.`;
 
 export interface FullReportPromptInput extends SynthesisInput {
   // Token budget: we trim each free-text field below to a hard ceiling so a
@@ -42,6 +47,25 @@ export function buildFullReportPrompt(input: FullReportPromptInput): {
   system: string;
   user: string;
 } {
+  // Phase 9 — pre-filter competitor terms through the relevance gate
+  // before they reach the model. The model sees only on-topic and adjacent
+  // candidates; off-topic terms are dropped here. When the gate hasn't
+  // run (legacy callers, fixture paths), we fall back to the raw
+  // uniqueToCompetitor list to preserve prior behavior.
+  const gatedByCompetitor = new Map<string, string[]>();
+  const relevantPool = new Set<string>();
+  if (input.scoredCandidates && input.scoredCandidates.length > 0) {
+    for (const c of input.scoredCandidates) {
+      if (c.relevanceLabel === "off-topic") continue;
+      relevantPool.add(c.keyword);
+      if (c.origin === "competitor" && c.sourceCompetitor) {
+        const list = gatedByCompetitor.get(c.sourceCompetitor) ?? [];
+        list.push(c.keyword);
+        gatedByCompetitor.set(c.sourceCompetitor, list);
+      }
+    }
+  }
+
   // Compact context the model needs to ground its synthesis. We pass scoring
   // output as JSON because the model can read it cheaper than prose.
   const payload = {
@@ -72,12 +96,23 @@ export function buildFullReportPrompt(input: FullReportPromptInput): {
       coverageInSubtitle: k.coverageInSubtitle,
       action: k.action,
     })),
-    competitors: input.scoring.competitors.map((c) => ({
-      name: c.name,
-      overlapKeywords: c.overlapKeywords,
-      uniqueToCompetitor: c.uniqueToCompetitor,
-      overlapScore: round2(c.overlapScore),
-    })),
+    competitors: input.scoring.competitors.map((c) => {
+      // When the gate has scored candidates, surface only the
+      // relevance-vetted subset per competitor. Otherwise (legacy/fixture
+      // paths) ship the raw uniqueToCompetitor.
+      const gated = gatedByCompetitor.get(c.appId);
+      const relevantOpportunities =
+        input.scoredCandidates && input.scoredCandidates.length > 0
+          ? (gated ?? [])
+          : [...c.uniqueToCompetitor];
+      return {
+        name: c.name,
+        overlapKeywords: c.overlapKeywords,
+        relevantOpportunities,
+        overlapScore: round2(c.overlapScore),
+      };
+    }),
+    relevantKeywordPool: [...relevantPool],
   };
 
   const user = `Synthesize the report sections for this Sniffy ASO diagnosis.
@@ -88,6 +123,39 @@ ${JSON.stringify(payload, null, 2)}
 Return JSON with keys: summary, recommendations, readyToPaste.`;
 
   return { system: SYSTEM_PROMPT, user };
+}
+
+// Phase 9 — token-pool validator. Walks the model's keywordsField.recommended
+// (comma-separated tokens) and returns the set of tokens that aren't
+// accounted for by either inputKeywords or the relevance-gated pool.
+// An empty Set means the output is clean.
+export function findOffPoolTokens(args: {
+  keywordsFieldRecommended: string | null;
+  inputKeywords: readonly string[];
+  relevantKeywordPool: readonly string[];
+}): Set<string> {
+  const offPool = new Set<string>();
+  if (!args.keywordsFieldRecommended) return offPool;
+  const inputTokens = new Set(
+    args.inputKeywords
+      .flatMap((k) => k.toLowerCase().split(/[\s,]+/))
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0),
+  );
+  const poolTokens = new Set(
+    args.relevantKeywordPool.map((k) => k.toLowerCase().trim()),
+  );
+  const outputTokens = args.keywordsFieldRecommended
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+  for (const token of outputTokens) {
+    if (inputTokens.has(token)) continue;
+    if (poolTokens.has(token)) continue;
+    offPool.add(token);
+  }
+  return offPool;
 }
 
 // Per-field readyToPaste shape — server fills in current / charCount /

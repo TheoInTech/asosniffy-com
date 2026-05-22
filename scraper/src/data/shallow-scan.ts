@@ -2,6 +2,7 @@ import {
   type AppIdentifier,
   type CountryCode,
   type CoverageProviderError,
+  type MetadataLength,
   type ShallowScan,
   type Store,
 } from "../schemas/index.js";
@@ -13,6 +14,64 @@ import { CACHE_TTL } from "../cache/ttl.js";
 import { getDetectedApp, type DetectResult } from "./detect.js";
 import { toProviderError } from "../providers/_lib/errors.js";
 import { buildKeywordRefinement } from "./report-data.js";
+
+// Sprint A — character-usage caps for the free-tier metadata-length report.
+// iOS title/subtitle are indexed and capped at 30 chars each. Android title
+// is 30; short description (the iOS subtitle analogue) is 80. The keyword
+// field on iOS is 100 chars but hidden from public scraping — Sniffy never
+// has used-bytes for it, so we omit that row rather than guess.
+const IOS_TITLE_MAX = 30;
+const IOS_SUBTITLE_MAX = 30;
+const ANDROID_TITLE_MAX = 30;
+const ANDROID_SHORT_DESCRIPTION_MAX = 80;
+
+// Count by Apple's metric: code points (Unicode characters), not UTF-16 code
+// units. `string.length` counts the latter, which double-counts emoji and
+// some scripts. Array.from + [...str] both spread by code point. Aligns with
+// what an indie founder sees in App Store Connect's character counter.
+function codePointLength(value: string): number {
+  return [...value].length;
+}
+
+function buildMetadataLengths(input: {
+  store: Store;
+  title: string;
+  subtitle: string;
+}): MetadataLength[] {
+  if (input.store === "ios") {
+    return [
+      {
+        field: "title",
+        used: codePointLength(input.title),
+        max: IOS_TITLE_MAX,
+        note: "indexed for search",
+      },
+      {
+        field: "subtitle",
+        used: codePointLength(input.subtitle),
+        max: IOS_SUBTITLE_MAX,
+        note: "indexed for search; should not repeat title keywords",
+      },
+    ];
+  }
+  // Android: the short-description field is shipped via shallowScan.subtitle
+  // because the public detect path normalizes it that way. Surface it under
+  // the Android-correct label so consumers don't confuse it with iOS subtitle.
+  return [
+    {
+      field: "title",
+      used: codePointLength(input.title),
+      max: ANDROID_TITLE_MAX,
+      note: "indexed for search",
+    },
+    {
+      field: "shortDescription",
+      used: codePointLength(input.subtitle),
+      max: ANDROID_SHORT_DESCRIPTION_MAX,
+      note: "indexed; weighted lower than title",
+    },
+  ];
+}
 
 export interface ShallowScanInput {
   store: Store;
@@ -65,6 +124,11 @@ export async function getShallowScan(
     detect.appRecord?.primaryCategory ?? sampleQuote.shallowScan.primaryCategory;
   const baseRatings =
     detect.appRecord?.ratingsSummary ?? sampleQuote.shallowScan.ratingsSummary;
+  const metadataLengths = buildMetadataLengths({
+    store: input.store,
+    title: baseTitle,
+    subtitle: baseSubtitle,
+  });
 
   // Preview keyword only makes sense for iOS with a real appId we can search
   // for. Other paths: emit a degraded preview row (or fixture if allowed)
@@ -85,6 +149,7 @@ export async function getShallowScan(
         detectionConfidence: detect.identityConfidence,
         candidates: detect.candidates,
         localizationAvailable: true,
+        metadataLengths,
       },
       providerErrors,
     };
@@ -144,6 +209,7 @@ export async function getShallowScan(
         detectionConfidence: detect.identityConfidence,
         candidates: detect.candidates,
         localizationAvailable: true,
+        metadataLengths,
       },
       providerErrors,
     };
@@ -164,6 +230,7 @@ export async function getShallowScan(
       detectionConfidence: detect.identityConfidence,
       candidates: detect.candidates,
       localizationAvailable: true,
+      metadataLengths,
     },
     providerErrors,
   };

@@ -8,7 +8,8 @@ import { validateBody } from "../middleware/validate-body.js";
 import { getDetectedApp } from "../data/detect.js";
 import { getShallowScan } from "../data/shallow-scan.js";
 import { buildCoverage } from "../data/coverage.js";
-import { computePricing } from "../payment/pricing.js";
+import { buildSavingsNote, computePricing } from "../payment/pricing.js";
+import { hasRecentDiagnose } from "../wallet/refresh-sniff.js";
 import { newSniffId } from "../utils/ids.js";
 
 export const quoteRoute = new Hono();
@@ -40,10 +41,21 @@ quoteRoute.post("/", validateBody(QuoteRequest), async (c) => {
     detect,
   );
 
+  // Sprint A — refresh-sniff discount. If we observed a successful diagnose
+  // for this (store, country, appId) tuple within the last 30 days, halve
+  // the quoted price. Read-only Redis lookup; failures degrade silently to
+  // no-discount so a Redis blip never overcharges a returning founder.
+  const refreshDiscount = await hasRecentDiagnose({
+    store: body.store,
+    country: body.country,
+    appId: detect.appRecord?.id ?? detect.detectedApp.id,
+  });
+
   const pricing = computePricing({
     keywords: body.keywords,
     countries: [body.country],
     currency: "USDC",
+    refreshDiscount,
   });
 
   const coverage = buildCoverage({
@@ -61,6 +73,7 @@ quoteRoute.post("/", validateBody(QuoteRequest), async (c) => {
     pricing,
     coverage,
     shallowScan: shallow.shallowScan,
+    savingsNote: buildSavingsNote(pricing.estimatedTotal),
     next: {
       paidEndpoint: "/api/v1/aso/diagnose",
     },

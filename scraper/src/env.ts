@@ -100,11 +100,51 @@ const EnvSchema = z.object({
   // Phase 2 — Resilient scraping infrastructure.
   //
   // Per-host rate budgets in requests per minute. iTunes' documented cap is
-  // ~20/min/IP; we keep 2 slots in reserve. Google Play has no documented
-  // cap and the unofficial scraper recommends ≤5/min behind a proxy to
-  // avoid the 503+captcha + 1h IP-ban response.
-  ITUNES_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(18),
+  // ~200/min/IP in practice (per anecdotal community measurements); the
+  // original 18/min default was deliberately conservative. Phase 9 raises
+  // the budget to 45/min ahead of the multi-keyword competitor intersection
+  // launch (Day 2 in plan): a 5-keyword /diagnose with intersection can
+  // fan out to ~22 lookup/search calls. At 18/min, two concurrent paid
+  // calls would queue and blow p95; at 45/min we cover two concurrent
+  // diagnoses with headroom while staying well below Apple's ceiling.
+  // Google Play has no documented cap and the unofficial scraper
+  // recommends ≤5/min behind a proxy to avoid the 503+captcha + 1h IP-ban
+  // response.
+  ITUNES_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(45),
   GOOGLE_PLAY_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(5),
+  // Phase 9 — shared Apple Search Ads ORG-level token bucket. Both the
+  // existing popularity provider AND the upcoming /recommendations
+  // provider (Day 3) consume Apple's per-org TPS quota (~100/min). Set
+  // to 60/min by default — 40% margin under the quota, so simultaneous
+  // popularity + recommendations calls on the same /diagnose don't
+  // starve each other.
+  ASA_ORG_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(60),
+
+  // Phase 9 (Day 2) — multi-keyword competitor intersection. When true,
+  // the iOS competitor collector searches ALL user keywords in parallel
+  // and keeps apps that appear in ≥2 result sets — far better category-
+  // relevance signal than the legacy "search first keyword, take top 5"
+  // path. Default false at first deploy; flip after observing one day
+  // of SLO metrics with the raised iTunes budget.
+  COMPETITOR_INTERSECTION_ENABLED: BooleanFromString.default(false),
+
+  // Phase 9 (Day 4) — App Store + Play Store search autocomplete as a
+  // keyword candidate source. Both providers default to fail-silent
+  // (a network error returns empty hits + a coverage warning, never a
+  // 500); Google has a built-in circuit breaker that opens for 10
+  // minutes after 3 consecutive 429/403s so a sustained block doesn't
+  // burn the iTunes/Play budget. Off by default for first deploy.
+  AUTOCOMPLETE_ENABLED: BooleanFromString.default(false),
+
+  // Phase 9 (Day 5) — Semantic-similarity gating via OpenAI embeddings.
+  // When true, the relevance gate adds an embedding-cosine term to its
+  // score formula (cosine against the target app's vector text). When
+  // false, the gate uses Day-1 form (category-match + intent only).
+  // Default off — flip after the i18n eval harness shows the gate
+  // doesn't over-reject on non-English fixtures (≤30% rejection rate
+  // and ≤1 false-positive per 10 rejections eyeballed). See
+  // scraper/eval/relevance-i18n.eval.ts.
+  RELEVANCE_GATE_ENABLED: BooleanFromString.default(false),
   RETRY_BASE_MS: z.coerce.number().int().positive().default(250),
   RETRY_CAP_MS: z.coerce.number().int().positive().default(8000),
   RETRY_ATTEMPTS: z.coerce.number().int().min(0).max(5).default(3),

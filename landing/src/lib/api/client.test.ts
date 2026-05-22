@@ -43,6 +43,7 @@ const VALID_QUOTE_RESPONSE = {
     network: "eip155:2910",
     estimatedTotal: "0.04",
     breakdown: [{ label: "base", amount: "0.03" }],
+    discounts: [],
   },
   coverage: {
     appMetadata: "high",
@@ -61,6 +62,13 @@ const VALID_QUOTE_RESPONSE = {
       confidence: "medium",
       provenance: "live",
     },
+    metadataLengths: [],
+  },
+  savingsNote: {
+    message: "This sniff: $0.04 USDC. Typical ASO subscription: $59/month.",
+    estimatedSniffCost: "0.04",
+    typicalSubscriptionMonthlyUSD: 59,
+    typicalSubscriptionAnnualUSD: 589,
   },
   next: { paidEndpoint: "/api/v1/aso/diagnose" },
 };

@@ -67,3 +67,15 @@ export {
   type KeywordDistributionRow,
   type ComputeKeywordDistributionInput,
 } from "./keyword-distribution.js";
+export {
+  scoreCandidates,
+  buildCandidatesFromCompetitors,
+  isOnTopicOrAdjacent,
+  type CandidateOrigin,
+  type RelevanceLabel,
+  type CandidateKeyword,
+  type AppContext,
+  type CompetitorRef,
+  type ScoreCandidatesInput,
+  type ScoredCandidate,
+} from "./relevance.js";

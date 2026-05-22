@@ -28,18 +28,29 @@ import {
 } from "../data/report-data.js";
 import {
   analyzeCompetitors,
+  buildCandidatesFromCompetitors,
   computeKeywordDistribution,
   computeTrend,
   detectRegressions,
   diagnoseKeywords,
   reviewKeywordFrequency,
+  scoreCandidates,
   scoreLocalization,
   scoreMetadataFull,
+  type CandidateKeyword,
   type CompetitorAnalysis,
+  type CompetitorRef,
   type KeywordDiagnosis,
   type LocalizationAnalysis as LocalizationAnalysisType,
   type MetadataScoringResult,
+  type ScoredCandidate,
 } from "../scoring/index.js";
+import {
+  buildTargetVectorText,
+  cosineSimilarity,
+  embedText,
+  isRelevanceGateEnabled,
+} from "../scoring/embeddings.js";
 import { lookupLocalized } from "../providers/apple/multi-storefront.js";
 import {
   buildCompetitorNotes,
@@ -164,6 +175,69 @@ export async function generateReportWithMeta(
     data.dataProvenance.competitors,
   ]);
 
+  // Phase 9 — Relevance gate. Score every external keyword candidate
+  // (competitors + ASA recommendations + future autocomplete + reviews)
+  // against the target app's category + intent before it can reach
+  // synthesis. Day-1 form: no embeddings — gate composes category-match
+  // and structural intent only. Day 5 will light up the cosine term.
+  // The gate output flows into both synthesizeReportOpenAi (as
+  // relevantKeywordPool) and the template (as scoredCandidates) — every
+  // off-topic term is filtered at the chokepoint.
+  const competitorContexts: CompetitorRef[] = competitorScoring.map((c) => {
+    const record = candidateRecords.get(c.appId);
+    return {
+      appId: c.appId,
+      name: c.name,
+      primaryCategory: record?.primaryCategory,
+    };
+  });
+  const competitorCandidates = buildCandidatesFromCompetitors(competitorScoring);
+  const asaRecCandidates: CandidateKeyword[] = data.asaRecommendations.map(
+    (rec) => ({
+      keyword: rec.keyword,
+      origin: "asa-rec" as const,
+      popularity: rec.popularity,
+    }),
+  );
+  const autocompleteCandidates: CandidateKeyword[] = data.autocompleteHits.map(
+    (term) => ({
+      keyword: term,
+      origin: "autocomplete" as const,
+    }),
+  );
+  const allCandidates: CandidateKeyword[] = [
+    ...competitorCandidates,
+    ...asaRecCandidates,
+    ...autocompleteCandidates,
+  ];
+
+  // Phase 9 (Day 5) — semantic-similarity gating. Pre-compute target
+  // and candidate embeddings, build a cosineByKeyword map, and pass
+  // it into the gate. Falls through to Day-1 (category + intent only)
+  // when the gate is disabled, embeddings fail, or OPENAI_API_KEY is
+  // missing — never breaks /diagnose.
+  const cosineByKeyword = await computeCosineMapSafely({
+    enabled: isRelevanceGateEnabled(),
+    appName: data.detectedApp.name,
+    subtitle: data.detect.appRecord?.subtitle,
+    description: data.detect.appRecord?.description,
+    primaryKeywords: input.keywords,
+    candidates: allCandidates,
+  });
+
+  const scoredCandidates: ScoredCandidate[] = scoreCandidates({
+    candidates: allCandidates,
+    appContext: {
+      appName: data.detectedApp.name,
+      primaryCategory:
+        data.detect.appRecord?.primaryCategory ??
+        data.detect.androidRecord?.primaryCategory,
+      userKeywords: input.keywords,
+    },
+    competitorContexts,
+    ...(cosineByKeyword !== null ? { cosineByKeyword } : {}),
+  });
+
   const synthesisInput: SynthesisInput = {
     scoring: {
       metadata: metadataScoring,
@@ -176,6 +250,7 @@ export async function generateReportWithMeta(
       keywords: input.keywords,
     },
     inputProvenance,
+    scoredCandidates,
   };
 
   const synthesis = await synthesizeReportOpenAi(synthesisInput, {
@@ -338,6 +413,7 @@ export async function generateReportWithMeta(
           "",
         userKeywords: input.keywords,
         competitors: competitorScoring,
+        scoredCandidates,
       }),
       regressions: detectRegressions({ seriesByKeyword }),
       historySignature: historyEnabled
@@ -538,6 +614,11 @@ interface BuildSuggestedInput {
   primaryCategory: string;
   userKeywords: readonly string[];
   competitors: readonly CompetitorAnalysis[];
+  // Phase 9 — gate output keyed by lowercase keyword; used to annotate
+  // each suggested-keyword row with its relevance label so consumers
+  // (UI, SDK, agents) can see why it surfaced and decide whether to
+  // act on it.
+  scoredCandidates?: readonly ScoredCandidate[];
 }
 
 // Phase 3 — build suggestedKeywords[]: terms the user *should* have
@@ -558,6 +639,18 @@ function buildSuggestedKeywords(
     ),
   );
   const suggested: SuggestedKeyword[] = [];
+
+  // Phase 9 — index gate scores by lowercased keyword so each suggestion
+  // row can carry its relevance label. We surface (don't filter) off-topic
+  // suggestions so the UI can show them with a visible "off-topic" tag.
+  // Filtering happens at readyToPaste; suggestedKeywords stays an honest
+  // catalog of what each source proposed.
+  const gateIndex = new Map<string, ScoredCandidate>();
+  if (input.scoredCandidates) {
+    for (const c of input.scoredCandidates) {
+      gateIndex.set(c.keyword.toLowerCase().trim(), c);
+    }
+  }
 
   // 1) Review-frequency terms.
   if (input.reviewCoverage !== "skipped" && input.reviewBodies.length > 0) {
@@ -583,6 +676,12 @@ function buildSuggestedKeywords(
         confidence: reviewConfidence,
         provenance: reviewProvenance,
         reviewCount: item.reviewCount,
+        relevanceScore: null,
+        relevanceLabel: null,
+        relevanceSource: null,
+        categoryMatch: null,
+        origin: "review",
+        popularity: null,
       });
       if (suggested.length >= 8) break;
     }
@@ -595,11 +694,18 @@ function buildSuggestedKeywords(
       if (lower.length < 3) continue;
       if (userSet.has(lower)) continue;
       if (suggested.some((s) => s.keyword === lower)) continue;
+      const gate = gateIndex.get(lower);
       suggested.push({
         keyword: lower,
         reason: "competitor-overlap",
         confidence: "medium",
         provenance: competitor.provenance,
+        relevanceScore: gate ? gate.relevanceScore : null,
+        relevanceLabel: gate ? gate.relevanceLabel : null,
+        relevanceSource: gate ? "category+intent" : null,
+        categoryMatch: gate ? gate.categoryMatch : null,
+        origin: "competitor",
+        popularity: gate ? gate.popularity : null,
       });
       if (suggested.length >= 12) break;
     }
@@ -741,6 +847,57 @@ async function collectLocalization(input: {
   const { storefronts } = await lookupLocalized(input.appId, countries);
   const storefrontMap = new Map(Object.entries(storefronts));
   return scoreLocalization({ storefronts: storefrontMap });
+}
+
+// Phase 9 (Day 5) — pre-compute cosine similarities for the relevance
+// gate. Returns null on any failure path so the orchestrator falls back
+// to the Day-1 gate formula (category + intent only). Never throws.
+async function computeCosineMapSafely(input: {
+  enabled: boolean;
+  appName: string;
+  subtitle: string | undefined;
+  description: string | undefined;
+  primaryKeywords: readonly string[];
+  candidates: readonly CandidateKeyword[];
+}): Promise<Map<string, number> | null> {
+  if (!input.enabled) return null;
+  if (input.candidates.length === 0) return null;
+  try {
+    const targetText = buildTargetVectorText({
+      appName: input.appName,
+      ...(input.subtitle !== undefined ? { subtitle: input.subtitle } : {}),
+      ...(input.description !== undefined
+        ? { description: input.description }
+        : {}),
+      primaryKeywords: input.primaryKeywords,
+    });
+    const target = await embedText(targetText);
+    const uniqueKeywords = Array.from(
+      new Set(
+        input.candidates
+          .map((c) => c.keyword.toLowerCase().trim())
+          .filter((k) => k.length > 0),
+      ),
+    );
+    const out = new Map<string, number>();
+    // Sequential to leverage the per-keyword Redis cache without
+    // bursting OpenAI rate limits. For a typical /diagnose the
+    // candidate pool is small (~10-30 terms) and embeddings are
+    // cached for 30 days, so subsequent calls are mostly free.
+    for (const keyword of uniqueKeywords) {
+      try {
+        const cand = await embedText(keyword);
+        out.set(keyword, cosineSimilarity(target.vector, cand.vector));
+      } catch {
+        // Per-keyword failure: skip this keyword, keep going. The
+        // gate's per-candidate path falls back to Day-1 formula when
+        // cosineByKeyword has no entry for the keyword.
+      }
+    }
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 // Re-export ReportData for downstream tests/utilities.

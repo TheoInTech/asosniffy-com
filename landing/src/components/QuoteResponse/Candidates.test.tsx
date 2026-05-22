@@ -31,6 +31,7 @@ function makeShallow(overrides: Partial<ShallowScan> = {}): ShallowScan {
       },
     ],
     localizationAvailable: true,
+    metadataLengths: [],
     ...overrides,
   };
 }

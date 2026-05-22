@@ -27,13 +27,22 @@ import type { AndroidAppRecord } from "../providers/android/types.js";
 import { withCache } from "../cache/wrapper.js";
 import { cacheKey } from "../cache/keys.js";
 import { CACHE_TTL } from "../cache/ttl.js";
+import { env } from "../env.js";
 import { getDetectedApp, type DetectResult } from "./detect.js";
 import { worstProvenance } from "./coverage.js";
 import { toProviderError } from "../providers/_lib/errors.js";
 import {
+  collectIosCompetitorsByIntersection,
+  MIN_USEFUL_ROWS,
+} from "./competitor-intersection.js";
+import {
+  fetchAsaRecommendedKeywords,
   getKeywordPopularity,
+  type AsaRecommendedKeyword,
   type PopularityOutcome,
 } from "../providers/apple/search-ads-popularity.js";
+import { fetchAppleAutocomplete } from "../providers/apple/autocomplete.js";
+import { fetchAndroidAutocomplete } from "../providers/android/autocomplete.js";
 import {
   suggestKeywords as gplaySuggestKeywords,
   fetchAndroidReviews,
@@ -103,6 +112,17 @@ export interface ReportData {
   reviewBodies: string[];
   reviewSource: "apple-rss" | "google-play" | "none";
   reviewCoverage: "complete" | "partial" | "unavailable" | "skipped";
+  // Phase 9 (Day 3) — Apple Search Ads /recommendations keyword candidates
+  // for the detected app. Empty when ASA is disabled, the app isn't iOS,
+  // or the call fails. The orchestrator feeds these into the relevance
+  // gate as origin: "asa-rec" so they ride the same on-topic/off-topic
+  // chokepoint as competitor terms.
+  asaRecommendations: AsaRecommendedKeyword[];
+  // Phase 9 (Day 4) — App Store / Play Store search autocomplete hits
+  // for each user keyword. Empty when AUTOCOMPLETE_ENABLED=false or the
+  // upstream providers fail / circuit-trip. Fed into the relevance gate
+  // as origin: "autocomplete".
+  autocompleteHits: string[];
 }
 
 const APPLE_PROVIDER = "apple-itunes";
@@ -131,18 +151,28 @@ export async function getFullReportData(
   // keyword ranks + competitors. They contribute to the per-keyword
   // diagnosis (popularity/relatedTerms) and the report-level
   // suggestedKeywords[] (review frequency).
-  const [keywordOutcome, competitorOutcome, popularityOutcome, reviewsOutcome] =
-    await Promise.all([
-      collectKeywordRanks(input, detect),
-      collectCompetitors(input, detect),
-      collectKeywordPopularity(input, detect),
-      collectReviewBodies(input, detect),
-    ]);
+  const [
+    keywordOutcome,
+    competitorOutcome,
+    popularityOutcome,
+    reviewsOutcome,
+    asaRecsOutcome,
+    autocompleteOutcome,
+  ] = await Promise.all([
+    collectKeywordRanks(input, detect),
+    collectCompetitors(input, detect),
+    collectKeywordPopularity(input, detect),
+    collectReviewBodies(input, detect),
+    collectAsaRecommendations(input, detect),
+    collectAutocompleteHits(input),
+  ]);
 
   providerErrors.push(...keywordOutcome.errors);
   providerErrors.push(...competitorOutcome.errors);
   providerErrors.push(...popularityOutcome.errors);
   providerErrors.push(...reviewsOutcome.errors);
+  providerErrors.push(...asaRecsOutcome.errors);
+  providerErrors.push(...autocompleteOutcome.errors);
 
   const dataProvenance: DataProvenance = {
     appMetadata: detect.provenance,
@@ -166,6 +196,166 @@ export async function getFullReportData(
     reviewBodies: reviewsOutcome.bodies,
     reviewSource: reviewsOutcome.source,
     reviewCoverage: reviewsOutcome.coverage,
+    asaRecommendations: asaRecsOutcome.rows,
+    autocompleteHits: autocompleteOutcome.hits,
+  };
+}
+
+interface AutocompleteOutcome {
+  hits: string[];
+  errors: CoverageProviderError[];
+}
+
+// Phase 9 (Day 4) — Apple/Google autocomplete fan-out. Runs one query
+// per user keyword in parallel. Failures degrade silently — each
+// individual rejection / circuit-trip surfaces as a coverage warning
+// but never breaks /diagnose. Off entirely when AUTOCOMPLETE_ENABLED
+// is false.
+async function collectAutocompleteHits(
+  input: ReportDataInput,
+): Promise<AutocompleteOutcome> {
+  if (!env.AUTOCOMPLETE_ENABLED) return { hits: [], errors: [] };
+  if (input.keywords.length === 0) return { hits: [], errors: [] };
+
+  const fetcher =
+    input.store === "ios"
+      ? (kw: string) =>
+          fetchAppleAutocomplete({ term: kw, country: input.country }).then(
+            (r) => mapAppleAutocomplete(r),
+          )
+      : (kw: string) =>
+          fetchAndroidAutocomplete({ term: kw, country: input.country }).then(
+            (r) => mapAndroidAutocomplete(r),
+          );
+
+  const settled = await Promise.allSettled(input.keywords.map(fetcher));
+  const hits: string[] = [];
+  const errors: CoverageProviderError[] = [];
+  const seen = new Set<string>();
+  for (const result of settled) {
+    if (result.status === "rejected") {
+      errors.push({
+        provider:
+          input.store === "ios"
+            ? "apple-autocomplete"
+            : "google-play-autocomplete",
+        kind: "network_error",
+        message: `autocomplete: ${String(result.reason).slice(0, 200)}`,
+      });
+      continue;
+    }
+    if (result.value.error) {
+      errors.push(result.value.error);
+      continue;
+    }
+    for (const term of result.value.terms) {
+      const key = term.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hits.push(term);
+    }
+  }
+  return { hits, errors };
+}
+
+interface AutocompleteSlice {
+  terms: string[];
+  error: CoverageProviderError | null;
+}
+
+function mapAppleAutocomplete(
+  res: Awaited<ReturnType<typeof fetchAppleAutocomplete>>,
+): AutocompleteSlice {
+  if (res.kind === "success") {
+    return { terms: res.hits.map((h) => h.term), error: null };
+  }
+  if (res.kind === "empty") {
+    return { terms: [], error: null };
+  }
+  const kind = res.kind === "rate_limited" ? "rate_limited" : "network_error";
+  return {
+    terms: [],
+    error: {
+      provider: "apple-autocomplete",
+      kind,
+      message: `apple-autocomplete: ${res.kind}`,
+    },
+  };
+}
+
+function mapAndroidAutocomplete(
+  res: Awaited<ReturnType<typeof fetchAndroidAutocomplete>>,
+): AutocompleteSlice {
+  if (res.kind === "success") {
+    return { terms: res.hits.map((h) => h.term), error: null };
+  }
+  if (res.kind === "empty" || res.kind === "circuit_open") {
+    return { terms: [], error: null };
+  }
+  const kind = res.kind === "rate_limited" ? "rate_limited" : "network_error";
+  return {
+    terms: [],
+    error: {
+      provider: "google-play-autocomplete",
+      kind,
+      message: `google-autocomplete: ${res.kind}`,
+    },
+  };
+}
+
+interface AsaRecsOutcome {
+  rows: AsaRecommendedKeyword[];
+  errors: CoverageProviderError[];
+}
+
+// Phase 9 (Day 3) — Apple Search Ads /keywords/recommendations for the
+// detected app. iOS-only (Android doesn't have an equivalent endpoint);
+// fails closed (returns empty rows) on any error so the relevance gate
+// gracefully misses ASA candidates without failing the paid /diagnose.
+async function collectAsaRecommendations(
+  input: ReportDataInput,
+  detect: DetectResult,
+): Promise<AsaRecsOutcome> {
+  if (input.store !== "ios") return { rows: [], errors: [] };
+  const adamId = detect.appRecord?.id;
+  if (!adamId) return { rows: [], errors: [] };
+
+  const out = await fetchAsaRecommendedKeywords({
+    adamId,
+    country: input.country,
+  });
+
+  if (out.kind === "success") {
+    return { rows: out.keywords, errors: [] };
+  }
+
+  // disabled / not_found are silent — they're routine.
+  if (out.kind === "disabled" || out.kind === "not_found") {
+    return { rows: [], errors: [] };
+  }
+
+  // auth_failed / rate_limited / network_error surface as coverage warnings
+  // but never break the request — the gate still has competitor + user
+  // origins to score over.
+  const errKind =
+    out.kind === "rate_limited"
+      ? "rate_limited"
+      : out.kind === "auth_failed"
+        ? "upstream_unavailable"
+        : "network_error";
+  const message =
+    out.kind === "auth_failed"
+      ? `asa /recommendations auth: ${out.reason.slice(0, 200)}`
+      : `asa /recommendations: ${out.kind}`;
+  return {
+    rows: [],
+    errors: [
+      {
+        provider: "apple-search-ads",
+        kind: errKind,
+        message,
+      },
+    ],
   };
 }
 
@@ -367,6 +557,41 @@ async function collectCompetitors(
 }
 
 async function collectIosCompetitors(
+  input: ReportDataInput,
+  detect: DetectResult,
+): Promise<CompetitorsOutcome> {
+  // Phase 9 (Day 2) — Multi-keyword competitor intersection. When the
+  // feature flag is on AND the user submitted ≥2 keywords, search ALL
+  // of them in parallel and keep apps appearing in ≥2 result sets.
+  // Falls back to the legacy first-keyword path when the intersection
+  // returns too few matches (niche keyword set), the flag is off, or
+  // there's only 1 keyword to work with.
+  if (
+    env.COMPETITOR_INTERSECTION_ENABLED &&
+    input.keywords.length >= 2
+  ) {
+    const intersection = await collectIosCompetitorsByIntersection({
+      keywords: input.keywords,
+      country: input.country,
+      excludeAppId: detect.detectedApp.id,
+    });
+    if (intersection.rows.length >= MIN_USEFUL_ROWS) {
+      return { rows: intersection.rows, errors: intersection.errors };
+    }
+    // Fall through to the legacy path; preserve intersection errors so
+    // they still surface as coverage warnings even when we couldn't
+    // use the intersection output.
+    const legacy = await collectIosCompetitorsByFirstKeyword(input, detect);
+    return {
+      rows: legacy.rows,
+      errors: [...intersection.errors, ...legacy.errors],
+    };
+  }
+
+  return collectIosCompetitorsByFirstKeyword(input, detect);
+}
+
+async function collectIosCompetitorsByFirstKeyword(
   input: ReportDataInput,
   detect: DetectResult,
 ): Promise<CompetitorsOutcome> {
