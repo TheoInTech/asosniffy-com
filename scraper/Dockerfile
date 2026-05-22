@@ -35,13 +35,13 @@ COPY packages/aso-knowledge/package.json ./packages/aso-knowledge/
 # scraper has zero @sniffy/* deps today but the suffix is forward-compatible.
 RUN pnpm install --frozen-lockfile --filter @sniffy/scraper...
 
-# Copy source + tsconfig only. scripts/ is dev tooling (baseline:shapes)
-# whose output (src/data/shape-baselines.json) is already committed — don't
-# ship the script into the image. .dockerignore keeps tests + the local
-# .env out.
+# Copy source + tsconfig only. Fixtures are embedded in
+# scraper/src/data/fixtures.ts (not loaded from disk) so the production
+# image doesn't need scraper/fixtures/ — avoids a Railway Metal-builder
+# snapshot quirk that intermittently dropped that directory. scripts/ is
+# dev tooling whose output is already committed under src/data/.
 COPY scraper/tsconfig.json ./scraper/
 COPY scraper/src ./scraper/src
-COPY scraper/fixtures ./scraper/fixtures
 
 RUN pnpm --filter @sniffy/scraper build
 
@@ -52,10 +52,9 @@ RUN pnpm --filter @sniffy/scraper build
 # behavior is correct.
 RUN pnpm --filter @sniffy/scraper deploy --prod --legacy /out
 
-# Fixtures are read at runtime by data/fixtures.ts but live OUTSIDE the
-# package.json `files` list, so pnpm deploy doesn't carry them over. Copy
-# them explicitly so /sample + fixture-fallback paths keep working in prod.
-RUN cp -R /repo/scraper/fixtures /out/fixtures
+# Fixtures used to be copied here from scraper/fixtures/, but they are now
+# embedded as TypeScript literals in scraper/src/data/fixtures.ts and ship
+# with the rest of the compiled source.
 
 # ---------- Stage 2: runtime ----------
 FROM node:22-slim AS runtime
