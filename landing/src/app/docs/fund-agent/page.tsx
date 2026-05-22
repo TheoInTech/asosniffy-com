@@ -28,7 +28,7 @@ const MCP_ENV = `{
   "mcpServers": {
     "sniffy": {
       "command": "npx",
-      "args": ["-y", "@sniffy/mcp"],
+      "args": ["-y", "@gosniffy/mcp"],
       "env": {
         "SNIFFY_PRIVATE_KEY": "0x...your fresh key..."
       }
@@ -37,9 +37,9 @@ const MCP_ENV = `{
 }`;
 
 const CLI_ENV = `export SNIFFY_PRIVATE_KEY=0x...your fresh key...
-npx @sniffy/cli diagnose --app 1234567890 --keywords "pickleball,tracker"`;
+npx @gosniffy/cli diagnose --app 1234567890 --keywords "pickleball,tracker"`;
 
-const SDK_ENV = `import { createSniffy } from "@sniffy/sdk";
+const SDK_ENV = `import { createSniffy } from "@gosniffy/sdk";
 import { privateKeyToAccount } from "viem/accounts";
 
 const sniffy = createSniffy({

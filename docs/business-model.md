@@ -124,9 +124,9 @@ Each agent surface in PLAN.md §22 maps to a revenue path:
 | Surface | Discovery → first call | Recurring revenue mechanism |
 |---|---|---|
 | `SKILL.md` (`npx skills add asosniffy/asosniffy-com`) | Coding agent reads the skill, calls `/quote` → `/diagnose` | Re-used on every related user prompt |
-| `@sniffy/mcp` (Claude Desktop, Cursor config) | User asks agent ASO question → agent calls `sniffy_diagnose` | Permanent install; called whenever ASO comes up |
-| `@sniffy/cli` (`npx sniffy ...`) | Indie hacker embeds in release pipeline / Makefile | Runs on every CI release |
-| `@sniffy/sdk` | Embedded in custom indie-hacker workflows | One install, many calls |
+| `@gosniffy/mcp` (Claude Desktop, Cursor config) | User asks agent ASO question → agent calls `sniffy_diagnose` | Permanent install; called whenever ASO comes up |
+| `@gosniffy/cli` (`npx sniffy ...`) | Indie hacker embeds in release pipeline / Makefile | Runs on every CI release |
+| `@gosniffy/sdk` | Embedded in custom indie-hacker workflows | One install, many calls |
 | Web demo (`landing/`) | Judge or curious indie hacker arrives, runs free `/sample` and `/quote` | Wallet flow converts to `/diagnose` |
 
 The **MIT license is a revenue-funnel investment**, not charity. Closed source forecloses `npx skills add`, npm distribution, and the trust loop that makes agents trust an installable tool. Hosted `api.sniffy.io` is the wallet — that part does not open-source.

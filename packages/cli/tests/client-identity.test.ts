@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => {
   return { createSniffyMock };
 });
 
-vi.mock("@sniffy/sdk", () => ({
+vi.mock("@gosniffy/sdk", () => ({
   createSniffy: mocks.createSniffyMock,
   PaymentRequiredError: class extends Error {},
 }));
@@ -35,7 +35,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const CLI_PKG = JSON.parse(
   readFileSync(join(__dirname, "..", "package.json"), "utf8"),
 ) as { version: string };
-const EXPECTED_CLIENT_ID = `@sniffy/cli@${CLI_PKG.version}`;
+const EXPECTED_CLIENT_ID = `@gosniffy/cli@${CLI_PKG.version}`;
 
 const originalArgv = process.argv;
 const originalExit = process.exit;
@@ -65,8 +65,8 @@ async function runCli(argv: string[]): Promise<void> {
   await new Promise((resolve) => setImmediate(resolve));
 }
 
-describe("@sniffy/cli — client identity", () => {
-  it("sample passes clientId='@sniffy/cli@<pkg.version>'", async () => {
+describe("@gosniffy/cli — client identity", () => {
+  it("sample passes clientId='@gosniffy/cli@<pkg.version>'", async () => {
     await runCli(["sample"]);
     expect(mocks.createSniffyMock).toHaveBeenCalled();
     const opts = mocks.createSniffyMock.mock.calls[0]?.[0] as {
@@ -75,7 +75,7 @@ describe("@sniffy/cli — client identity", () => {
     expect(opts.clientId).toBe(EXPECTED_CLIENT_ID);
   });
 
-  it("quote passes clientId='@sniffy/cli@<pkg.version>'", async () => {
+  it("quote passes clientId='@gosniffy/cli@<pkg.version>'", async () => {
     await runCli([
       "quote",
       "https://apps.apple.com/us/app/example/id123456789",
@@ -89,7 +89,7 @@ describe("@sniffy/cli — client identity", () => {
     expect(opts.clientId).toBe(EXPECTED_CLIENT_ID);
   });
 
-  it("diagnose passes clientId='@sniffy/cli@<pkg.version>'", async () => {
+  it("diagnose passes clientId='@gosniffy/cli@<pkg.version>'", async () => {
     await runCli([
       "diagnose",
       "https://apps.apple.com/us/app/example/id123456789",

@@ -8,14 +8,14 @@ import { Callout } from "@/components/Docs/Callout";
 export const metadata: Metadata = {
   title: "Setup MCP — Sniffy",
   description:
-    "Wire @sniffy/mcp into Claude Desktop or Cursor so your agent can call sniffy_quote, sniffy_diagnose, and sniffy_sample over x402.",
+    "Wire @gosniffy/mcp into Claude Desktop or Cursor so your agent can call sniffy_quote, sniffy_diagnose, and sniffy_sample over x402.",
 };
 
 const CLAUDE_DESKTOP_CONFIG = `{
   "mcpServers": {
     "sniffy": {
       "command": "npx",
-      "args": ["-y", "@sniffy/mcp"],
+      "args": ["-y", "@gosniffy/mcp"],
       "env": {
         "SNIFFY_PRIVATE_KEY": "0x...",
         "SNIFFY_BASE_URL": "https://api.sniffy.io"
@@ -28,7 +28,7 @@ const CURSOR_CONFIG = `{
   "mcpServers": {
     "sniffy": {
       "command": "npx",
-      "args": ["-y", "@sniffy/mcp"],
+      "args": ["-y", "@gosniffy/mcp"],
       "env": {
         "SNIFFY_PRIVATE_KEY": "0x..."
       }
@@ -51,7 +51,7 @@ const FROM_SOURCE_CONFIG = `{
 const FROM_SOURCE_BUILD = `git clone https://github.com/TheoInTech/asosniffy-com
 cd asosniffy-com
 pnpm install
-pnpm -F @sniffy/mcp build`;
+pnpm -F @gosniffy/mcp build`;
 
 const VERIFY_PROMPT = `Use sniffy_sample to fetch a sample report.`;
 
@@ -67,7 +67,7 @@ export default function McpSetupPage() {
             Setup MCP
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-sniffy-ink-mute">
-            Plug <span className="font-mono">@sniffy/mcp</span> into Claude
+            Plug <span className="font-mono">@gosniffy/mcp</span> into Claude
             Desktop or Cursor and your agent gets three new tools:{" "}
             <span className="font-mono">sniffy_sample</span>,{" "}
             <span className="font-mono">sniffy_quote</span>, and{" "}
@@ -114,14 +114,14 @@ export default function McpSetupPage() {
 
           <TutorialStep n={2} title="Pick an install path">
             <p>
-              <span className="font-mono">@sniffy/mcp</span> is staged for
+              <span className="font-mono">@gosniffy/mcp</span> is staged for
               publish via Changesets. Until the package lands on npm, run it
               from source.
             </p>
             <p className="mt-3 font-semibold text-sniffy-ink">
               A. From npm (recommended once published)
             </p>
-            <CodeBlock language="bash">{`npx -y @sniffy/mcp`}</CodeBlock>
+            <CodeBlock language="bash">{`npx -y @gosniffy/mcp`}</CodeBlock>
             <p className="mt-3 font-semibold text-sniffy-ink">
               B. From source (works today)
             </p>

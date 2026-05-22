@@ -1,4 +1,4 @@
-# @sniffy/mcp
+# @gosniffy/mcp
 
 [Model Context Protocol](https://modelcontextprotocol.io) server for the Sniffy ASO API. Exposes three tools over stdio: `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample`. Drop-in for Claude Desktop, Cursor, and any other MCP-capable agent.
 
@@ -6,7 +6,7 @@
 
 ```bash
 # One-off (no install)
-npx @sniffy/mcp
+npx @gosniffy/mcp
 ```
 
 ## Tools
@@ -28,7 +28,7 @@ Add this to your `claude_desktop_config.json`:
   "mcpServers": {
     "sniffy": {
       "command": "npx",
-      "args": ["-y", "@sniffy/mcp"],
+      "args": ["-y", "@gosniffy/mcp"],
       "env": {
         "SNIFFY_PRIVATE_KEY": "0x..."
       }

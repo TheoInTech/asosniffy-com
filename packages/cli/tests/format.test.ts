@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import chalk from "chalk";
 import { formatPaid, formatQuote, formatSample } from "../src/format.js";
-import type { QuoteResponse, SampleResponse } from "@sniffy/sdk";
+import type { QuoteResponse, SampleResponse } from "@gosniffy/sdk";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

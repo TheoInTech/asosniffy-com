@@ -107,4 +107,4 @@ If checks 1 or 2 fail outright, the receipt is fraudulent. If 3, 4, or 5 fail, t
 
 ## Programmatic verification
 
-The `@sniffy/sdk` package exports `verifyReceiptOnChain(receipt)`, returning a structured report of all five checks. The Sniffy demo UI runs the same function client-side and renders it as an `AuthenticityChecklist` panel. The agent surface (`SKILL.md`) carries a condensed version of this recipe so LLM consumers can verify receipts without copying implementation details.
+The `@gosniffy/sdk` package exports `verifyReceiptOnChain(receipt)`, returning a structured report of all five checks. The Sniffy demo UI runs the same function client-side and renders it as an `AuthenticityChecklist` panel. The agent surface (`SKILL.md`) carries a condensed version of this recipe so LLM consumers can verify receipts without copying implementation details.

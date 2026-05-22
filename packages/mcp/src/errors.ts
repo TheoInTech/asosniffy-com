@@ -1,4 +1,4 @@
-import { PaymentRequiredError } from "@sniffy/sdk";
+import { PaymentRequiredError } from "@gosniffy/sdk";
 
 type ToolErrorResult = {
   isError: true;

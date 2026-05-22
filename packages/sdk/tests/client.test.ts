@@ -180,7 +180,7 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     });
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const headers = init.headers as Record<string, string>;
-    expect(headers["x-sniffy-client"]).toMatch(/^@sniffy\/sdk@/);
+    expect(headers["x-sniffy-client"]).toMatch(/^@gosniffy\/sdk@/);
   });
 
   it("sets x-sniffy-client on sample", async () => {
@@ -192,7 +192,7 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     await sniffy.sample();
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const headers = init.headers as Record<string, string>;
-    expect(headers["x-sniffy-client"]).toMatch(/^@sniffy\/sdk@/);
+    expect(headers["x-sniffy-client"]).toMatch(/^@gosniffy\/sdk@/);
   });
 
   it("sets x-sniffy-client on diagnose (manual path)", async () => {
@@ -213,10 +213,10 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     );
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const headers = init.headers as Record<string, string>;
-    expect(headers["x-sniffy-client"]).toMatch(/^@sniffy\/sdk@/);
+    expect(headers["x-sniffy-client"]).toMatch(/^@gosniffy\/sdk@/);
   });
 
-  it("default identity matches @sniffy/sdk@<pkg.version>", async () => {
+  it("default identity matches @gosniffy/sdk@<pkg.version>", async () => {
     const sdkPkg = JSON.parse(
       readFileSync(join(__dirname, "..", "package.json"), "utf8"),
     ) as { version: string };
@@ -233,7 +233,7 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     });
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const headers = init.headers as Record<string, string>;
-    expect(headers["x-sniffy-client"]).toBe(`@sniffy/sdk@${sdkPkg.version}`);
+    expect(headers["x-sniffy-client"]).toBe(`@gosniffy/sdk@${sdkPkg.version}`);
   });
 
   it("honors clientId override verbatim on quote", async () => {
@@ -241,7 +241,7 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     const sniffy = createSniffy({
       baseUrl: "http://test",
       fetchImpl: fetchMock as unknown as typeof fetch,
-      clientId: "@sniffy/mcp@9.9.9",
+      clientId: "@gosniffy/mcp@9.9.9",
     });
     await sniffy.quote({
       store: "ios",
@@ -251,7 +251,7 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     });
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const headers = init.headers as Record<string, string>;
-    expect(headers["x-sniffy-client"]).toBe("@sniffy/mcp@9.9.9");
+    expect(headers["x-sniffy-client"]).toBe("@gosniffy/mcp@9.9.9");
   });
 
   it("clientId override flows through diagnose manual path", async () => {
@@ -259,7 +259,7 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     const sniffy = createSniffy({
       baseUrl: "http://test",
       fetchImpl: fetchMock as unknown as typeof fetch,
-      clientId: "@sniffy/cli@1.2.3",
+      clientId: "@gosniffy/cli@1.2.3",
     });
     await sniffy.diagnose(
       {
@@ -273,7 +273,7 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     );
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const headers = init.headers as Record<string, string>;
-    expect(headers["x-sniffy-client"]).toBe("@sniffy/cli@1.2.3");
+    expect(headers["x-sniffy-client"]).toBe("@gosniffy/cli@1.2.3");
   });
 
   it("clientId override flows through sample", async () => {

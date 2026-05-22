@@ -33,9 +33,9 @@ The repo is a pnpm workspace. The deployable apps are:
 
 The npm-publishable packages are:
 
-- `packages/sdk` (`@sniffy/sdk`)
-- `packages/cli` (`@sniffy/cli`)
-- `packages/mcp` (`@sniffy/mcp`)
+- `packages/sdk` (`@gosniffy/sdk`)
+- `packages/cli` (`@gosniffy/cli`)
+- `packages/mcp` (`@gosniffy/mcp`)
 
 Environment configuration:
 

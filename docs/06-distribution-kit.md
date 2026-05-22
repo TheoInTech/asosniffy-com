@@ -4,20 +4,20 @@
 
 ## Goal
 
-Ship the four installable agent-distribution surfaces from `PLAN.md` §22: `SKILL.md` at repo root, `@sniffy/sdk` (typed client), `@sniffy/cli` (`npx sniffy ...`), and `@sniffy/mcp` (MCP server). All target the same `scraper` API. SDK request/response types derive from the Zod schemas in Phase 00 so all four stay aligned with the §9 contract automatically.
+Ship the four installable agent-distribution surfaces from `PLAN.md` §22: `SKILL.md` at repo root, `@gosniffy/sdk` (typed client), `@gosniffy/cli` (`npx sniffy ...`), and `@gosniffy/mcp` (MCP server). All target the same `scraper` API. SDK request/response types derive from the Zod schemas in Phase 00 so all four stay aligned with the §9 contract automatically.
 
 ## Status & Dependencies
 
 - **Status**: not-started
 - **Depends on**:
-  - Phase 00 — `@sniffy/scraper` schemas, `@sniffy/sdk` skeleton with `PaymentRequiredError` exported
+  - Phase 00 — `@sniffy/scraper` schemas, `@gosniffy/sdk` skeleton with `PaymentRequiredError` exported
   - Phase 02 — running `scraper` server (for integration tests; can mock during dev)
 - **Blocks**: Phase 07 (deployment includes npm publish + repo public flip); Phase 09 (submission smoke-tests these install paths)
 - **Can run in parallel with**: Phases 03 (data), 04 (scoring), 05 (frontend). Each artifact below can be developed by a different agent.
 
 ## Parallelizable Tasks
 
-### 06.p1 — `@sniffy/sdk` HTTP client + x402 retry
+### 06.p1 — `@gosniffy/sdk` HTTP client + x402 retry
 
 - **Recommended agent**: `principal-backend-engineer` (skills: `senior-backend`, `x402-payments`)
 - **Scope**: `packages/sdk/src/`
@@ -40,23 +40,23 @@ Ship the four installable agent-distribution surfaces from `PLAN.md` §22: `SKIL
   - `packages/sdk/README.md` — usage example matching `PLAN.md` §22.5 verbatim
   - Tests: mocked fetch, happy path, 402 → retry → 200, 402 with `autoPay: false` throwing `PaymentRequiredError`
 - **Acceptance**:
-  - `import { createSniffy, PaymentRequiredError } from '@sniffy/sdk'` works in a fresh consumer project
+  - `import { createSniffy, PaymentRequiredError } from '@gosniffy/sdk'` works in a fresh consumer project
   - `const quote = await sniffy.quote({...})` returns a fully-typed `QuoteResponse` with autocomplete
   - `await sniffy.diagnose({...})` with a configured signer returns a fully-typed `DiagnosePaidResponse`
   - `await sniffy.diagnose({...}, { autoPay: false })` throws `PaymentRequiredError` containing the payment requirements
 - **Out of scope**: do not bundle a wallet — the SDK accepts a `signer` interface; the caller (CLI / MCP / user code) brings the wallet
 - **References**: `PLAN.md` §22.5; `business-model.md` §5
 
-### 06.p2 — `@sniffy/cli`
+### 06.p2 — `@gosniffy/cli`
 
 - **Recommended agent**: `principal-backend-engineer` (skills: `senior-backend`)
 - **Scope**: `packages/cli/`
 - **Inputs**:
-  - `@sniffy/sdk` from 06.p1
+  - `@gosniffy/sdk` from 06.p1
   - `PLAN.md` §22.4 (CLI surface)
   - `CLAUDE.md` "Branding Voice" (clean CLI; playful UI vocabulary is for the web demo, not the CLI flags)
 - **Deliverables**:
-  - `packages/cli/package.json` — name `@sniffy/cli`, license MIT, `bin: { sniffy: './dist/index.js' }`, deps: `@sniffy/sdk`, `commander` (or `cac`), `picocolors`, `viem`
+  - `packages/cli/package.json` — name `@gosniffy/cli`, license MIT, `bin: { sniffy: './dist/index.js' }`, deps: `@gosniffy/sdk`, `commander` (or `cac`), `picocolors`, `viem`
   - `packages/cli/src/index.ts` — commander entrypoint
   - Commands:
     - `npx sniffy quote <url-or-id> -k <keyword1,keyword2,...> [-c <country>]`
@@ -79,16 +79,16 @@ Ship the four installable agent-distribution surfaces from `PLAN.md` §22: `SKIL
 - **Out of scope**: do not implement interactive prompts (`inquirer`) — keep the CLI flag-driven so it's pipeable; do not embed a TUI
 - **References**: `PLAN.md` §22.4
 
-### 06.p3 — `@sniffy/mcp`
+### 06.p3 — `@gosniffy/mcp`
 
 - **Recommended agent**: `principal-backend-engineer` (skills: `senior-backend`)
 - **Scope**: `packages/mcp/`
 - **Inputs**:
-  - `@sniffy/sdk` from 06.p1
+  - `@gosniffy/sdk` from 06.p1
   - `PLAN.md` §22.3 (MCP surface)
   - MCP SDK docs (use Context7)
 - **Deliverables**:
-  - `packages/mcp/package.json` — name `@sniffy/mcp`, license MIT, `bin: { 'sniffy-mcp': './dist/index.js' }`, deps: `@modelcontextprotocol/sdk`, `@sniffy/sdk`, `viem`
+  - `packages/mcp/package.json` — name `@gosniffy/mcp`, license MIT, `bin: { 'sniffy-mcp': './dist/index.js' }`, deps: `@modelcontextprotocol/sdk`, `@gosniffy/sdk`, `viem`
   - MCP server using stdio transport (the standard MCP transport for `npx`-launched servers)
   - Three tools exposed:
     - `sniffy_quote` — input schema: `{ store, app, country, keywords[], competitors[]? }`; calls `client.quote(...)`; returns the full `QuoteResponse` including `shallowScan`
@@ -101,7 +101,7 @@ Ship the four installable agent-distribution surfaces from `PLAN.md` §22: `SKIL
   - `packages/mcp/README.md` with the Claude Desktop / Cursor config snippet matching `PLAN.md` §22.6 verbatim
   - Tests: stdio harness that calls each tool with mocked SDK and validates the JSON-RPC response shape
 - **Acceptance**:
-  - `npx @sniffy/mcp` starts a stdio server that responds to MCP `tools/list` with the three tools
+  - `npx @gosniffy/mcp` starts a stdio server that responds to MCP `tools/list` with the three tools
   - Adding the `PLAN.md` §22.6 config snippet to Claude Desktop makes the tools available to Claude
   - Calling `sniffy_sample` returns the canned sample without requiring a wallet
 - **Out of scope**: do not implement an SSE / HTTP transport (stdio is enough for `npx` launches); do not bundle the private key (env-var only)
@@ -140,20 +140,20 @@ Ship the four installable agent-distribution surfaces from `PLAN.md` §22: `SKIL
 
 ```bash
 # All three packages build and typecheck
-pnpm -r --filter "@sniffy/sdk" --filter "@sniffy/cli" --filter "@sniffy/mcp" build
-pnpm -r --filter "@sniffy/sdk" --filter "@sniffy/cli" --filter "@sniffy/mcp" typecheck
+pnpm -r --filter "@gosniffy/sdk" --filter "@gosniffy/cli" --filter "@gosniffy/mcp" build
+pnpm -r --filter "@gosniffy/sdk" --filter "@gosniffy/cli" --filter "@gosniffy/mcp" typecheck
 
 # SDK consumer smoke test (against local scraper running at :3001)
-pnpm --filter @sniffy/sdk test
+pnpm --filter @gosniffy/sdk test
 
 # CLI smoke against local backend
 pnpm --filter @sniffy/scraper dev &
 sleep 2
-pnpm --filter @sniffy/cli build
+pnpm --filter @gosniffy/cli build
 SNIFFY_BASE_URL=http://localhost:3001 node packages/cli/dist/index.js sample | grep -q "summary"
 
 # MCP server starts and lists tools
-pnpm --filter @sniffy/mcp build
+pnpm --filter @gosniffy/mcp build
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node packages/mcp/dist/index.js | jq '.result.tools | length' | grep -q 3
 
 # SKILL.md exists and parses
@@ -162,7 +162,7 @@ grep -q "^name: sniffy" SKILL.md
 ```
 
 Manual smoke (post-Phase 07 deploy):
-- Add `@sniffy/mcp` to Claude Desktop using the `PLAN.md` §22.6 config snippet → start a chat → ask "what keywords could improve this app?" with an App Store URL → Claude should invoke `sniffy_quote` then `sniffy_diagnose`
+- Add `@gosniffy/mcp` to Claude Desktop using the `PLAN.md` §22.6 config snippet → start a chat → ask "what keywords could improve this app?" with an App Store URL → Claude should invoke `sniffy_quote` then `sniffy_diagnose`
 
 ## References
 

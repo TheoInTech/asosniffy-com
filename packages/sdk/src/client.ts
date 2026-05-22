@@ -19,9 +19,9 @@ const DEFAULT_BASE_URL = "https://api.sniffy.io";
 // Identifies this surface to the scraper's soft attestation middleware so
 // the per-request audit log carries clientSurface=sdk. CLI, MCP, and
 // landing override this via `clientId` so their traffic attests as
-// @sniffy/cli, @sniffy/mcp, etc. Third-party callers can also pass an
+// @gosniffy/cli, @gosniffy/mcp, etc. Third-party callers can also pass an
 // arbitrary string; the server tags non-matching values as "unknown".
-const DEFAULT_CLIENT_ID = `@sniffy/sdk@${pkg.version}`;
+const DEFAULT_CLIENT_ID = `@gosniffy/sdk@${pkg.version}`;
 
 export interface SignerLike {
   signTypedData: (args: unknown) => Promise<`0x${string}`>;

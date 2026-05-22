@@ -127,7 +127,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@sniffy/sdk':
+      '@gosniffy/sdk':
         specifier: workspace:*
         version: link:../sdk
       chalk:
@@ -155,12 +155,12 @@ importers:
 
   packages/mcp:
     dependencies:
+      '@gosniffy/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@3.25.76)
-      '@sniffy/sdk':
-        specifier: workspace:*
-        version: link:../sdk
       viem:
         specifier: ^2.21.55
         version: 2.49.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
@@ -180,9 +180,6 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@sniffy/scraper':
-        specifier: workspace:*
-        version: link:../../scraper
       '@x402/core':
         specifier: ^2.12.0
         version: 2.12.0
@@ -196,6 +193,9 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
+      '@sniffy/scraper':
+        specifier: workspace:*
+        version: link:../../scraper
       '@types/node':
         specifier: ^22.19.19
         version: 22.19.19

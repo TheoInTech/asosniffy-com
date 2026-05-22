@@ -1,19 +1,19 @@
-# @sniffy/aso-knowledge
+# @gosniffy/aso-knowledge
 
 > Curated App Store Optimization best practices as an MCP server. Pure knowledge — no wallet, no payment, no network.
 
-`@sniffy/aso-knowledge` is the standalone-knowledge surface for Sniffy. It pairs with `@sniffy/mcp` (paid ASO diagnoses over x402) but ships independently so agents can ground their ASO recommendations in primary-source citations *without* configuring a wallet.
+`@gosniffy/aso-knowledge` is the standalone-knowledge surface for Sniffy. It pairs with `@gosniffy/mcp` (paid ASO diagnoses over x402) but ships independently so agents can ground their ASO recommendations in primary-source citations *without* configuring a wallet.
 
 ## Install
 
 ```bash
-npm i -g @sniffy/aso-knowledge
+npm i -g @gosniffy/aso-knowledge
 ```
 
 Or use `npx`:
 
 ```bash
-npx -y @sniffy/aso-knowledge
+npx -y @gosniffy/aso-knowledge
 ```
 
 ## MCP config (Claude Desktop / Cursor)
@@ -23,7 +23,7 @@ npx -y @sniffy/aso-knowledge
   "mcpServers": {
     "sniffy-aso-knowledge": {
       "command": "npx",
-      "args": ["-y", "@sniffy/aso-knowledge"]
+      "args": ["-y", "@gosniffy/aso-knowledge"]
     }
   }
 }
@@ -67,12 +67,12 @@ import {
   getKnowledgeByTopic,
   listKnowledgeTopics,
   type KnowledgeEntry,
-} from "@sniffy/aso-knowledge";
+} from "@gosniffy/aso-knowledge";
 ```
 
-## Relationship to `@sniffy/mcp`
+## Relationship to `@gosniffy/mcp`
 
-`@sniffy/mcp` returns paid ASO diagnoses; each `recommendations[]` item it emits already carries an optional `knowledge` citation drawn from this same corpus. This package gives agents the same citation library to query *outside* a diagnose call — for prep work, post-hoc explanations, or knowledge-only chats where no wallet is configured.
+`@gosniffy/mcp` returns paid ASO diagnoses; each `recommendations[]` item it emits already carries an optional `knowledge` citation drawn from this same corpus. This package gives agents the same citation library to query *outside* a diagnose call — for prep work, post-hoc explanations, or knowledge-only chats where no wallet is configured.
 
 The two packages share their canonical data source (see the dual source-of-truth note at the top of `src/data.ts`). They are independently installable.
 

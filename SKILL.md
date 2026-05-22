@@ -63,7 +63,7 @@ The `tier` field is **optional**. Omitting it preserves the legacy hackathon bas
 |---|---|---|
 | `quick` | $0.05 | Rank buckets + 6-factor metadata score — fast structural diagnostic. Template-only synthesis, no AI call, no `readyToPaste` copy. |
 | `standard` | $0.20 | Full diagnose with AI synthesis + `readyToPaste` copy. Closest to the legacy default feature set. |
-| `expert` | $1.00 | Standard + Apple Search Ads popularity overlay confirmation, broader sentiment + screenshot hooks. |
+| `expert` | $1.00 | Standard + Apple Search Ads popularity overlay confirmation, review-sentiment mining over fetched review bodies, and (future) screenshot caption analysis. Adds the `expertAnalysis` block to the response. |
 
 Refresh-sniff discount (50% off, within 30 days for the same `(store, country, appId)` tuple) applies *after* the tier total — surfaced in the `pricing.discounts[]` line item, separate from the gross `breakdown`. Agents and UIs render both numbers.
 
@@ -189,7 +189,77 @@ To verify, query Morph Mainnet RPC (`https://rpc.morphl2.io`) and the facilitato
 
 A receipt passing all five checks is a genuine x402 settlement. A receipt failing any one of checks 3, 4, or 5 is not — flag it to the user. Check 2 may legitimately fail if the facilitator's `/v2/supported` is temporarily unreachable; mark it `skipped`, not `failed`.
 
-The five-check pattern is implemented in `@sniffy/sdk` as `verifyReceiptOnChain(receipt)` for Node/Edge consumers and in the demo UI's `AuthenticityChecklist` component. The forensic recipe with worked curl commands lives at `docs/07-verifying-x402.md` in the repo.
+The five-check pattern is implemented in `@gosniffy/sdk` as `verifyReceiptOnChain(receipt)` for Node/Edge consumers and in the demo UI's `AuthenticityChecklist` component. The forensic recipe with worked curl commands lives at `docs/07-verifying-x402.md` in the repo.
+
+## Public insights showcase (`/insights`)
+
+Every successful `/diagnose` call also writes a **PII-stripped** copy of the report to a public showcase, available at:
+
+```
+GET /api/v1/aso/insights                            # paginated index (?store, ?country, ?limit)
+GET /api/v1/aso/insights/:store/:country/:appId     # single report
+```
+
+The showcase report is a subset of `DiagnosePaidResponse` with these fields removed: `requestId`, `sniffId`, `receipt`, `historySignature`, `packCredit`. Wallet addresses, transaction hashes, and HMAC signatures never reach the public surface. The remaining content (summary, keyword diagnosis, competitor trail, metadata score, recommendations with knowledge citations, suggested keywords) is derived from public App Store / Play Store data that the source app already advertises.
+
+**Opt-out**: pass `X-Sniffy-No-Index: 1` (or `true` / `yes`) on the `/diagnose` request to skip the showcase write for that specific call. Default behavior is opt-out, not opt-in — the showcase write happens unless the caller explicitly says no.
+
+**Cache headers**: list endpoint sends `Cache-Control: public, max-age=60`; detail endpoint sends `max-age=300`. The underlying Redis store updates in real time on every diagnose; the CDN cap is a freshness ceiling, not a staleness guarantee.
+
+**Landing UI**: published reports are rendered at `https://sniffy.io/insights/{store}/{country}/{appId}` (server-side, indexable). The detail page is a lean public view — full report content + citations + a footer CTA back to the home flow.
+
+Entries expire after 30 days; the index trims expired members lazily on read.
+
+## Expert-tier expertAnalysis block
+
+When `tier: "expert"` is passed on `/diagnose`, the response carries an additional `expertAnalysis` block that lower tiers omit:
+
+```json
+{
+  "expertAnalysis": {
+    "reviewSentiment": {
+      "positivePercent": 62,
+      "neutralPercent": 18,
+      "negativePercent": 20,
+      "totalReviewsAnalyzed": 47,
+      "topComplaintThemes": [
+        { "theme": "battery", "sampleCount": 5 },
+        { "theme": "ads", "sampleCount": 3 }
+      ]
+    },
+    "asaPopularityConfirmed": true,
+    "asaCoverage": { "keywordsWithLiveAsa": 5, "totalKeywords": 5 }
+  }
+}
+```
+
+**`reviewSentiment`** runs a deterministic, heuristic-only sentiment pass over the same review bodies that feed `suggestedKeywords[reason="review-frequency"]` — no LLM call, so the output is byte-stable for the same inputs. Returns `null` when review coverage is below 5 reviews (honest-floor: don't fabricate sentiment over thin data). `topComplaintThemes` lists the most-frequent non-stopword tokens that appear in reviews classified as negative; surfaces appear only when they hit ≥2 distinct negative reviews so a single outlier doesn't drive the list.
+
+**`asaPopularityConfirmed`** is `true` only when every keyword in `keywordDiagnosis[]` got a non-null `popularityScore` from the live Apple Search Ads provider (i.e. `popularitySource: "apple-search-ads"` across the board). When it's `false`, `asaCoverage` breaks down how many keywords actually had live ASA data so consumers can render "5 of 7 keywords covered" rather than a binary yes/no. Quick / Standard / legacy callers don't see this block — Expert is the only tier that surfaces explicit confirmation, because Expert is the tier that ships the heavier ASA validation contract.
+
+## Knowledge citations on recommendations
+
+Each `recommendations[]` item may carry an optional `knowledge` object linking it to a primary-source ASO best practice:
+
+```json
+{
+  "rank": 1,
+  "action": "Trim title to under 30 chars.",
+  "impact": "high",
+  "effort": "low",
+  "rationale": "Currently 32 chars — drops 2 keyword bytes from the indexed budget.",
+  "knowledge": {
+    "topic": "title-30-char-cap",
+    "summary": "iOS app titles are capped at 30 characters and indexed for search. Unused title bytes are unused ranking signal.",
+    "sourceName": "Apple App Store Connect Help — App Information",
+    "sourceUrl": "https://developer.apple.com/help/app-store-connect/manage-app-information/enter-app-information/"
+  }
+}
+```
+
+Sources are always primary (Apple HIG / Apple Search Ads docs / App Store Connect Help / Play Store Help / App Store Review Guidelines) — never third-party blogs or competing tool vendors. The `topic` field is a stable enum agents can branch on; the `summary` is paraphrased (not a verbatim quote) and the `sourceUrl` is the public docs link that backs the claim. Surface the summary alongside the rationale so the user understands *why* the action matters, not just *what* to do.
+
+Recommendations that don't match a curated topic ship without a `knowledge` field — better to drop the citation than fabricate one. Don't infer a topic from the action text yourself; agents should treat the absence of `knowledge` as "no curated reference for this card."
 
 ## Provenance — always surface this
 
@@ -232,8 +302,9 @@ This skill, and the Sniffy demo API, run on **Morph Mainnet** (`eip155:2818`). H
 
 If the user wants to call Sniffy from code (not via this skill):
 
-- **TypeScript SDK**: `npm i @sniffy/sdk` — `createSniffy({ baseUrl, signer })` with `quote`, `diagnose`, `sample`.
-- **CLI**: `npx @sniffy/cli quote|diagnose|sample` — flag-driven, `--json` for piping.
-- **MCP server**: `npx @sniffy/mcp` — exposes `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample` as MCP tools for Claude Desktop / Cursor.
+- **TypeScript SDK**: `npm i @gosniffy/sdk` — `createSniffy({ baseUrl, signer })` with `quote`, `diagnose`, `sample`.
+- **CLI**: `npx @gosniffy/cli quote|diagnose|sample` — flag-driven, `--json` for piping.
+- **MCP server (paid)**: `npx @gosniffy/mcp` — exposes `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample` as MCP tools for Claude Desktop / Cursor. Requires `SNIFFY_PRIVATE_KEY` env var; charges per `sniffy_diagnose` call over x402.
+- **MCP server (free)**: `npx @gosniffy/aso-knowledge` — exposes `aso_knowledge_list_topics`, `aso_knowledge_get_topic`, `aso_knowledge_lookup`. No wallet required. Same curated corpus as the `knowledge` citations on `recommendations[]`, but queryable independently of `/diagnose` — useful for ASO prep, post-hoc explanations, or knowledge-only chats where no diagnose is needed.
 
 Source + spec: <https://github.com/TheoInTech/asosniffy-com>.

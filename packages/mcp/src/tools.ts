@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { SniffyClient } from "@sniffy/sdk";
+import type { SniffyClient } from "@gosniffy/sdk";
 import { mapSdkError } from "./errors.js";
 
 // Sniffy settles on Morph Mainnet only (eip155:2818). Hoodi testnet support

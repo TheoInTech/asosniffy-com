@@ -38,7 +38,7 @@ export interface RequestAudit {
   // middleware and promoted into the audit record by the audit middleware
   // before the structured log line is emitted. Undefined when no header
   // was present (e.g. anonymous /sample callers).
-  clientSurface?: "landing" | "sdk" | "cli" | "mcp" | "unknown";
+  clientSurface?: "landing" | "sdk" | "cli" | "mcp" | "aso-knowledge" | "unknown";
   clientVersion?: string;
   // Lowercased payer address recovered from the facilitator settle response,
   // stamped by the /diagnose route after settlement succeeds. Surfaces in

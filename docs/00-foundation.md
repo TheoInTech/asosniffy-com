@@ -125,17 +125,17 @@ Run only after 00.s1 completes. Each task is independent — assign one agent pe
 - **Recommended agent**: `principal-backend-engineer` (skills: `senior-backend`)
 - **Scope**: `packages/sdk/` directory
 - **Inputs**:
-  - `PLAN.md` §22.5 (`@sniffy/sdk` surface)
+  - `PLAN.md` §22.5 (`@gosniffy/sdk` surface)
   - The schemas exported by 00.p1
 - **Deliverables**:
-  - `packages/sdk/package.json` — name `@sniffy/sdk`, license MIT, deps: `zod`, peerDep: `viem` (for the signer interface)
+  - `packages/sdk/package.json` — name `@gosniffy/sdk`, license MIT, deps: `zod`, peerDep: `viem` (for the signer interface)
   - `packages/sdk/tsconfig.json` extending root, `composite: true`, `declaration: true`
   - `packages/sdk/src/index.ts` re-exporting types from `@sniffy/scraper`'s schema package (via workspace path)
   - `packages/sdk/src/errors.ts` — `PaymentRequiredError` class (extends `Error`, carries the parsed `DiagnoseUnpaidResponse` payload)
   - `packages/sdk/src/client.ts` — stub `createSniffy({ baseUrl, signer? })` that returns `{ quote, diagnose, sample }` with `throw new Error("not implemented")` bodies — Phase 06 fills these in
 - **Acceptance**:
-  - `pnpm --filter @sniffy/sdk build` produces `dist/`
-  - `pnpm --filter @sniffy/sdk typecheck` passes
+  - `pnpm --filter @gosniffy/sdk build` produces `dist/`
+  - `pnpm --filter @gosniffy/sdk typecheck` passes
   - SDK imports `Provenance` and `QuoteResponse` types from `@sniffy/scraper` schemas (proving the single source of truth)
 - **Out of scope**: do not implement the actual HTTP client or payment retry logic (Phase 06); do not publish to npm yet (Phase 07)
 - **References**: `PLAN.md` §22.5
@@ -159,7 +159,7 @@ pnpm --filter @sniffy/scraper test -- schemas
 pnpm --filter @sniffy/landing build
 
 # SDK skeleton typechecks and builds
-pnpm --filter @sniffy/sdk build
+pnpm --filter @gosniffy/sdk build
 
 # Workspace-wide typecheck passes
 pnpm -r typecheck
@@ -173,6 +173,6 @@ A second verification: `grep -rn "Provenance\|RequestId\|SniffId" packages/sdk l
 - `PLAN.md` §10 — Architecture, Repo Layout, Tech Stack
 - `PLAN.md` §11 — Data Requirements (provenance labels)
 - `PLAN.md` §13 — Branding (palette for Tailwind config)
-- `PLAN.md` §22.5 — `@sniffy/sdk` surface
+- `PLAN.md` §22.5 — `@gosniffy/sdk` surface
 - `CLAUDE.md` "Architecture" + "Load-Bearing Constraints"
 - Next phase: [`01-payment-adapter.md`](./01-payment-adapter.md)

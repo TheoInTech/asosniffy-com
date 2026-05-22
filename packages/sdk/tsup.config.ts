@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 // Bundle `@sniffy/scraper/schemas` directly into the SDK's dist so the
-// published `@sniffy/sdk` is self-contained. The scraper app is a workspace
+// published `@gosniffy/sdk` is self-contained. The scraper app is a workspace
 // package that never publishes to npm (it's an app, not a library); without
 // bundling, npm consumers couldn't resolve the workspace:* dependency.
 //

@@ -1,4 +1,4 @@
-// Canonical ASO knowledge corpus for the @sniffy/aso-knowledge MCP package.
+// Canonical ASO knowledge corpus for the @gosniffy/aso-knowledge MCP package.
 //
 // **Dual source-of-truth note.** This file is mirrored at
 // scraper/src/scoring/aso-knowledge.ts, where the scraper's orchestrator

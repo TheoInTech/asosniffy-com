@@ -6,14 +6,14 @@ import {
   PaymentRequiredError,
   type DiagnoseRequest,
   type QuoteRequest,
-} from "@sniffy/sdk";
+} from "@gosniffy/sdk";
 import { loadWallet, WalletConfigError } from "./wallet.js";
 import { formatPaid, formatQuote, formatSample } from "./format.js";
 import pkg from "../package.json" with { type: "json" };
 
 const DEFAULT_BASE_URL =
   process.env["SNIFFY_BASE_URL"] ?? "https://api.sniffy.io";
-const CLIENT_ID = `@sniffy/cli@${pkg.version}`;
+const CLIENT_ID = `@gosniffy/cli@${pkg.version}`;
 
 function parseList(raw: string): string[] {
   return raw

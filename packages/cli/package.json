@@ -1,5 +1,5 @@
 {
-  "name": "@sniffy/cli",
+  "name": "@gosniffy/cli",
   "version": "0.1.0",
   "description": "Command-line client for the Sniffy ASO API. `npx sniffy quote|diagnose|sample`.",
   "license": "MIT",
@@ -19,7 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@sniffy/sdk": "workspace:*",
+    "@gosniffy/sdk": "workspace:*",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "viem": "^2.21.55"

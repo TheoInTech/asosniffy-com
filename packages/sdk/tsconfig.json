@@ -14,7 +14,7 @@
     "types": ["node"],
     // Alias the scraper schemas to their workspace source files so the SDK
     // build (tsup + rollup-plugin-dts) inlines them into dist/index.{js,d.ts}.
-    // The published @sniffy/sdk is then self-contained — npm consumers don't
+    // The published @gosniffy/sdk is then self-contained — npm consumers don't
     // need to install @sniffy/scraper (which never publishes; it's an app).
     // Runtime test resolution still goes through pnpm workspace symlink.
     "paths": {

@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => {
   return { createSniffyMock, registerToolMock, connectMock };
 });
 
-vi.mock("@sniffy/sdk", () => ({
+vi.mock("@gosniffy/sdk", () => ({
   createSniffy: mocks.createSniffyMock,
 }));
 
@@ -43,14 +43,14 @@ const MCP_PKG = JSON.parse(
   readFileSync(join(__dirname, "..", "package.json"), "utf8"),
 ) as { version: string };
 
-describe("@sniffy/mcp — client identity", () => {
-  it("calls createSniffy with clientId='@sniffy/mcp@<pkg.version>'", async () => {
+describe("@gosniffy/mcp — client identity", () => {
+  it("calls createSniffy with clientId='@gosniffy/mcp@<pkg.version>'", async () => {
     await import("../src/index.js");
     expect(mocks.createSniffyMock).toHaveBeenCalledOnce();
     const opts = mocks.createSniffyMock.mock.calls[0]?.[0] as {
       clientId?: string;
       baseUrl?: string;
     };
-    expect(opts.clientId).toBe(`@sniffy/mcp@${MCP_PKG.version}`);
+    expect(opts.clientId).toBe(`@gosniffy/mcp@${MCP_PKG.version}`);
   });
 });

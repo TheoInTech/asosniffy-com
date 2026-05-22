@@ -1,3 +1,3 @@
-# @sniffy/aso-knowledge
+# @gosniffy/aso-knowledge
 
 ## 0.1.0

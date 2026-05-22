@@ -7,7 +7,7 @@ import type {
   ReadyToPasteField,
   ReadyToPasteSource,
   SampleResponse,
-} from "@sniffy/sdk";
+} from "@gosniffy/sdk";
 import { getExplorerUrl } from "./explorer.js";
 
 // Sniffy brand palette (see landing/ tailwind config).

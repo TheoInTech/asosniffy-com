@@ -21,16 +21,17 @@ asosniffy-com/
 ├── landing/                 Next.js + TypeScript → Vercel
 ├── scraper/                 Hono + TypeScript → Railway (Docker, node:22-slim)
 ├── packages/
-│   ├── sdk/                 @sniffy/sdk — typed TS client
-│   ├── cli/                 @sniffy/cli — `npx sniffy ...`
-│   └── mcp/                 @sniffy/mcp — MCP server
+│   ├── sdk/                 @gosniffy/sdk — typed TS client
+│   ├── cli/                 @gosniffy/cli — `npx sniffy ...`
+│   ├── mcp/                 @gosniffy/mcp — paid MCP server (quote / diagnose / sample)
+│   └── aso-knowledge/       @gosniffy/aso-knowledge — free MCP server (curated ASO citations)
 ├── SKILL.md                 Vercel skills format, repo root
 └── PLAN.md, CLAUDE.md, LICENSE, README.md, ...
 ```
 
 - **`landing/`** — Next.js frontend deployed to **Vercel**. Hosts the demo UI, quote form, report view, wallet UX (Reown AppKit), and Lottie animations. Contains **no canonical API logic** — it calls the Railway backend over HTTPS.
 - **`scraper/`** — Node.js backend deployed to **Railway** in a Docker container (`node:22-slim` base). Owns the `/api/v1/aso/{quote,diagnose,sample}` endpoints, the x402 payment adapter, all data providers (Apple/Google), Redis cache, fixture fallback, scoring, and AI synthesis.
-- **`packages/sdk`, `packages/cli`, `packages/mcp`** — npm-publishable. They do **not** deploy to Vercel or Railway. SDK request/response types derive from the Zod schemas in `scraper/` so all three packages and SKILL.md stay aligned with the §9 API contract automatically.
+- **`packages/sdk`, `packages/cli`, `packages/mcp`, `packages/aso-knowledge`** — npm-publishable. They do **not** deploy to Vercel or Railway. SDK request/response types derive from the Zod schemas in `scraper/` so SDK / CLI / MCP and SKILL.md stay aligned with the §9 API contract automatically. `@gosniffy/aso-knowledge` ships a separate, payment-free MCP server with a curated knowledge corpus that the scraper mirrors at `scraper/src/scoring/aso-knowledge.ts` — keep the two copies in sync (the package's `tests/sync-with-scraper.test.ts` guards against drift).
 
 API framework for `scraper`: **Hono** preferred (fetch-native, small); Fastify acceptable if plugin ecosystem becomes load-bearing. Package manager is **pnpm**. Validation is **Zod**. Tests are **Vitest**.
 
@@ -55,9 +56,9 @@ Sniffy ships four installable surfaces for AI agents and indie hackers (`PLAN.md
 
 - **`SKILL.md`** at repo root — Vercel / Agent Skills format, installable via `npx skills add TheoInTech/asosniffy-com`. Canonical API reference (endpoints, x402 payment, receipt verification, provenance, signal gaps).
 - **`skills/`** — specialist Agent Skills catalog: `sniffy-router` (intent dispatch), `sniffy-context` (foundation workspace doc), and six specialists: `sniffy-audit`, `sniffy-keywords`, `sniffy-metadata`, `sniffy-compete`, `sniffy-localize`, `sniffy-momentum`. Each wraps the same `sniffy_quote` / `sniffy_diagnose` calls but focuses output on one section of the report. Discriminative `description:` triggers make per-task selection automatic in Cursor / Claude Code.
-- **`@sniffy/mcp`** — MCP server exposing `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample`. Wallet config via `SNIFFY_PRIVATE_KEY` env var; mainnet payments are non-refundable so the tool descriptions warn before paid calls.
-- **`@sniffy/cli`** — `npx sniffy quote|diagnose|sample`. Provenance icons (`●live ◐cached ○fixture ◇inferred`); `--json` flag for piping.
-- **`@sniffy/sdk`** — typed `createSniffy({ baseUrl, signer? })` client; exports a typed `PaymentRequiredError` so consumers can intercept the x402 flow.
+- **`@gosniffy/mcp`** — MCP server exposing `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample`. Wallet config via `SNIFFY_PRIVATE_KEY` env var; mainnet payments are non-refundable so the tool descriptions warn before paid calls.
+- **`@gosniffy/cli`** — `npx sniffy quote|diagnose|sample`. Provenance icons (`●live ◐cached ○fixture ◇inferred`); `--json` flag for piping.
+- **`@gosniffy/sdk`** — typed `createSniffy({ baseUrl, signer? })` client; exports a typed `PaymentRequiredError` so consumers can intercept the x402 flow.
 
 All four surfaces target the same `scraper` API. When changing the API contract, update the SDK in the same PR — and PLAN.md §9.
 

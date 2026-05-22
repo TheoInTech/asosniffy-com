@@ -4,8 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import pkg from "../package.json" with { type: "json" };
 import { buildTools } from "./tools.js";
 
-// @sniffy/aso-knowledge — standalone MCP server. No wallet, no payment, no
-// network. Pure curated knowledge served over stdio. Pairs with @sniffy/mcp:
+// @gosniffy/aso-knowledge — standalone MCP server. No wallet, no payment, no
+// network. Pure curated knowledge served over stdio. Pairs with @gosniffy/mcp:
 // the latter handles paid quote/diagnose calls; this one handles the free
 // "what does Apple actually say about X?" lookups that ground agent
 // recommendations in primary-source citations.

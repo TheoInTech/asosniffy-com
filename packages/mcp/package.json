@@ -1,5 +1,5 @@
 {
-  "name": "@sniffy/mcp",
+  "name": "@gosniffy/mcp",
   "version": "0.1.0",
   "description": "Model Context Protocol server for the Sniffy ASO API. Exposes sniffy_quote, sniffy_diagnose, sniffy_sample over stdio.",
   "license": "MIT",
@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@sniffy/sdk": "workspace:*",
+    "@gosniffy/sdk": "workspace:*",
     "viem": "^2.21.55",
     "zod": "^3.24.1"
   },

@@ -311,9 +311,9 @@ Product decision:
 - Receipt and provenance metadata in paid responses.
 - Agent-distribution surface (see §22):
   - `SKILL.md` at repo root (Vercel skills format, installable via `npx skills add <org>/asosniffy-com`).
-  - `@sniffy/sdk` — thin TypeScript client shared by CLI and MCP.
-  - `@sniffy/cli` — `npx sniffy quote|diagnose|sample`.
-  - `@sniffy/mcp` — MCP server exposing `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample` tools.
+  - `@gosniffy/sdk` — thin TypeScript client shared by CLI and MCP.
+  - `@gosniffy/cli` — `npx sniffy quote|diagnose|sample`.
+  - `@gosniffy/mcp` — MCP server exposing `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample` tools.
 - Repo published open-source under MIT (see §23) — required because the `npx skills add` install path needs a public GitHub repo.
 
 ### Optional if Time Allows
@@ -612,9 +612,9 @@ asosniffy-com/
 ├── landing/                 (Next.js, Vercel)
 ├── scraper/                 (Hono, Railway, Docker)
 ├── packages/
-│   ├── sdk/                 (@sniffy/sdk — thin TypeScript client)
-│   ├── cli/                 (@sniffy/cli — `npx sniffy ...`)
-│   └── mcp/                 (@sniffy/mcp — MCP server)
+│   ├── sdk/                 (@gosniffy/sdk — thin TypeScript client)
+│   ├── cli/                 (@gosniffy/cli — `npx sniffy ...`)
+│   └── mcp/                 (@gosniffy/mcp — MCP server)
 ├── SKILL.md                 (Vercel skills format, repo root)
 ├── LICENSE                  (MIT)
 ├── NOTICE
@@ -999,9 +999,9 @@ Use only after implementation begins.
 The artifacts that AI agents and indie-hacker scripts use to *consume* Sniffy at runtime are specified in §22 (Agent-Distribution Surface). Summary:
 
 - `SKILL.md` — Vercel skills format, installable across 55+ coding agents.
-- `@sniffy/mcp` — MCP server, three tools, x402 handled under the hood.
-- `@sniffy/cli` — terminal entry point for scripts and humans.
-- `@sniffy/sdk` — typed TypeScript client; the substrate for CLI and MCP.
+- `@gosniffy/mcp` — MCP server, three tools, x402 handled under the hood.
+- `@gosniffy/cli` — terminal entry point for scripts and humans.
+- `@gosniffy/sdk` — typed TypeScript client; the substrate for CLI and MCP.
 
 These are the load-bearing distribution channels for the indie-hacker persona. See §22 for full specification and §23 for the open-source posture that enables their distribution.
 
@@ -1048,15 +1048,15 @@ These are the load-bearing distribution channels for the indie-hacker persona. S
 
 ### Milestone 3.5: Distribution Surface
 
-- Implement `@sniffy/sdk` against the Railway endpoints. Derive request/response types from the `scraper/` Zod schemas.
-- Implement `@sniffy/cli` on top of the SDK. Include `--json` flag for piping; pretty terminal output with provenance icons by default.
-- Implement `@sniffy/mcp` exposing three tools: `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample`. Tool descriptions written for agent consumption. Wallet config read from env (`SNIFFY_PRIVATE_KEY`) with an explicit mainnet non-refundable warning before each paid call.
+- Implement `@gosniffy/sdk` against the Railway endpoints. Derive request/response types from the `scraper/` Zod schemas.
+- Implement `@gosniffy/cli` on top of the SDK. Include `--json` flag for piping; pretty terminal output with provenance icons by default.
+- Implement `@gosniffy/mcp` exposing three tools: `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample`. Tool descriptions written for agent consumption. Wallet config read from env (`SNIFFY_PRIVATE_KEY`) with an explicit mainnet non-refundable warning before each paid call.
 - Author `SKILL.md` at repo root (Vercel skills format).
 - Add `LICENSE` (MIT), `NOTICE`, `SECURITY.md`, `CONTRIBUTING.md`, repo-root `README.md`.
 - Verify no secrets in commit history; confirm `.gitignore` covers `.env*` and any wallet/key files.
 - Flip repo visibility to public on GitHub.
 - Smoke-test installs: `npx skills add asosniffy/asosniffy-com` inside a Claude Code project, the MCP server inside Claude Desktop, the CLI in a fresh terminal.
-- Publish `@sniffy/sdk`, `@sniffy/cli`, `@sniffy/mcp` to npm (or document local-link install path if publishing is deferred past the demo cut).
+- Publish `@gosniffy/sdk`, `@gosniffy/cli`, `@gosniffy/mcp` to npm (or document local-link install path if publishing is deferred past the demo cut).
 
 ### Milestone 4: Submission Package
 
@@ -1172,9 +1172,9 @@ Sniffy's product thesis is that ASO is an agent-buyable resource. The agent-dist
 |---|---|---|---|
 | `SKILL.md` | Any user of Claude Code, Cursor, Codex, OpenCode, or other Agent-Skills-aware agent | `npx skills add asosniffy/asosniffy-com` | Canonical API reference (endpoints, x402 payment, receipt verification, provenance, signal gaps). |
 | `skills/` (8-file catalog) | Same as above; installed alongside root `SKILL.md` | `npx skills add asosniffy/asosniffy-com` (catalog comes with the install) | Specialist skills: `sniffy-router` (intent dispatch), `sniffy-context` (foundation workspace doc), `sniffy-audit`, `sniffy-keywords`, `sniffy-metadata`, `sniffy-compete`, `sniffy-localize`, `sniffy-momentum`. Each wraps the same `sniffy_quote`/`sniffy_diagnose` calls and focuses output on one section. Discriminative `description:` triggers drive per-task selection. |
-| `@sniffy/mcp` | Claude Desktop, Cursor, or any MCP client user | MCP config block (see §22.6) | Three callable tools wrapped around the API; handles x402 under the hood. |
-| `@sniffy/cli` | Any developer with `npx` | `npx @sniffy/cli quote ...` | Terminal-native entry point for scripts and humans. |
-| `@sniffy/sdk` | Any TypeScript/JavaScript project | `npm i @sniffy/sdk` | Typed client; the substrate for CLI and MCP. Also usable directly. |
+| `@gosniffy/mcp` | Claude Desktop, Cursor, or any MCP client user | MCP config block (see §22.6) | Three callable tools wrapped around the API; handles x402 under the hood. |
+| `@gosniffy/cli` | Any developer with `npx` | `npx @gosniffy/cli quote ...` | Terminal-native entry point for scripts and humans. |
+| `@gosniffy/sdk` | Any TypeScript/JavaScript project | `npm i @gosniffy/sdk` | Typed client; the substrate for CLI and MCP. Also usable directly. |
 
 All five surfaces target the same `scraper` API and share the same payment flow. The differences are envelope and ergonomics, not capability. The skills catalog under `skills/` is the agent-discovery layer over the same MCP/CLI/SDK calls.
 
@@ -1199,7 +1199,7 @@ description: Pay-per-sniff ASO intelligence for App Store apps. Use when a user 
 
 The body is **general API instruction**, not named recipes. The agent is trusted to compose workflows from the primitives. The trade-off is intentional: named recipes calcify the product surface and bloat the file; general instruction lets the agent figure out the workflow from the user's request.
 
-### 22.3 `@sniffy/mcp`
+### 22.3 `@gosniffy/mcp`
 
 A Node-based MCP server. Three tools:
 
@@ -1209,7 +1209,7 @@ A Node-based MCP server. Three tools:
 
 Wallet config: Mainnet signer read from env (`SNIFFY_PRIVATE_KEY`). Each tool description includes an explicit "Mainnet — payments are non-refundable" warning so agents surface this to the user before triggering paid calls.
 
-### 22.4 `@sniffy/cli`
+### 22.4 `@gosniffy/cli`
 
 Commands:
 
@@ -1219,12 +1219,12 @@ Commands:
 
 Default output is human-readable: provenance icons (●live ◐cached ○fixture ◇inferred), section headers, color-coded confidence. `--json` flag pipes the raw response. Wallet config via the same env var pattern as MCP.
 
-### 22.5 `@sniffy/sdk`
+### 22.5 `@gosniffy/sdk`
 
 Tiny typed client. Public surface:
 
 ```ts
-import { createSniffy, PaymentRequiredError } from "@sniffy/sdk";
+import { createSniffy, PaymentRequiredError } from "@gosniffy/sdk";
 
 const sniffy = createSniffy({
   baseUrl: "https://api.sniffy.io",       // default
@@ -1251,10 +1251,10 @@ The `PaymentRequiredError` is intentionally typed and exported so consumers can 
 npx skills add asosniffy/asosniffy-com
 
 # Use the SDK
-npm i @sniffy/sdk
+npm i @gosniffy/sdk
 
 # Use the CLI
-npx @sniffy/cli quote https://apps.apple.com/us/app/example/id123456789 -k "habit tracker,daily planner"
+npx @gosniffy/cli quote https://apps.apple.com/us/app/example/id123456789 -k "habit tracker,daily planner"
 ```
 
 MCP config snippet for Claude Desktop or Cursor:
@@ -1264,7 +1264,7 @@ MCP config snippet for Claude Desktop or Cursor:
   "mcpServers": {
     "sniffy": {
       "command": "npx",
-      "args": ["-y", "@sniffy/mcp"],
+      "args": ["-y", "@gosniffy/mcp"],
       "env": {
         "SNIFFY_PRIVATE_KEY": "0x..."
       }
@@ -1380,9 +1380,9 @@ The agent-volume bet is the durable bet. Indie hackers will fund the brand and p
 Each agent surface in §22 maps to a distinct revenue path:
 
 - **`SKILL.md` install** (`npx skills add TheoInTech/asosniffy-com`) → agent reads spec → agent calls `/quote` (free, returns `shallowScan`) → if user wants the full plan, agent calls `/diagnose` → x402 payment → paid report.
-- **`@sniffy/mcp` install** (Claude Desktop, Cursor config) → user asks agent "should I rename my app?" or "what keywords am I missing?" → agent calls `sniffy_quote` (free) → if the shallow scan is promising, agent calls `sniffy_diagnose` → x402 wallet on the user's machine pays → paid report.
-- **`@sniffy/cli`** (`npx sniffy quote ...`) → script in a release pipeline calls quote, then diagnose, on every CI run that ships an App Store metadata update.
-- **`@sniffy/sdk`** → embedded directly in custom indie-hacker workflows (Vercel AI SDK apps, n8n flows once §22.7 ships).
+- **`@gosniffy/mcp` install** (Claude Desktop, Cursor config) → user asks agent "should I rename my app?" or "what keywords am I missing?" → agent calls `sniffy_quote` (free) → if the shallow scan is promising, agent calls `sniffy_diagnose` → x402 wallet on the user's machine pays → paid report.
+- **`@gosniffy/cli`** (`npx sniffy quote ...`) → script in a release pipeline calls quote, then diagnose, on every CI run that ships an App Store metadata update.
+- **`@gosniffy/sdk`** → embedded directly in custom indie-hacker workflows (Vercel AI SDK apps, n8n flows once §22.7 ships).
 - **Web demo** (`landing/`) → judge or curious indie hacker arrives, sees the free shallow scan, runs `/diagnose` via the in-browser wallet flow.
 
 The MIT license is explicitly a revenue-funnel investment. Closed source would foreclose `npx skills add`, npm distribution of SDK/CLI/MCP, and the social trust loop that makes agents trust an installable tool. The hosted `api.sniffy.io` is the wallet — that is the part that does not open-source.

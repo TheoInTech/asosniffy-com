@@ -22,7 +22,13 @@ import { env } from "../env.js";
 // `clientSurface` so we can see which surface (landing / sdk / cli / mcp /
 // unknown) is driving traffic.
 
-export type ClientSurface = "landing" | "sdk" | "cli" | "mcp" | "unknown";
+export type ClientSurface =
+  | "landing"
+  | "sdk"
+  | "cli"
+  | "mcp"
+  | "aso-knowledge"
+  | "unknown";
 
 export interface ClientAttestation {
   clientSurface: ClientSurface;
@@ -38,7 +44,12 @@ declare module "hono" {
   }
 }
 
-const ATTESTATION_PATTERN = /^@sniffy\/(landing|sdk|cli|mcp)@([0-9A-Za-z.\-+]+)$/;
+// Both scopes are accepted: `@sniffy/landing` stays the workspace name for
+// the in-house Vercel client, while the published agent kit on npm lives
+// under the `@gosniffy` org (the `@sniffy` scope on npm wasn't available at
+// publish time). Adding aso-knowledge so the free MCP server also attests.
+const ATTESTATION_PATTERN =
+  /^@(sniffy|gosniffy)\/(landing|sdk|cli|mcp|aso-knowledge)@([0-9A-Za-z.\-+]+)$/;
 const MAX_HEADER_LENGTH = 128;
 
 export function parseClientAttestation(
@@ -52,9 +63,10 @@ export function parseClientAttestation(
   if (match === null) {
     return { clientSurface: "unknown", raw };
   }
+  // Regex captures: 1=scope (sniffy|gosniffy), 2=surface, 3=version.
   return {
-    clientSurface: match[1] as Exclude<ClientSurface, "unknown">,
-    clientVersion: match[2],
+    clientSurface: match[2] as Exclude<ClientSurface, "unknown">,
+    clientVersion: match[3],
     raw,
   };
 }
@@ -100,7 +112,7 @@ export function originAttestation(config: OriginAttestationConfig) {
             error: {
               code: "missing_client_header",
               message:
-                "X-Sniffy-Client header is required. Use the SDK (`@sniffy/sdk`), CLI (`npx sniffy quote`), or include the header explicitly: see https://github.com/TheoInTech/asosniffy-com",
+                "X-Sniffy-Client header is required. Use the SDK (`@gosniffy/sdk`), CLI (`npx sniffy quote`), or include the header explicitly: see https://github.com/TheoInTech/asosniffy-com",
             },
           },
           403,

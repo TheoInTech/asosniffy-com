@@ -2,6 +2,8 @@ import {
   DiagnosePaidResponse,
   DiagnoseUnpaidResponse,
   type DiagnoseRequest,
+  InsightsListResponse,
+  PublicShowcaseReport,
   type QuoteRequest,
   QuoteResponse,
   SampleResponse,
@@ -273,6 +275,45 @@ export async function buySniffPack(
     (raw) => SniffPackBuyResponse.parse(raw),
     options,
   );
+}
+
+// ---------- insights/* (public showcase reads) ----------
+
+// Recent showcase listing. Server-rendered on the /insights index page.
+export async function listInsights(
+  params: { store?: string; country?: string; limit?: number } = {},
+  options: RequestOptions = {},
+) {
+  const qs = new URLSearchParams();
+  if (params.store) qs.set("store", params.store);
+  if (params.country) qs.set("country", params.country);
+  if (params.limit !== undefined) qs.set("limit", String(params.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return getJSON(
+    `/api/v1/aso/insights${suffix}`,
+    (raw) => InsightsListResponse.parse(raw),
+    options,
+  );
+}
+
+// Single-app showcase report. Server-fetched on the detail page; returns
+// null when the scraper responds 404 so the caller can render notFound().
+export async function getInsightsReport(
+  store: string,
+  country: string,
+  appId: string,
+  options: RequestOptions = {},
+) {
+  try {
+    return await getJSON(
+      `/api/v1/aso/insights/${encodeURIComponent(store)}/${encodeURIComponent(country)}/${encodeURIComponent(appId)}`,
+      (raw) => PublicShowcaseReport.parse(raw),
+      options,
+    );
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
 }
 
 // ---------- wallet/* (SIWE-authed Trail history) ----------

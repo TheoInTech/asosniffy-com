@@ -22,7 +22,7 @@ Phase 00 (foundation) ──┬─► Phase 01 (payment)    ──┐
                                                     └─► Phase 04 (scoring)    ──┘
 ```
 
-\* `@sniffy/sdk` in Phase 06 derives types from Phase 00 schemas; CLI/MCP can start in parallel with backend work and integration-test later against deployed `scraper`.
+\* `@gosniffy/sdk` in Phase 06 derives types from Phase 00 schemas; CLI/MCP can start in parallel with backend work and integration-test later against deployed `scraper`.
 
 \** Phase 02 needs Phase 01 ready for `/diagnose` 402 generation; routes for `/quote` and `/sample` can be scaffolded earlier against fixtures.
 

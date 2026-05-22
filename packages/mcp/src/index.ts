@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createSniffy } from "@sniffy/sdk";
+import { createSniffy } from "@gosniffy/sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { buildTools } from "./tools.js";
 import pkg from "../package.json" with { type: "json" };
@@ -17,7 +17,7 @@ const signer =
 const client = createSniffy({
   baseUrl: BASE_URL,
   signer,
-  clientId: `@sniffy/mcp@${pkg.version}`,
+  clientId: `@gosniffy/mcp@${pkg.version}`,
 });
 
 const server = new McpServer(

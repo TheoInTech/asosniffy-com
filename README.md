@@ -27,9 +27,10 @@ asosniffy-com/
 ├── landing/          Next.js demo UI (Vercel)
 ├── scraper/          Hono API + x402 payment adapter (Railway)
 ├── packages/
-│   ├── sdk/          @sniffy/sdk — typed TypeScript client
-│   ├── cli/          @sniffy/cli — `npx sniffy ...`
-│   └── mcp/          @sniffy/mcp — MCP server for Claude Desktop / Cursor
+│   ├── sdk/             @gosniffy/sdk — typed TypeScript client
+│   ├── cli/             @gosniffy/cli — `npx sniffy ...`
+│   ├── mcp/             @gosniffy/mcp — paid MCP server (quote / diagnose / sample)
+│   └── aso-knowledge/   @gosniffy/aso-knowledge — free MCP server (curated ASO citations)
 ├── SKILL.md          Agent Skills format — canonical API reference for Claude Code / Cursor / Codex
 ├── skills/           Specialist Agent Skills catalog: sniffy-router, sniffy-context,
 │                     sniffy-audit, sniffy-keywords, sniffy-metadata, sniffy-compete,
@@ -58,7 +59,7 @@ npx skills add TheoInTech/asosniffy-com
   "mcpServers": {
     "sniffy": {
       "command": "npx",
-      "args": ["-y", "@sniffy/mcp"],
+      "args": ["-y", "@gosniffy/mcp"],
       "env": { "SNIFFY_PRIVATE_KEY": "0x..." }
     }
   }
@@ -68,18 +69,18 @@ npx skills add TheoInTech/asosniffy-com
 **As a CLI**:
 
 ```bash
-npx @sniffy/cli quote https://apps.apple.com/us/app/example/id123456789 \
+npx @gosniffy/cli quote https://apps.apple.com/us/app/example/id123456789 \
   -k "habit tracker,daily planner"
 ```
 
 **As a TypeScript SDK**:
 
 ```bash
-npm i @sniffy/sdk
+npm i @gosniffy/sdk
 ```
 
 ```ts
-import { createSniffy } from "@sniffy/sdk";
+import { createSniffy } from "@gosniffy/sdk";
 
 const sniffy = createSniffy({ signer });
 const quote = await sniffy.quote({ store: "ios", app, country, keywords });
@@ -119,9 +120,9 @@ Two canonical Mermaid diagrams of the running system. They are the visual compan
 flowchart LR
     subgraph Client["Client (holds signer)"]
         BR["Browser<br/>Reown AppKit + wagmi"]
-        CLI["@sniffy/cli"]
-        MCP["@sniffy/mcp"]
-        SDK["@sniffy/sdk"]
+        CLI["@gosniffy/cli"]
+        MCP["@gosniffy/mcp"]
+        SDK["@gosniffy/sdk"]
     end
 
     subgraph Vercel["Vercel · landing/"]
@@ -374,9 +375,9 @@ curl --fail http://localhost:3001/health
    - Morph RPC / explorer / bridge overrides are optional — defaults in `landing/src/lib/morph-urls.ts` are correct for Mainnet.
 4. Deploy → confirm the home view loads and `/sample` renders the fixture report end-to-end without a wallet.
 
-### npm packages — `@sniffy/{sdk,cli,mcp}`
+### npm packages — `@gosniffy/{sdk,cli,mcp,aso-knowledge}`
 
-Changesets is already configured (`.changeset/config.json`) with a fixed-version group + `access: public`. Apps (`@sniffy/scraper`, `landing`) are ignored so they never get published.
+Changesets is already configured (`.changeset/config.json`) with a fixed-version group + `access: public`. Internal apps (`@sniffy/scraper`, `@sniffy/landing`) keep the original scope and are ignored so they never publish; the published packages use the `@gosniffy` org on npm.
 
 ```bash
 pnpm changeset                 # author a changeset for the release

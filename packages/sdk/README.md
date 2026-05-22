@@ -1,12 +1,12 @@
-# @sniffy/sdk
+# @gosniffy/sdk
 
 Typed TypeScript client for the [Sniffy](https://sniffy.io) ASO API — pay-per-sniff App Store keyword diagnosis, competitor analysis, and metadata recommendations. Paid endpoints settle over the [x402 protocol](https://x402.org) on Morph Hoodi testnet (`eip155:2910`).
 
 ## Install
 
 ```bash
-npm i @sniffy/sdk viem
-# or pnpm add @sniffy/sdk viem
+npm i @gosniffy/sdk viem
+# or pnpm add @gosniffy/sdk viem
 ```
 
 `viem` is a peer dependency — bring your own wallet.
@@ -14,7 +14,7 @@ npm i @sniffy/sdk viem
 ## Usage
 
 ```ts
-import { createSniffy, PaymentRequiredError } from "@sniffy/sdk";
+import { createSniffy, PaymentRequiredError } from "@gosniffy/sdk";
 
 const sniffy = createSniffy({
   baseUrl: "https://api.sniffy.io",       // default

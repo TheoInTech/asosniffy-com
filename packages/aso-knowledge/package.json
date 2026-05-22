@@ -1,5 +1,5 @@
 {
-  "name": "@sniffy/aso-knowledge",
+  "name": "@gosniffy/aso-knowledge",
   "version": "0.1.0",
   "description": "MCP server for curated App Store Optimization best practices. Three tools: list topics, get a topic's primary-source citation, and look up the best topic match for free-form text. No payment, no wallet — pure knowledge.",
   "license": "MIT",

@@ -1,13 +1,13 @@
-# @sniffy/cli
+# @gosniffy/cli
 
 Terminal client for the Sniffy ASO API. Pay-per-sniff x402 payments on Morph Hoodi testnet.
 
 ## Install
 
 ```bash
-npm i -g @sniffy/cli
+npm i -g @gosniffy/cli
 # or one-off
-npx @sniffy/cli sample
+npx @gosniffy/cli sample
 ```
 
 ## Commands

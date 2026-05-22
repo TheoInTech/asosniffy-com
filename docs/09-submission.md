@@ -117,8 +117,8 @@ Land every artifact the hackathon submission needs: a 2-minute demo video, three
     - Hero block: tagline, live demo link, hackathon track badge
     - "Install" section listing the three one-liners verbatim from `PLAN.md` §22.6:
       - `npx skills add TheoInTech/asosniffy-com`
-      - `npm i @sniffy/sdk`
-      - `npx @sniffy/cli quote <url> -k <keywords>`
+      - `npm i @gosniffy/sdk`
+      - `npx @gosniffy/cli quote <url> -k <keywords>`
       - The MCP config snippet for Claude Desktop / Cursor
     - "Try it" — link to the live demo + the `/sample` curl
     - "Docs" — link to the `docs/` folder
@@ -127,8 +127,8 @@ Land every artifact the hackathon submission needs: a 2-minute demo video, three
     - "License" — MIT badge
   - Smoke-test each install path on a fresh machine / sandbox:
     - `npx skills add TheoInTech/asosniffy-com` in a fresh Claude Code project
-    - `npm i @sniffy/sdk` in a blank Node project + run a smoke call against `https://api.sniffy.io`
-    - `npx @sniffy/cli sample --base-url https://api.sniffy.io`
+    - `npm i @gosniffy/sdk` in a blank Node project + run a smoke call against `https://api.sniffy.io`
+    - `npx @gosniffy/cli sample --base-url https://api.sniffy.io`
     - Claude Desktop config snippet → restart Claude Desktop → invoke `sniffy_sample`
   - Capture results in `docs/install-smoke-tests.md`
 - **Acceptance**:

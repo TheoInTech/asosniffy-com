@@ -1,4 +1,4 @@
-// Public TypeScript surface of @sniffy/aso-knowledge for non-MCP consumers
+// Public TypeScript surface of @gosniffy/aso-knowledge for non-MCP consumers
 // (the scraper's sync-guard test, future SDK integrations). The MCP server
 // itself lives at ./index.ts and is wired via the `bin` field.
 
