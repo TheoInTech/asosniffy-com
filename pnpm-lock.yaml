@@ -214,12 +214,18 @@ importers:
 
   scraper:
     dependencies:
+      '@browserbasehq/sdk':
+        specifier: ^2.12.0
+        version: 2.12.0
       '@hono/node-server':
         specifier: ^1.13.7
         version: 1.19.14(hono@4.12.19)
       '@upstash/redis':
         specifier: ^1.34.3
         version: 1.38.0
+      cheerio:
+        specifier: ^1.2.0
+        version: 1.2.0
       franc-min:
         specifier: ^6.2.0
         version: 6.2.0
@@ -234,7 +240,10 @@ importers:
         version: 5.1.11
       openai:
         specifier: ^4.104.0
-        version: 4.104.0(ws@8.20.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76)
+        version: 4.104.0(ws@8.18.3(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76)
+      playwright-core:
+        specifier: ^1.60.0
+        version: 1.60.0
       viem:
         specifier: ^2.21.55
         version: 2.49.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
@@ -362,6 +371,9 @@ packages:
 
   '@base-org/account@2.4.0':
     resolution: {integrity: sha512-A4Umpi8B9/pqR78D1Yoze4xHyQaujioVRqqO3d6xuDFw9VRtjg6tK3bPlwE0aW+nVH/ntllCpPa2PbI8Rnjcug==}
+
+  '@browserbasehq/sdk@2.12.0':
+    resolution: {integrity: sha512-bwgVjjYc4O54Cvkc5POfZUv0Gl92n1nNfAPueRLQVFsDoPRTw0FS8wKo9/bQCQuyzAg9+RQUDqvUC241ogLRTQ==}
 
   '@changesets/apply-release-plan@7.1.1':
     resolution: {integrity: sha512-9qPCm/rLx/xoOFXIHGB229+4GOL76S4MC+7tyOuTsR6+1jYlfFDQORdvwR5hDA6y4FL2BPt3qpbcQIS+dW85LA==}
@@ -5207,6 +5219,18 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@browserbasehq/sdk@2.12.0':
+    dependencies:
+      '@types/node': 18.19.130
+      '@types/node-fetch': 2.6.13
+      abort-controller: 3.0.0
+      agentkeepalive: 4.6.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
+
   '@changesets/apply-release-plan@7.1.1':
     dependencies:
       '@changesets/config': 3.1.4
@@ -9411,7 +9435,7 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@4.104.0(ws@8.20.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76):
+  openai@4.104.0(ws@8.18.3(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76):
     dependencies:
       '@types/node': 18.19.130
       '@types/node-fetch': 2.6.13
@@ -9421,7 +9445,7 @@ snapshots:
       formdata-node: 4.4.1
       node-fetch: 2.7.0
     optionalDependencies:
-      ws: 8.20.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      ws: 8.18.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       zod: 3.25.76
     transitivePeerDependencies:
       - encoding

@@ -34,6 +34,29 @@ export interface AppRecord {
   // scoring/momentum) treat missing dates as honest unknowns.
   releaseDate?: string;
   currentVersionReleaseDate?: string;
+  // Phase B — iTunes Search API fields previously ignored. All optional
+  // for back-compat with existing fixtures and the legacy mappers.
+  //
+  //   sellerUrl       — the developer's marketing/landing site. Feeds the
+  //                     product-context provider (scrapes homepage + 3-5
+  //                     priority pages to mine product tokens).
+  //   artistViewUrl   — the developer's App Store page (more-apps-by-this-
+  //                     developer). Useful for portfolio-style competitor
+  //                     signal in future phases.
+  //   releaseNotes    — "What's new in this version" copy. Carries fresh
+  //                     feature-launch language that the description may
+  //                     not yet reflect; Phase C will mine this for
+  //                     recently-added-feature tokens.
+  //   genres          — array of genre names (primary + secondary). Apple
+  //                     uses these for category-relevance assertions
+  //                     (multi-genre apps are common: "Sports, Health &
+  //                     Fitness"). primaryCategory == genres[0] in
+  //                     practice but exposing the full array unlocks
+  //                     adjacent-category targeting.
+  sellerUrl?: string;
+  artistViewUrl?: string;
+  releaseNotes?: string;
+  genres?: string[];
   provenance: Provenance;
 }
 

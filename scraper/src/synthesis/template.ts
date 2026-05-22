@@ -14,6 +14,7 @@ import {
   type MetadataScoringResult,
   type ScoredCandidate,
 } from "../scoring/index.js";
+import { extractDescriptionTokens } from "../scoring/description-extract.js";
 import {
   buildCompetitorNotes,
   effortForAction,
@@ -82,6 +83,24 @@ export interface SynthesisInput {
   // (legacy callers, older tests), the previous unfiltered behavior holds.
   // The orchestrator always populates this on production paid /diagnose.
   scoredCandidates?: readonly ScoredCandidate[];
+  // Phase D — review-language tokens. Customers' vocabulary that the
+  // developer's listing doesn't carry — a language gap surfaced from the
+  // review corpus. Pre-computed by the orchestrator (extractReview-
+  // LanguageTokens) so the synthesis layer stays free of review-fetch
+  // concerns. Empty array or undefined means no review signal contributed.
+  reviewLanguageTokens?: readonly string[];
+  // Phase B — product-context provider output. When present, collectOpportunity-
+  // Keywords adds feature/audience/topical tokens to the pool at weight 0.7
+  // (above any competitor tier). When omitted or in degraded provenance, the
+  // synthesis layer behaves identically to pre-Phase-B.
+  productProfile?: {
+    sourceUrls: readonly string[];
+    productOneLiner: string | null;
+    featureTokens: readonly string[];
+    audienceTokens: readonly string[];
+    topicalKeywords: readonly string[];
+    provenance: Provenance;
+  };
 }
 
 export interface SynthesisOutput {
@@ -408,7 +427,12 @@ interface OpportunityKeyword {
   // Original input casing — passed to displayCasing() at splice points so
   // DUPR-style acronyms aren't flattened to "Dupr".
   originalKeyword: string;
-  origin: "user-keyword" | "competitor-unique";
+  origin:
+    | "user-keyword"
+    | "competitor-unique"
+    | "product-context"
+    | "description-extract"
+    | "review-language";
   weight: number;
   rankBucket?: string;
   // Pre-computed coverage flags against the user's current listing — only
@@ -511,7 +535,98 @@ function collectOpportunityKeywords(
     }
   }
 
+  // Phase B — Product-context opportunities. The app's own marketing site
+  // is the most authoritative signal of what the product actually does, so
+  // its tokens outrank any competitor tier:
+  //
+  //   featureTokens   (bullets + headings)  → 0.70
+  //   topicalKeywords (body-text frequency) → 0.60
+  //   audienceTokens  ("for X" phrases)     → 0.55
+  //
+  // Only `live` provenance contributes — degraded scrapes return empty
+  // arrays anyway, but the explicit check protects against future code
+  // paths that might pass partial results.
+  if (input.productProfile && input.productProfile.provenance === "live") {
+    const pp = input.productProfile;
+    pushOpportunityTokens(out, seen, pp.featureTokens, 0.7, "product-context");
+    pushOpportunityTokens(out, seen, pp.topicalKeywords, 0.6, "product-context");
+    // Audience tokens are short multi-word phrases ("indie hackers",
+    // "tournament directors") — tokenize each into single words so the
+    // synthesis pickers (which work in single-token space) can splice them.
+    const audienceWords: string[] = [];
+    for (const phrase of pp.audienceTokens) {
+      for (const w of phrase.toLowerCase().split(/\s+/)) {
+        if (w.length >= 4) audienceWords.push(w);
+      }
+    }
+    pushOpportunityTokens(out, seen, audienceWords, 0.55, "product-context");
+  }
+
+  // Phase C — Description / "What's New" deep-extraction opportunities.
+  // The App Store description and release notes are first-party copy the
+  // founder wrote AND that Apple reviewed — high-authority signal we were
+  // previously using only as a substring corpus. extractDescriptionTokens
+  // is dependency-free (regex + stoplist), so this fires on every paid
+  // /diagnose with a live AppRecord regardless of feature flags.
+  //
+  //   featureTokens      (bullets + "Features:"-block lines) → 0.65
+  //   recentlyAddedTokens (releaseNotes "Added X" patterns)  → 0.55
+  //   topicalKeywords    (description body-text frequency)   → 0.50
+  if (
+    input.context.appRecord &&
+    input.inputProvenance !== "fixture" &&
+    input.inputProvenance !== "degraded"
+  ) {
+    const dt = extractDescriptionTokens(input.context.appRecord);
+    pushOpportunityTokens(out, seen, dt.featureTokens, 0.65, "description-extract");
+    pushOpportunityTokens(out, seen, dt.recentlyAddedTokens, 0.55, "description-extract");
+    pushOpportunityTokens(out, seen, dt.topicalKeywords, 0.5, "description-extract");
+  }
+
+  // Phase D — Review-language opportunities. Tokens reviewers use that the
+  // user's listing doesn't carry. Pre-computed by the orchestrator so the
+  // synthesis layer doesn't fetch reviews itself. Same weight tier as
+  // description-extract topicalKeywords (both are frequency-based signal
+  // but review-language comes from customers' voice — equally authoritative
+  // for "what words should this listing actually rank for").
+  if (input.reviewLanguageTokens && input.reviewLanguageTokens.length > 0) {
+    pushOpportunityTokens(
+      out,
+      seen,
+      input.reviewLanguageTokens,
+      0.5,
+      "review-language",
+    );
+  }
+
   return out.sort((a, b) => b.weight - a.weight);
+}
+
+// Helper for first-party opportunity pushes (product-context / description-
+// extract / review-language). Handles dedup and the uniform shape so the
+// per-bucket pushes in collectOpportunityKeywords stay one-liners.
+function pushOpportunityTokens(
+  out: OpportunityKeyword[],
+  seen: Set<string>,
+  tokens: readonly string[],
+  weight: number,
+  origin: "product-context" | "description-extract" | "review-language",
+): void {
+  for (const raw of tokens) {
+    const key = raw.toLowerCase().trim();
+    if (key.length === 0) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      keyword: key,
+      originalKeyword: raw,
+      origin,
+      weight,
+      coverageInTitle: false,
+      coverageInSubtitle: false,
+      ineligibleForVisiblePromotion: false,
+    });
+  }
 }
 
 // Phase A — Tier-aware weight for competitor-unique terms. See the table
@@ -703,8 +818,12 @@ function buildKeywordsFieldField(args: {
     args;
   const current = joinKeywords(userKeywords, cap);
 
-  // Recommended set: user keywords + competitor-unique terms not already in
-  // title/subtitle. Apple counts visible-field tokens, so we strip those out.
+  // Recommended set: user keywords + competitor-unique + product-context
+  // tokens not already in title/subtitle. Apple counts visible-field tokens,
+  // so we strip those out. Phase B adds product-context as a third source
+  // — iterating opportunities in weight-desc order means product tokens
+  // (weight 0.55-0.70) land in the joined output BEFORE competitor-unique
+  // tokens (0.25-0.60), so the joined string is naturally weight-sorted.
   const visibleTokens = tokenize(`${currentTitleText} ${currentSubtitleText}`);
   const recommendedSet = new Set<string>();
   for (const k of userKeywords) {
@@ -714,7 +833,7 @@ function buildKeywordsFieldField(args: {
     recommendedSet.add(norm);
   }
   for (const o of opportunities) {
-    if (o.origin !== "competitor-unique") continue;
+    if (o.origin === "user-keyword") continue; // handled above
     const norm = o.keyword.toLowerCase().trim();
     if (norm.length === 0) continue;
     if (visibleTokens.has(norm)) continue;
@@ -735,9 +854,29 @@ function buildKeywordsFieldField(args: {
     (k) =>
       !userKeywords.some((u) => u.toLowerCase().trim() === k),
   );
-  const reason = added.length > 0
-    ? `Adds competitor-coverage terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
-    : `Drops tokens already covered by title/subtitle so each slot earns a new rank.`;
+  // Distinguish first-party (product-context / description-extract /
+  // review-language) sources from competitor-coverage in the reason copy.
+  // Strongest-label-wins precedence: product-page > description > review >
+  // competitor. The opportunity pool is already deduped by keyword; we
+  // pick the label that best describes the strongest add.
+  const hasProductContextAdd = opportunities.some(
+    (o) => o.origin === "product-context" && added.includes(o.keyword),
+  );
+  const hasDescriptionExtractAdd = opportunities.some(
+    (o) => o.origin === "description-extract" && added.includes(o.keyword),
+  );
+  const hasReviewLanguageAdd = opportunities.some(
+    (o) => o.origin === "review-language" && added.includes(o.keyword),
+  );
+  const reason = added.length === 0
+    ? `Drops tokens already covered by title/subtitle so each slot earns a new rank.`
+    : hasProductContextAdd
+      ? `Adds product-page terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
+      : hasDescriptionExtractAdd
+        ? `Adds description terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
+        : hasReviewLanguageAdd
+          ? `Adds review-language terms — vocabulary customers already use (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
+          : `Adds competitor-coverage terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`;
 
   return makeField({
     current,

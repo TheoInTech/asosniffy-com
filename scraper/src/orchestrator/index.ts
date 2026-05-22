@@ -57,6 +57,11 @@ import { getKnowledgeForRecommendation } from "../scoring/aso-knowledge.js";
 import { analyzeReviewSentiment } from "../scoring/review-sentiment.js";
 import { lookupLocalized } from "../providers/apple/multi-storefront.js";
 import {
+  fetchProductProfile,
+  type ProductProfile,
+} from "../providers/product-context.js";
+import { extractReviewLanguageTokens } from "../scoring/review-language.js";
+import {
   buildCompetitorNotes,
   buildDescriptionDensityRecommendation,
   buildKeywordRecommendation,
@@ -250,6 +255,37 @@ export async function generateReportWithMeta(
     ...(cosineByKeyword !== null ? { cosineByKeyword } : {}),
   });
 
+  // Phase B — Product-context provider. Only fetches when the feature
+  // flag is on, the live AppRecord has a sellerUrl, and the input data is
+  // genuinely live (no point scraping marketing sites on a fixture run).
+  // The provider itself never throws — bad sellerUrl or network errors
+  // return provenance:"degraded" with empty arrays, which the synthesis
+  // layer treats as a no-op.
+  let productProfile: ProductProfile | undefined;
+  if (
+    env.PRODUCT_CONTEXT_ENABLED &&
+    data.detect.appRecord?.sellerUrl &&
+    inputProvenance === "live"
+  ) {
+    productProfile = await fetchProductProfile({
+      sellerUrl: data.detect.appRecord.sellerUrl,
+    });
+  }
+
+  // Phase D — Review-language extraction. Customers' vocabulary that the
+  // user's listing doesn't carry. reviewKeywordFrequency already runs for
+  // the suggestedKeywords path; this is a lightweight filter on top of
+  // its output, dedup'd against the user's title/subtitle/description/
+  // keywords surface. Empty reviewBodies → empty result, no-op downstream.
+  const reviewLanguage =
+    inputProvenance !== "fixture" && inputProvenance !== "degraded"
+      ? extractReviewLanguageTokens({
+          reviewBodies: data.reviewBodies,
+          appRecord: data.detect.appRecord,
+          userKeywords: input.keywords,
+        })
+      : { languageTokens: [] };
+
   const synthesisInput: SynthesisInput = {
     scoring: {
       metadata: metadataScoring,
@@ -263,6 +299,10 @@ export async function generateReportWithMeta(
     },
     inputProvenance,
     scoredCandidates,
+    ...(productProfile ? { productProfile } : {}),
+    ...(reviewLanguage.languageTokens.length > 0
+      ? { reviewLanguageTokens: reviewLanguage.languageTokens }
+      : {}),
   };
 
   // Sprint B — Quick tier short-circuits to the deterministic template path.
