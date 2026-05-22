@@ -326,6 +326,89 @@ The owner pushes directly to `main`; all other contributors open PRs.
 
 ---
 
+## Deploying
+
+Two apps, two hosts (per `PLAN.md` §10.4): `scraper/` → Railway via Docker (`node:22-slim`); `landing/` → Vercel via the native Next.js flow. `packages/*` publish to npm via Changesets. None of these are containerized together — each ships independently.
+
+### Local Docker smoke (before pushing)
+
+```bash
+# Build context MUST be the repo root so pnpm-lock.yaml + workspace
+# package.json files are visible.
+docker build -f scraper/Dockerfile -t sniffy-scraper:test .
+docker run --rm -p 3001:3001 \
+  -e NODE_ENV=production \
+  -e MORPH_NETWORK=eip155:2818 \
+  -e MORPH_FACILITATOR_MODE=fixture-receipt \
+  sniffy-scraper:test
+# In another terminal:
+curl --fail http://localhost:3001/health
+```
+
+### Railway — `scraper/`
+
+1. **railway.app → New Project → Deploy from GitHub repo** → select this repo. The repo-root `railway.json` pins `dockerfilePath: scraper/Dockerfile` + `healthcheckPath: /health`, so no Root-Directory override is needed.
+2. Add a **Redis** plugin (Railway templates) for `REDIS_URL`, or wire Upstash externally via `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`.
+3. **Variables** (from `scraper/.env.example`):
+   - `NODE_ENV=production`
+   - `MORPH_NETWORK=eip155:2818`
+   - `MORPH_FACILITATOR_MODE=facilitator` (or `fixture-receipt` if the official facilitator is down — preserves the agentic 402→200 flow with a disclosed fallback)
+   - `MORPH_FACILITATOR_URL=https://morph-rails.morph.network/x402`
+   - `MORPH_FACILITATOR_ACCESS_KEY`, `MORPH_FACILITATOR_SECRET_KEY`
+   - `SNIFFY_MERCHANT_ADDRESS` (your payout wallet)
+   - `SNIFFY_HISTORY_HMAC_SECRET` (≥32 chars; required for SIWE wallet history)
+   - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
+   - `OPENAI_API_KEY` (synthesis falls back to the deterministic template if absent)
+   - Apple Search Ads creds if `APPLE_SEARCH_ADS_ENABLED=true`
+4. **Settings → Networking → Generate Domain** → record the public URL.
+5. Verify: `curl https://<railway-url>/health` returns `{"ok":true, ...}` and the build logs show the ASA JWT public-key fingerprint line at startup (rotation runbook in `SECURITY.md`).
+
+### Vercel — `landing/`
+
+1. **vercel.com → Add New → Project** → import this repo.
+2. **Root Directory** = `landing`. Framework auto-detects Next.js; the pnpm workspace install resolves from the root `pnpm-lock.yaml`.
+3. **Environment Variables** (from `landing/.env.example`):
+   - `NEXT_PUBLIC_SCRAPER_BASE_URL=https://<railway-url>` (from above)
+   - `NEXT_PUBLIC_REOWN_PROJECT_ID=<from cloud.reown.com>`
+   - `NEXT_PUBLIC_MORPH_NETWORK=eip155:2818`
+   - Morph RPC / explorer / bridge overrides are optional — defaults in `landing/src/lib/morph-urls.ts` are correct for Mainnet.
+4. Deploy → confirm the home view loads and `/sample` renders the fixture report end-to-end without a wallet.
+
+### npm packages — `@sniffy/{sdk,cli,mcp}`
+
+Changesets is already configured (`.changeset/config.json`) with a fixed-version group + `access: public`. Apps (`@sniffy/scraper`, `landing`) are ignored so they never get published.
+
+```bash
+pnpm changeset                 # author a changeset for the release
+pnpm changeset version         # bump versions + write CHANGELOG.md per package
+pnpm -r build                  # rebuild dist/ for each package
+pnpm changeset publish         # publish to npm (requires `npm login`)
+git push --follow-tags
+```
+
+### End-to-end smoke (against live URLs)
+
+```bash
+# Sample — no wallet
+curl -s -X POST https://<railway>/api/v1/aso/sample | jq '.scoring.metadata.score'
+
+# Quote — no wallet
+curl -s -X POST https://<railway>/api/v1/aso/quote \
+  -H 'content-type: application/json' \
+  -d '{"store":"ios","country":"US","app":{"appId":"284882215"},"keywords":["facebook"]}' \
+  | jq '.shallowScan, .pricing, .savingsNote'
+
+# Diagnose without payment MUST return real 402 with the PAYMENT-REQUIRED header
+curl -s -i -X POST https://<railway>/api/v1/aso/diagnose \
+  -H 'content-type: application/json' \
+  -d '{"store":"ios","country":"US","app":{"appId":"284882215"},"keywords":["facebook"]}' \
+  | head -30
+```
+
+The 402 + `PAYMENT-REQUIRED` header is the judging-critical x402 behavior — a UI-only paywall fails the track fit. See `PLAN.md` §9 and `CLAUDE.md` Load-Bearing Constraints.
+
+---
+
 ## License
 
 [MIT](LICENSE) — see also `NOTICE`.

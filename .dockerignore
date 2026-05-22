@@ -1,0 +1,53 @@
+# Build context for `docker build -f scraper/Dockerfile .` is the repo root,
+# so Docker reads this file (NOT a scraper/.dockerignore — Docker only honors
+# the .dockerignore at the build context root). Anything matched here is
+# invisible to COPY during the build; the Dockerfile's explicit COPY commands
+# put back exactly what the scraper image needs.
+
+# Build output — recreated inside the container.
+**/dist
+**/.next
+**/.turbo
+**/.vitest-cache
+
+# Dependencies — installed inside the container.
+**/node_modules
+
+# Secrets — never bake into an image.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Tests / coverage — runtime container doesn't need them. Test fixtures
+# scraper actually reads (scraper/fixtures/*.json) are not matched.
+**/coverage
+**/*.test.ts
+**/*.test.tsx
+**/tests
+landing/playwright-report
+landing/test-results
+
+# Apps unrelated to the scraper image. Keeps the build context small.
+landing
+packages/cli/dist
+packages/mcp/dist
+packages/sdk/dist
+packages/cli/tests
+packages/mcp/tests
+packages/sdk/tests
+
+# Local tooling
+.git
+.gitignore
+.github
+.vscode
+.idea
+*.log
+.DS_Store
+
+# Docs
+*.md
+**/*.md
