@@ -361,6 +361,19 @@ const TOPIC_STOPLIST: ReadonlySet<string> = new Set([
   "home", "page", "site", "menu", "navigation", "header", "footer",
   "login", "signup", "sign", "log", "out", "contact", "support",
   "skip", "main", "content",
+  // calendar / time noise — marketing copy frequently leaks days/months/
+  // frequency words that look like feature tokens but carry no ASO value.
+  // Surfaced by the Streaks smoke (friday/days/every were polluting the
+  // keywords-field recommendation).
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "january", "february", "march", "april", "may", "june", "july", "august",
+  "september", "october", "november", "december",
+  "morning", "afternoon", "evening", "night", "noon",
+  "tomorrow", "yesterday", "tonight",
+  "week", "weeks", "month", "months", "year", "years",
+  "minute", "minutes", "hour", "hours", "second", "seconds", "day", "days",
+  "daily", "weekly", "monthly", "yearly", "annually",
+  "every", "always", "never", "sometimes", "often", "rarely",
 ]);
 
 function tokenize(text: string): string[] {

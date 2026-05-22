@@ -90,4 +90,37 @@ describe("reviewKeywordFrequency", () => {
     });
     expect(result.length).toBeLessThanOrEqual(5);
   });
+
+  it("drops lemmatized stopword leaks (this → thi, those → thos)", () => {
+    // The Streaks smoke surfaced "thi" in suggestedKeywords because "this"
+    // lemmatizes to "thi" via the s-suffix rule but "thi" wasn't in the
+    // EN stoplist. Lock in the union-with-lemmas fix.
+    const result = reviewKeywordFrequency({
+      reviewBodies: [
+        "this this this is what I love about it",
+        "this app does this and this every day",
+        "this is the best",
+      ],
+    });
+    const tokens = result.map((r) => r.token);
+    expect(tokens).not.toContain("thi");
+    expect(tokens).not.toContain("this");
+  });
+
+  it("drops contraction fragments (don, doesn, isn) after apostrophe strip", () => {
+    // "don't" → normalize() strips ' → "don t" → tokens "don", "t".
+    // Without contraction entries, "don" leaks into output (observed in
+    // Streaks smoke). Same pattern for "doesn't" / "isn't" / etc.
+    const result = reviewKeywordFrequency({
+      reviewBodies: [
+        "I don't think it works don't believe it",
+        "It doesn't matter doesn't help me at all",
+        "It isn't useful isn't reliable isn't fast",
+      ],
+    });
+    const tokens = result.map((r) => r.token);
+    expect(tokens).not.toContain("don");
+    expect(tokens).not.toContain("doesn");
+    expect(tokens).not.toContain("isn");
+  });
 });

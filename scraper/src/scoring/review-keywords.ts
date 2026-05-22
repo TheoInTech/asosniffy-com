@@ -9,6 +9,45 @@
 // goal is "what words do users themselves use to describe this app?"
 // — that signal is robust even with a minimal stopword list.
 
+// --- Helpers + suffix rules first (referenced by the STOPWORDS IIFE at
+// module init — `const` declarations aren't hoisted, so SUFFIX_RULES must
+// be declared before STOPWORDS evaluates).
+
+const SUFFIX_RULES: Array<{ suffix: string; replacement: string; minLength: number }> = [
+  { suffix: "ies", replacement: "y", minLength: 5 },
+  { suffix: "ied", replacement: "y", minLength: 5 },
+  { suffix: "ing", replacement: "", minLength: 6 },
+  { suffix: "ed", replacement: "", minLength: 5 },
+  { suffix: "es", replacement: "", minLength: 5 },
+  { suffix: "s", replacement: "", minLength: 4 },
+];
+
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[–—−-]/g, " ")
+    .replace(/[^\p{Letter}\p{Number}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenize(s: string): string[] {
+  return normalize(s)
+    .split(" ")
+    .filter((t) => t.length > 0);
+}
+
+function lemmatize(token: string): string {
+  for (const rule of SUFFIX_RULES) {
+    if (token.length >= rule.minLength && token.endsWith(rule.suffix)) {
+      return token.slice(0, token.length - rule.suffix.length) + rule.replacement;
+    }
+  }
+  return token;
+}
+
+// --- Stopwords (raw and lemmatized union).
+
 const STOPWORDS_EN = new Set([
   "the","a","an","and","or","but","if","then","else","for","while","with",
   "in","on","at","by","to","of","from","as","is","are","was","were","be",
@@ -23,6 +62,13 @@ const STOPWORDS_EN = new Set([
   "great","nice","best","love","like","hate","new","old","much","many",
   "well","still","always","never","every","everything","nothing","please",
   "thanks","thank","there","here","because","yes","no","ok","okay",
+  // Common English contraction stems — after normalize() strips the
+  // apostrophe, "don't" tokenizes to ["don","t"], "doesn't" to ["doesn","t"],
+  // etc. Without these, "don" and "doesn" leak into suggestedKeywords as
+  // noise (observed in the Streaks smoke). "won" and "can" deliberately
+  // excluded because they're real words too often.
+  "don","doesn","didn","isn","wasn","aren","weren","hasn","haven","hadn",
+  "wouldn","shouldn","couldn","mustn","ain","let","gonna","wanna",
 ]);
 
 const STOPWORDS_ES = new Set([
@@ -35,20 +81,22 @@ const STOPWORDS_PT = new Set([
   "sem","por","para","como","muito","já","tudo","todos","mais",
 ]);
 
-const STOPWORDS = new Set([
+const STOPWORDS_RAW = new Set([
   ...STOPWORDS_EN,
   ...STOPWORDS_ES,
   ...STOPWORDS_PT,
 ]);
 
-const SUFFIX_RULES: Array<{ suffix: string; replacement: string; minLength: number }> = [
-  { suffix: "ies", replacement: "y", minLength: 5 },
-  { suffix: "ied", replacement: "y", minLength: 5 },
-  { suffix: "ing", replacement: "", minLength: 6 },
-  { suffix: "ed", replacement: "", minLength: 5 },
-  { suffix: "es", replacement: "", minLength: 5 },
-  { suffix: "s", replacement: "", minLength: 4 },
-];
+// Lemmatize-the-stoplist: "this" lemmatizes to "thi" via the "s"-suffix
+// rule, but "thi" is NOT in STOPWORDS_RAW — so without this union pass,
+// "thi" leaks into suggestedKeywords as a token (observed in the Streaks
+// smoke). Same problem for any stopword that hits a suffix rule. Building
+// the lemmatized variants once at module init keeps the per-token cost zero.
+const STOPWORDS = (() => {
+  const out = new Set<string>(STOPWORDS_RAW);
+  for (const w of STOPWORDS_RAW) out.add(lemmatize(w));
+  return out;
+})();
 
 export interface KeywordFrequencyInput {
   reviewBodies: readonly string[];
@@ -127,28 +175,4 @@ export function reviewKeywordFrequency(
       return b.count - a.count;
     })
     .slice(0, topN);
-}
-
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[–—−-]/g, " ")
-    .replace(/[^\p{Letter}\p{Number}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function tokenize(s: string): string[] {
-  return normalize(s)
-    .split(" ")
-    .filter((t) => t.length > 0);
-}
-
-function lemmatize(token: string): string {
-  for (const rule of SUFFIX_RULES) {
-    if (token.length >= rule.minLength && token.endsWith(rule.suffix)) {
-      return token.slice(0, token.length - rule.suffix.length) + rule.replacement;
-    }
-  }
-  return token;
 }

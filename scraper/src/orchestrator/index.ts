@@ -845,6 +845,12 @@ function assembleCompetitorTrail(
     notes: buildCompetitorNotes(c),
     provenance: c.provenance,
     source: sourceByAppId.get(c.appId) ?? "search",
+    // Phase A — surface the tier + search position on the wire so the UI
+    // and SDK consumers can render a leader/peer/shoulder badge. Both
+    // optional in CompetitorAnalysis (legacy callers/fixtures may omit);
+    // null on the response signals "tier unknown" rather than "no tier."
+    tier: c.tier ?? null,
+    searchPosition: c.searchPosition ?? null,
   }));
 }
 

@@ -308,6 +308,14 @@ export const CompetitorTrailItem = z.object({
   // Android uses gplay.similar() (algorithmic "more like this"). Defaults to
   // "search" for back-compat — historical fixtures don't carry the field.
   source: z.enum(["search", "similar"]).default("search"),
+  // Phase A — competitor tier (positions 1-5 leader / 6-10 peer / 11-15
+  // shoulder) and 1-indexed search position. Optional + default null for
+  // back-compat with pre-Phase-A fixtures and legacy SDK consumers; the
+  // synthesis layer already weights opportunity-pool tokens by tier
+  // internally, and exposing tier here lets the UI render a leader/peer/
+  // shoulder badge alongside each competitor.
+  tier: z.enum(["leader", "peer", "shoulder"]).nullable().default(null),
+  searchPosition: z.number().int().positive().nullable().default(null),
 });
 export type CompetitorTrailItem = z.infer<typeof CompetitorTrailItem>;
 
