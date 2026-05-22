@@ -6,7 +6,7 @@
 // EIP-3009 sign + 402-retry chain as UnlockTrail, just with the SniffPack
 // API client + mutation.
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 
@@ -93,7 +93,24 @@ function activeButtonLabel(phase: Phase): string {
   }
 }
 
+// Defer mount until after hydration. The Reown AppKit singleton is created
+// at module load inside <Providers>, but only on the client (SSR is a no-op
+// because createAppKit touches browser APIs). On routes where this component
+// is rendered in the initial paint — `/` when there's no quote yet, before
+// the user has interacted — SSR / first hydration would call `useAppKit()`
+// while `modal` is still undefined in @reown/appkit/react, throwing the
+// "Please call createAppKit before using useAppKit hook" runtime error.
+//
+// Same pattern as WalletConnect: render a structurally identical static
+// shell first, then swap to the AppKit-aware client subtree after mount.
 export function SniffPackReveal() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return <SniffPackRevealShell />;
+  return <SniffPackRevealClient />;
+}
+
+function SniffPackRevealClient() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { open } = useAppKit();
@@ -344,6 +361,81 @@ export function SniffPackReveal() {
         })}
       </div>
 
+      <p className="mt-4 font-mono text-[10px] text-sniffy-ink-mute">
+        Purchase via{" "}
+        <code className="font-mono text-sniffy-ink">
+          POST /api/v1/aso/sniff-pack/buy
+        </code>
+        , spend via{" "}
+        <code className="font-mono text-sniffy-ink">
+          Authorization: Bearer
+        </code>{" "}
+        on <code className="font-mono text-sniffy-ink">/diagnose</code> — one
+        credit per call, any tier.
+      </p>
+    </section>
+  );
+}
+
+// Pre-mount placeholder. Structurally identical to the live component so SSR
+// HTML matches the first client render — no hydration mismatch — and the
+// layout doesn't jump when the AppKit-aware subtree takes over. Buttons are
+// inert here; on mount, <SniffPackRevealClient /> replaces this in-place and
+// the same buttons become live with full wallet wiring.
+function SniffPackRevealShell() {
+  return (
+    <section
+      aria-labelledby="sniff-pack-reveal-heading"
+      className="border-2 border-sniffy-ink bg-sniffy-paper p-5 md:p-7 shadow-ink-tab"
+    >
+      <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-sniffy-warn">
+        Prepaid bulk
+      </p>
+      <h2
+        id="sniff-pack-reveal-heading"
+        className="mt-2 font-display text-2xl font-semibold leading-tight text-sniffy-ink md:text-3xl"
+      >
+        Need lots of sniffs? Buy a pack.
+      </h2>
+      <p className="mt-2 max-w-prose font-mono text-sm text-sniffy-ink-2">
+        Prepay once, decrement per call. No subscription, no auto-renew, no
+        card on file. Even the largest pack is cheaper than one month of a
+        typical ASO subscription.
+      </p>
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        {PACKS.map((pack) => (
+          <article
+            key={pack.id}
+            className="border-2 border-sniffy-ink p-4 md:p-5 bg-sniffy-paper-2"
+          >
+            <p className="font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-sniffy-ink-mute">
+              {pack.label}
+            </p>
+            <p className="mt-1 font-display text-2xl font-semibold tabular-nums text-sniffy-ink">
+              ${pack.totalAmount}
+            </p>
+            <p className="mt-1 font-mono text-xs text-sniffy-ink-2">
+              <strong className="font-semibold tabular-nums text-sniffy-ink">
+                {pack.credits}
+              </strong>{" "}
+              sniffs ·{" "}
+              <span className="tabular-nums">${pack.avgPerSniffAmount}</span>{" "}
+              avg
+            </p>
+            <p className="mt-2 inline-block border border-sniffy-warn bg-sniffy-paper px-2 py-0.5 font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-sniffy-warn">
+              {pack.discountPercent}% off
+            </p>
+            <button
+              type="button"
+              disabled
+              aria-busy="false"
+              className="mt-3 inline-flex w-full items-center justify-center border-2 border-sniffy-ink bg-sniffy-yellow px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.18em] text-sniffy-ink shadow-ink-tab-sm disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Connect wallet to buy
+            </button>
+          </article>
+        ))}
+      </div>
       <p className="mt-4 font-mono text-[10px] text-sniffy-ink-mute">
         Purchase via{" "}
         <code className="font-mono text-sniffy-ink">

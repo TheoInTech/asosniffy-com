@@ -4,25 +4,17 @@ import {
   DiagnosePaidResponse,
   type DiagnosePaidResponse as DiagnosePaidResponseType,
   type DiagnoseUnpaidResponse,
-  type FacilitatorMode,
 } from "../schemas/index.js";
 import { validateBody } from "../middleware/validate-body.js";
-import { InternalError, PaymentRequiredError } from "../errors.js";
+import { PaymentRequiredError } from "../errors.js";
 import { env } from "../env.js";
 import { computePricing } from "../payment/pricing.js";
 import { buildPaymentRequirements } from "../payment/requirements.js";
 import { assembleReceipt } from "../payment/receipt.js";
 import {
-  ExpiredAuthorizationError,
-  MalformedHeaderError,
-  WrongNetworkError,
-  parsePaymentHeader,
-} from "../payment/header.js";
-import {
-  FacilitatorError,
-  type SettleResponseType,
-} from "../payment/facilitator/index.js";
-import { getFacilitator } from "../services/facilitator.js";
+  settleX402Payment,
+  verifyX402Payment,
+} from "../payment/settlement.js";
 import { generateReportWithMeta } from "../orchestrator/index.js";
 import { recordSlo, SLO_METRICS } from "../observability/slo.js";
 import { getCurrentAudit } from "../observability/audit.js";
@@ -56,20 +48,6 @@ function shouldIndexInShowcase(noIndexHeader: string | undefined): boolean {
   if (noIndexHeader === undefined) return true;
   const normalized = noIndexHeader.trim().toLowerCase();
   return !(normalized === "1" || normalized === "true" || normalized === "yes");
-}
-
-// Duck-type fallback for cross-realm Error identification: in tests, vitest
-// can hand the route a FacilitatorError instance from a different module
-// realm than the one diagnose.ts statically imported, breaking the
-// `instanceof` check. The `.name === "FacilitatorError"` fallback keeps the
-// production path (single-realm) unchanged while letting integration tests
-// inject FacilitatorErrors through the mocked facilitator without resorting
-// to fragile module-cache gymnastics.
-function isFacilitatorError(err: unknown): err is FacilitatorError {
-  return (
-    err instanceof FacilitatorError ||
-    (err instanceof Error && err.name === "FacilitatorError")
-  );
 }
 
 export const diagnoseRoute = new Hono();
@@ -254,123 +232,17 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
     return c.json(packResponse);
   }
 
-  // 2) Read header. Hono normalizes header names to lower-case lookup keys.
-  const rawHeader = c.req.header("payment-signature");
-  if (!rawHeader || rawHeader.trim().length === 0) {
-    throw new PaymentRequiredError(
-      "payment_required",
-      "PAYMENT-SIGNATURE header is required",
-      unpaidBody,
-    );
-  }
-
-  // 3) Parse header, mapping the typed errors back to our taxonomy.
-  let payload: NonNullable<ReturnType<typeof parsePaymentHeader>>;
-  try {
-    const parsed = parsePaymentHeader(rawHeader, env.MORPH_NETWORK);
-    if (parsed === null) {
-      throw new PaymentRequiredError(
-        "malformed_payment_header",
-        "PAYMENT-SIGNATURE is empty",
-        unpaidBody,
-      );
-    }
-    payload = parsed;
-  } catch (err) {
-    if (err instanceof MalformedHeaderError) {
-      throw new PaymentRequiredError(
-        "malformed_payment_header",
-        err.message,
-        unpaidBody,
-      );
-    }
-    if (err instanceof WrongNetworkError) {
-      throw new PaymentRequiredError("wrong_network", err.message, unpaidBody);
-    }
-    if (err instanceof ExpiredAuthorizationError) {
-      throw new PaymentRequiredError(
-        "expired_authorization",
-        err.message,
-        unpaidBody,
-      );
-    }
-    throw err;
-  }
-
-  // 4) Strict amount/payTo match against what we advertised (decision #18).
-  //    Asset address isn't carried in EIP-3009 authorization — the facilitator
-  //    binds the asset by signature → so we don't re-check it here.
-  const auth = payload.payload.authorization;
-  if (auth.value !== unpaidBody.payment.atomicAmount) {
-    throw new PaymentRequiredError(
-      "amount_mismatch",
-      `Payment authorization value ${auth.value} does not match required ${unpaidBody.payment.atomicAmount}`,
-      unpaidBody,
-    );
-  }
-  if (auth.to.toLowerCase() !== unpaidBody.payment.payTo.toLowerCase()) {
-    throw new PaymentRequiredError(
-      "amount_mismatch",
-      `Payment authorization recipient ${auth.to} does not match required ${unpaidBody.payment.payTo}`,
-      unpaidBody,
-    );
-  }
-
-  // 5) Facilitator verify (skip in fixture mode).
-  const facilitator = getFacilitator();
-  let settleResponse: SettleResponseType | undefined;
-  let mode: FacilitatorMode = "fixture-receipt";
-
-  // Canonical x402 v2 `paymentRequirements` is one entry from `accepts[]` —
-  // amount is atomic units as a string, no extended fields. Our internal
-  // `unpaidBody.payment` (PaymentRequirement) has `amount` as a DECIMAL string
-  // for UI/SDK consumers; passing it to the facilitator caused HTTP 500 because
-  // their parser reads `amount` as a big.Int. See PLAN.md.
-  const wireRequirements = unpaidBody.accepts[0];
-  if (!wireRequirements) {
-    throw new InternalError("buildPaymentRequirements returned an empty accepts[]");
-  }
-
-  // Canonical x402 V2 `PaymentPayload` requires an `accepted` block (per
-  // coinbase/x402 `typescript/packages/core/src/types/payments.ts`). Morph's
-  // Go parser reads `paymentPayload.accepted.scheme` and returns HTTP 500
-  // when it's missing — our header parser intentionally transforms incoming
-  // bodies to the flat shape for internal use, so we reconstruct canonical
-  // here before forwarding. Reusing `wireRequirements` keeps `accepted`
-  // deep-equal to `paymentRequirements`, which is what facilitators expect.
-  const wirePaymentPayload = {
-    x402Version: 2 as const,
-    accepted: wireRequirements,
-    payload: payload.payload,
-  };
-
-  if (facilitator !== null) {
-    const verifyResponse = await facilitator
-      .verify({
-        x402Version: 2,
-        paymentPayload: wirePaymentPayload,
-        paymentRequirements: wireRequirements,
-      })
-      .catch((err: unknown) => {
-        if (isFacilitatorError(err)) {
-          throw new PaymentRequiredError(
-            "verification_failed",
-            `Facilitator verify failed: ${err.message}`,
-            unpaidBody,
-            { status: err.status, body: err.body },
-          );
-        }
-        throw err;
-      });
-
-    if (!verifyResponse.isValid) {
-      throw new PaymentRequiredError(
-        "verification_failed",
-        verifyResponse.invalidReason ?? "Facilitator rejected the payment",
-        unpaidBody,
-      );
-    }
-  }
+  // 2-5) Verify the x402 payment chain via the shared helper. Throws
+  //       PaymentRequiredError with the matching code (payment_required,
+  //       malformed_payment_header, wrong_network, expired_authorization,
+  //       amount_mismatch, verification_failed) on any failure. Returns
+  //       the VerifiedX402Context we'll pass to settleX402Payment after
+  //       the report runs — verify is sync-with-payment, settle waits
+  //       until we know the report assembled cleanly.
+  const verifiedCtx = await verifyX402Payment({
+    paymentHeader: c.req.header("payment-signature"),
+    unpaidBody,
+  });
 
   // 6) Run the report. Phase 1: /diagnose does NOT allow fixture fallback —
   //    transient provider errors degrade rows to "degraded" rather than fake
@@ -406,49 +278,16 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
     recordSlo(SLO_METRICS.diagnoseLiveData, appMetaOk && rankOk);
   }
 
-  // 7) Settle (skip in fixture mode).
-  if (facilitator !== null) {
-    settleResponse = await facilitator
-      .settle({
-        x402Version: 2,
-        paymentPayload: wirePaymentPayload,
-        paymentRequirements: wireRequirements,
-      })
-      .catch((err: unknown) => {
-        if (isFacilitatorError(err)) {
-          throw new PaymentRequiredError(
-            "settlement_failed",
-            `Facilitator settle failed: ${err.message}`,
-            unpaidBody,
-            { status: err.status, body: err.body },
-          );
-        }
-        throw err;
-      });
-
-    if (!settleResponse.success) {
-      throw new PaymentRequiredError(
-        "settlement_failed",
-        settleResponse.errorReason ?? "Facilitator failed to settle",
-        unpaidBody,
-      );
-    }
-    mode = env.MORPH_FACILITATOR_MODE === "self-hosted-fallback"
-      ? "self-hosted-fallback"
-      : "morph-official";
-  }
-
-  // 8) Assemble receipt + final paid response. We always pass auth.from as
-  //    payerFallback so the wallet-history index can be written even when
-  //    Morph's facilitator omits payer from /v2/settle (it's optional in their
-  //    response shape). settleResponse.payer still wins when present.
-  const receipt = assembleReceipt({
-    mode,
+  // 7-8) Settle + receipt via the shared helper. Throws
+  //       PaymentRequiredError("settlement_failed") on facilitator failures;
+  //       otherwise returns the assembled Receipt + payer address ready for
+  //       the wallet-history index and showcase write below.
+  const { receipt } = await settleX402Payment({
+    context: verifiedCtx,
     pricing,
     sniffId: body.sniffId,
     requestId,
-    payerFallback: auth.from,
-    ...(settleResponse !== undefined ? { settleResponse } : {}),
+    unpaidBody,
   });
 
   const paid: DiagnosePaidResponseType = {

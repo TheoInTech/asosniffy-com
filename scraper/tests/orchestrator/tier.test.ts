@@ -105,6 +105,19 @@ function setupHappyAppleHandlers() {
     http.get("https://itunes.apple.com/search", () =>
       HttpResponse.json(searchBody()),
     ),
+    // Stub the reviews-RSS endpoint so the orchestrator's review fetch
+    // resolves deterministically. Tests that run on networks that can
+    // reach Apple were otherwise getting real review data, which made the
+    // Expert tier's reviewSentiment assertion ("expect null on thin data")
+    // flake. Empty feed → 0 review bodies → analyzeReviewSentiment returns
+    // null per its < MIN_REVIEWS_FOR_SENTIMENT floor.
+    http.get(
+      "https://itunes.apple.com/:country/rss/customerreviews/page=:page/id=:id/sortby=mostrecent/json",
+      () =>
+        HttpResponse.json({
+          feed: { entry: [], updated: { label: new Date().toISOString() } },
+        }),
+    ),
   );
 }
 
