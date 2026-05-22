@@ -117,11 +117,13 @@ function FieldCard({
       </div>
 
       {noChange ? (
-        <div className="mt-2 flex items-center gap-2 border border-sniffy-teal bg-sniffy-paper p-2 text-xs">
-          <span className="font-mono uppercase tracking-[0.16em] text-sniffy-teal">
+        <div className="mt-2 flex items-start gap-2 border border-sniffy-teal bg-sniffy-paper p-2 text-xs">
+          <span className="shrink-0 font-mono uppercase tracking-[0.16em] text-sniffy-teal">
             ✓ No change
           </span>
-          <span className="text-sniffy-ink">— already covers your highest-intent term</span>
+          <span className="text-sniffy-ink">
+            — {field.changeReason ?? "already covers your highest-intent term"}
+          </span>
         </div>
       ) : (
         <div className="mt-2">

@@ -296,8 +296,14 @@ describe("synthesizeReportOpenAi — post-hoc validator falls back on off-pool t
         },
         subtitle: { recommended: null, changeReason: null },
         keywordsField: {
-          recommended: "scoreboard,leaderboard",
-          changeReason: "Adds on-topic competitor coverage.",
+          // Phase 0 net-value guard requires the AI to preserve the user's
+          // submitted keywords — dropping 'pickleball' entirely from the
+          // listing's keyword pool would be a user-keyword regression. The
+          // clean payload pairs pickleball with the on-topic competitor
+          // coverage instead of replacing it.
+          recommended: "pickleball,scoreboard,leaderboard",
+          changeReason:
+            "Preserves the primary user keyword and adds on-topic competitor coverage.",
         },
         shortDescription: {
           recommended: "PicklePro: pickleball scoreboard.",
@@ -315,7 +321,7 @@ describe("synthesizeReportOpenAi — post-hoc validator falls back on off-pool t
     );
     expect(result.readyToPaste.source).toBe("ai");
     expect(result.readyToPaste.keywordsField.recommended).toBe(
-      "scoreboard,leaderboard",
+      "pickleball,scoreboard,leaderboard",
     );
   });
 });

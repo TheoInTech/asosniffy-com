@@ -19,6 +19,8 @@ import {
   logOpenAiCost,
 } from "./cost.js";
 import {
+  applyNetValueGuard,
+  buildNetValueContext,
   SHORT_DESCRIPTION_CAP,
   synthesizeReportTemplate,
   type SynthesisInput,
@@ -248,27 +250,50 @@ function mergeAiReadyToPaste(
     .filter((k) => k.length > 0)
     .join(",");
 
+  // Phase 0 — Net-value guard. Wraps each merged field so the AI path can
+  // never ship a regressive rewrite either (e.g., model proposes overwriting
+  // a multi-token subtitle with a single generic verb). The guard is the
+  // canonical safety net for the paid /diagnose, regardless of which engine
+  // produced the candidate.
+  const netValueCtx = buildNetValueContext(input);
   return {
-    title: mergeAiField({
-      current: currentTitle,
-      ai: ai.title,
-      charLimit: APPLE_CAPS.title,
-    }),
-    subtitle: mergeAiField({
-      current: currentSubtitle,
-      ai: ai.subtitle,
-      charLimit: APPLE_CAPS.subtitle,
-    }),
-    keywordsField: mergeAiField({
-      current: currentKeywordsField,
-      ai: ai.keywordsField,
-      charLimit: APPLE_CAPS.keywordsField,
-    }),
-    shortDescription: mergeAiField({
-      current: "",
-      ai: ai.shortDescription,
-      charLimit: SHORT_DESCRIPTION_CAP,
-    }),
+    title: applyNetValueGuard(
+      mergeAiField({
+        current: currentTitle,
+        ai: ai.title,
+        charLimit: APPLE_CAPS.title,
+      }),
+      netValueCtx,
+      "title",
+    ),
+    subtitle: applyNetValueGuard(
+      mergeAiField({
+        current: currentSubtitle,
+        ai: ai.subtitle,
+        charLimit: APPLE_CAPS.subtitle,
+      }),
+      netValueCtx,
+      "subtitle",
+    ),
+    keywordsField: applyNetValueGuard(
+      mergeAiField({
+        current: currentKeywordsField,
+        ai: ai.keywordsField,
+        charLimit: APPLE_CAPS.keywordsField,
+      }),
+      netValueCtx,
+      "keywords field",
+      "shared-with-visible",
+    ),
+    shortDescription: applyNetValueGuard(
+      mergeAiField({
+        current: "",
+        ai: ai.shortDescription,
+        charLimit: SHORT_DESCRIPTION_CAP,
+      }),
+      netValueCtx,
+      "short description",
+    ),
     // Phase F: AI path doesn't generate the new platform-correct fields
     // yet — the response schema (OpenAiResponseShape) doesn't include
     // them. Set to null so the schema validator accepts the merged

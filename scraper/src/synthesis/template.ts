@@ -36,6 +36,19 @@ export const PROMOTIONAL_TEXT_CAP = 170;
 // distinct value.
 export const ANDROID_SHORT_DESCRIPTION_CAP = 80;
 
+// Phase 0 — Net-value guard stoplist. Generic verbs / connectives that count
+// as rank-neutral when comparing current vs recommended copy. A token in this
+// set only counts as rank-meaningful when the user has explicitly listed it in
+// their keywords[] (user opt-in via NetValueContext.userKeywordSet). Without
+// that opt-in, dropping such a token from the listing carries zero rank cost,
+// so it shouldn't tip the net-value comparison.
+const RANK_NEUTRAL_TOKENS: ReadonlySet<string> = new Set([
+  "app", "free", "pro", "premium", "lite", "best", "top", "new", "my",
+  "get", "your", "our", "all", "play", "use",
+  "the", "and", "or", "of", "for", "in", "on", "to", "with", "by", "at",
+  "is", "as",
+]);
+
 // Deterministic template fallback synthesizer.
 //
 // Produces the same shape as the OpenAI synthesizer (`SynthesisOutput`)
@@ -893,6 +906,176 @@ function buildAndroidShortDescriptionField(args: {
   });
 }
 
+// Phase 0 — Net-value guard. Wraps each readyToPaste field after generation
+// (deterministic OR AI path) and refuses any rewrite that strips more
+// rank-meaningful tokens than it adds. Concrete failure mode this prevents:
+// engine recommends `subtitle: "PLAY"` to replace `"Scoring, drills & overlays"`
+// because the only opportunity in the pool was a generic competitor-unique
+// verb. Three indexed tokens (scoring, drills, overlays) destroyed to gain
+// one generic verb that won't drive installs. The guard catches that class
+// of regression once, for both the deterministic path and the AI path.
+//
+// A token in a field's text is rank-meaningful if any of:
+//   1. It appears in input.context.keywords[]                 (user opt-in)
+//   2. It appears in the relevance-gated competitor pool      (on-topic / adjacent)
+//   3. length >= 4 AND not in RANK_NEUTRAL_TOKENS              (presumed valuable)
+//
+// Rule (1) protects intentional generic-keyword users — a developer who
+// genuinely wants to chase "play" puts it in their keywords[] and the guard
+// credits the token. Rule (3) catches incumbent copy tokens the user never
+// enumerated but that are still doing indexing work.
+// `coveragePolicy` describes whether a field stands alone for indexing or
+// shares its keyword pool with the listing's visible surface:
+//   • "isolated"            — title, subtitle, promo text, short desc.
+//                             A token in this field's current value carries
+//                             rank weight ONLY in this slot.
+//   • "shared-with-visible" — keywords field. Apple counts title + subtitle
+//                             + keywords-field as one rank pool, so a token
+//                             dropped from keywords-field that's still in
+//                             title or subtitle isn't actually lost. The
+//                             guard treats those as still-indexed.
+export type CoveragePolicy = "isolated" | "shared-with-visible";
+
+export interface NetValueContext {
+  userKeywordSet: ReadonlySet<string>;
+  relevantCompetitorSet: ReadonlySet<string>;
+  // Tokens from the current title + subtitle (the visible indexed surface).
+  // The keywords-field guard subtracts these so that Apple-dedup-correct
+  // rewrites — drop a token from keywords-field that's still in title or
+  // subtitle — aren't flagged as regressions.
+  visibleSurfaceTokens: ReadonlySet<string>;
+}
+
+export function buildNetValueContext(input: SynthesisInput): NetValueContext {
+  const userKeywordSet = new Set<string>();
+  for (const k of input.context.keywords) {
+    const norm = k.toLowerCase().trim();
+    if (norm.length > 0) userKeywordSet.add(norm);
+  }
+
+  // Mirror collectOpportunityKeywords: when the orchestrator populates
+  // scoredCandidates, drop off-topic competitor terms before they can count
+  // as rank-meaningful. An off-topic term contributes nothing even if it's
+  // technically present in the recommended string.
+  const offTopic = new Set<string>();
+  if (input.scoredCandidates && input.scoredCandidates.length > 0) {
+    for (const c of input.scoredCandidates) {
+      if (c.origin !== "competitor") continue;
+      if (c.relevanceLabel === "off-topic") {
+        offTopic.add(c.keyword.toLowerCase());
+      }
+    }
+  }
+
+  const relevantCompetitorSet = new Set<string>();
+  for (const c of input.scoring.competitors) {
+    for (const term of c.uniqueToCompetitor) {
+      const norm = term.toLowerCase().trim();
+      if (norm.length === 0) continue;
+      if (offTopic.has(norm)) continue;
+      relevantCompetitorSet.add(norm);
+    }
+  }
+
+  const currentTitle =
+    input.context.appRecord?.name ?? input.context.detectedApp.name ?? "";
+  const currentSubtitle = input.context.appRecord?.subtitle ?? "";
+  const visibleSurfaceTokens = tokenize(`${currentTitle} ${currentSubtitle}`);
+
+  return { userKeywordSet, relevantCompetitorSet, visibleSurfaceTokens };
+}
+
+interface TokenSets {
+  // Tokens of the field text that are in input.context.keywords[] — the
+  // founder's explicit "this is what I want to chase" list. These get
+  // their own count axis because losing a user-keyword token is strictly
+  // worse than losing a generic on-topic token, even when the totals tie.
+  userKeyword: Set<string>;
+  // Superset including userKeyword tokens + competitor-pool tokens +
+  // length>=4 non-stoplist tokens. The catch-all for "presumed valuable."
+  rankMeaningful: Set<string>;
+}
+
+function classifyTokens(
+  text: string,
+  ctx: NetValueContext,
+  policy: CoveragePolicy,
+): TokenSets {
+  const userKeyword = new Set<string>();
+  const rankMeaningful = new Set<string>();
+  for (const token of tokenize(text)) {
+    // For shared-with-visible (keywords field), tokens that live in the
+    // current title or subtitle are still indexed elsewhere on the listing,
+    // so they don't contribute to THIS slot's net value. Skip them. Both
+    // current and recommended get the same treatment, so the comparison
+    // stays on equal footing.
+    if (policy === "shared-with-visible" && ctx.visibleSurfaceTokens.has(token)) {
+      continue;
+    }
+    if (ctx.userKeywordSet.has(token)) {
+      userKeyword.add(token);
+      rankMeaningful.add(token);
+      continue;
+    }
+    if (ctx.relevantCompetitorSet.has(token)) {
+      rankMeaningful.add(token);
+      continue;
+    }
+    if (token.length >= 4 && !RANK_NEUTRAL_TOKENS.has(token)) {
+      rankMeaningful.add(token);
+    }
+  }
+  return { userKeyword, rankMeaningful };
+}
+
+export function applyNetValueGuard(
+  field: ReadyToPasteField,
+  ctx: NetValueContext,
+  label: string,
+  policy: CoveragePolicy = "isolated",
+): ReadyToPasteField {
+  if (field.recommended === null) return field;
+  const cur = classifyTokens(field.current, ctx, policy);
+  const rec = classifyTokens(field.recommended, ctx, policy);
+
+  // Refuse if EITHER axis regresses:
+  //   • user-keyword count drops — we're dropping a token the founder
+  //     explicitly named as a priority (Tally case: "pickleball" → "play")
+  //   • total rank-meaningful count drops — we're dropping general indexed
+  //     value (Tally case: "Scoring, drills & overlays" → "PLAY")
+  // Tie on both axes passes (re-targeting at equal value is allowed).
+  const userKeywordRegression = rec.userKeyword.size < cur.userKeyword.size;
+  const rankRegression = rec.rankMeaningful.size < cur.rankMeaningful.size;
+  if (!userKeywordRegression && !rankRegression) return field;
+
+  // Lost tokens for the explanation: prefer user-keyword losses (they're
+  // more important to surface), then fall back to general rank losses.
+  const lostUserKeywords: string[] = [];
+  for (const t of cur.userKeyword) {
+    if (!rec.userKeyword.has(t)) lostUserKeywords.push(t);
+  }
+  const lostRankMeaningful: string[] = [];
+  for (const t of cur.rankMeaningful) {
+    if (!rec.rankMeaningful.has(t) && !lostUserKeywords.includes(t)) {
+      lostRankMeaningful.push(t);
+    }
+  }
+  const lost = [...lostUserKeywords, ...lostRankMeaningful];
+  const lostQuoted = lost
+    .slice(0, 3)
+    .map((t) => `"${t}"`)
+    .join(", ");
+  const more = lost.length > 3 ? ` and ${lost.length - 3} more` : "";
+  const reason = `Current ${label} indexes ${lostQuoted}${more} — replacing it with "${field.recommended}" would drop those without a net token gain.`;
+  return {
+    current: field.current,
+    recommended: null,
+    changeReason: reason,
+    charCount: field.current.length,
+    charLimit: field.charLimit,
+  };
+}
+
 function buildReadyToPaste(input: SynthesisInput): ReadyToPaste {
   const opportunities = collectOpportunityKeywords(input);
   const currentTitle =
@@ -948,13 +1131,35 @@ function buildReadyToPaste(input: SynthesisInput): ReadyToPaste {
     opportunities,
   });
 
+  // Phase 0 — Net-value guard. Refuses any rewrite that strips more
+  // rank-meaningful tokens than it adds. The deterministic path and the AI
+  // path (see mergeAiReadyToPaste in openai.ts) both run through this guard
+  // so the paid /diagnose never ships a regressive recommendation.
+  const netValueCtx = buildNetValueContext(input);
   return {
-    title,
-    subtitle,
-    keywordsField,
-    shortDescription,
-    promotionalText,
-    androidShortDescription,
+    title: applyNetValueGuard(title, netValueCtx, "title"),
+    subtitle: applyNetValueGuard(subtitle, netValueCtx, "subtitle"),
+    keywordsField: applyNetValueGuard(
+      keywordsField,
+      netValueCtx,
+      "keywords field",
+      "shared-with-visible",
+    ),
+    shortDescription: applyNetValueGuard(
+      shortDescription,
+      netValueCtx,
+      "short description",
+    ),
+    promotionalText: applyNetValueGuard(
+      promotionalText,
+      netValueCtx,
+      "promotional text",
+    ),
+    androidShortDescription: applyNetValueGuard(
+      androidShortDescription,
+      netValueCtx,
+      "Play short description",
+    ),
     source: "deterministic",
   };
 }
