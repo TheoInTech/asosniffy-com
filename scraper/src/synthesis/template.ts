@@ -82,6 +82,18 @@ export interface SynthesisInput {
   // (legacy callers, older tests), the previous unfiltered behavior holds.
   // The orchestrator always populates this on production paid /diagnose.
   scoredCandidates?: readonly ScoredCandidate[];
+  // Phase B — product-context provider output. When present, collectOpportunity-
+  // Keywords adds feature/audience/topical tokens to the pool at weight 0.7
+  // (above any competitor tier). When omitted or in degraded provenance, the
+  // synthesis layer behaves identically to pre-Phase-B.
+  productProfile?: {
+    sourceUrls: readonly string[];
+    productOneLiner: string | null;
+    featureTokens: readonly string[];
+    audienceTokens: readonly string[];
+    topicalKeywords: readonly string[];
+    provenance: Provenance;
+  };
 }
 
 export interface SynthesisOutput {
@@ -408,7 +420,7 @@ interface OpportunityKeyword {
   // Original input casing — passed to displayCasing() at splice points so
   // DUPR-style acronyms aren't flattened to "Dupr".
   originalKeyword: string;
-  origin: "user-keyword" | "competitor-unique";
+  origin: "user-keyword" | "competitor-unique" | "product-context";
   weight: number;
   rankBucket?: string;
   // Pre-computed coverage flags against the user's current listing — only
@@ -511,7 +523,60 @@ function collectOpportunityKeywords(
     }
   }
 
+  // Phase B — Product-context opportunities. The app's own marketing site
+  // is the most authoritative signal of what the product actually does, so
+  // its tokens outrank any competitor tier:
+  //
+  //   featureTokens   (bullets + headings)  → 0.70
+  //   topicalKeywords (body-text frequency) → 0.60
+  //   audienceTokens  ("for X" phrases)     → 0.55
+  //
+  // Only `live` provenance contributes — degraded scrapes return empty
+  // arrays anyway, but the explicit check protects against future code
+  // paths that might pass partial results.
+  if (input.productProfile && input.productProfile.provenance === "live") {
+    const pp = input.productProfile;
+    pushProductTokens(out, seen, pp.featureTokens, 0.7);
+    pushProductTokens(out, seen, pp.topicalKeywords, 0.6);
+    // Audience tokens are short multi-word phrases ("indie hackers",
+    // "tournament directors") — tokenize each into single words so the
+    // synthesis pickers (which work in single-token space) can splice them.
+    const audienceWords: string[] = [];
+    for (const phrase of pp.audienceTokens) {
+      for (const w of phrase.toLowerCase().split(/\s+/)) {
+        if (w.length >= 4) audienceWords.push(w);
+      }
+    }
+    pushProductTokens(out, seen, audienceWords, 0.55);
+  }
+
   return out.sort((a, b) => b.weight - a.weight);
+}
+
+// Helper for product-context opportunity push — handles dedup and the
+// uniform shape so the three weight-tiered pushes in collectOpportunityKeywords
+// stay one-liners.
+function pushProductTokens(
+  out: OpportunityKeyword[],
+  seen: Set<string>,
+  tokens: readonly string[],
+  weight: number,
+): void {
+  for (const raw of tokens) {
+    const key = raw.toLowerCase().trim();
+    if (key.length === 0) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      keyword: key,
+      originalKeyword: raw,
+      origin: "product-context",
+      weight,
+      coverageInTitle: false,
+      coverageInSubtitle: false,
+      ineligibleForVisiblePromotion: false,
+    });
+  }
 }
 
 // Phase A — Tier-aware weight for competitor-unique terms. See the table
@@ -703,8 +768,12 @@ function buildKeywordsFieldField(args: {
     args;
   const current = joinKeywords(userKeywords, cap);
 
-  // Recommended set: user keywords + competitor-unique terms not already in
-  // title/subtitle. Apple counts visible-field tokens, so we strip those out.
+  // Recommended set: user keywords + competitor-unique + product-context
+  // tokens not already in title/subtitle. Apple counts visible-field tokens,
+  // so we strip those out. Phase B adds product-context as a third source
+  // — iterating opportunities in weight-desc order means product tokens
+  // (weight 0.55-0.70) land in the joined output BEFORE competitor-unique
+  // tokens (0.25-0.60), so the joined string is naturally weight-sorted.
   const visibleTokens = tokenize(`${currentTitleText} ${currentSubtitleText}`);
   const recommendedSet = new Set<string>();
   for (const k of userKeywords) {
@@ -714,7 +783,7 @@ function buildKeywordsFieldField(args: {
     recommendedSet.add(norm);
   }
   for (const o of opportunities) {
-    if (o.origin !== "competitor-unique") continue;
+    if (o.origin === "user-keyword") continue; // handled above
     const norm = o.keyword.toLowerCase().trim();
     if (norm.length === 0) continue;
     if (visibleTokens.has(norm)) continue;
@@ -735,9 +804,18 @@ function buildKeywordsFieldField(args: {
     (k) =>
       !userKeywords.some((u) => u.toLowerCase().trim() === k),
   );
-  const reason = added.length > 0
-    ? `Adds competitor-coverage terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
-    : `Drops tokens already covered by title/subtitle so each slot earns a new rank.`;
+  // Distinguish the Phase-B product-context source in the reason copy when
+  // any added token came from there. The opportunity pool is already
+  // deduped by keyword; we don't bother re-tracing origin per token in the
+  // string output (one summary line is enough for the UI).
+  const hasProductContextAdd = opportunities.some(
+    (o) => o.origin === "product-context" && added.includes(o.keyword),
+  );
+  const reason = added.length === 0
+    ? `Drops tokens already covered by title/subtitle so each slot earns a new rank.`
+    : hasProductContextAdd
+      ? `Adds product-page terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
+      : `Adds competitor-coverage terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`;
 
   return makeField({
     current,

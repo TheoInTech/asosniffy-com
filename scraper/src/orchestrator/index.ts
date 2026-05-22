@@ -57,6 +57,10 @@ import { getKnowledgeForRecommendation } from "../scoring/aso-knowledge.js";
 import { analyzeReviewSentiment } from "../scoring/review-sentiment.js";
 import { lookupLocalized } from "../providers/apple/multi-storefront.js";
 import {
+  fetchProductProfile,
+  type ProductProfile,
+} from "../providers/product-context.js";
+import {
   buildCompetitorNotes,
   buildDescriptionDensityRecommendation,
   buildKeywordRecommendation,
@@ -250,6 +254,23 @@ export async function generateReportWithMeta(
     ...(cosineByKeyword !== null ? { cosineByKeyword } : {}),
   });
 
+  // Phase B — Product-context provider. Only fetches when the feature
+  // flag is on, the live AppRecord has a sellerUrl, and the input data is
+  // genuinely live (no point scraping marketing sites on a fixture run).
+  // The provider itself never throws — bad sellerUrl or network errors
+  // return provenance:"degraded" with empty arrays, which the synthesis
+  // layer treats as a no-op.
+  let productProfile: ProductProfile | undefined;
+  if (
+    env.PRODUCT_CONTEXT_ENABLED &&
+    data.detect.appRecord?.sellerUrl &&
+    inputProvenance === "live"
+  ) {
+    productProfile = await fetchProductProfile({
+      sellerUrl: data.detect.appRecord.sellerUrl,
+    });
+  }
+
   const synthesisInput: SynthesisInput = {
     scoring: {
       metadata: metadataScoring,
@@ -263,6 +284,7 @@ export async function generateReportWithMeta(
     },
     inputProvenance,
     scoredCandidates,
+    ...(productProfile ? { productProfile } : {}),
   };
 
   // Sprint B — Quick tier short-circuits to the deterministic template path.
