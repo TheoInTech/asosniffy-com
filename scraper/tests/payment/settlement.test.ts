@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseUnits } from "viem";
 
+import { resetCacheClientForTests } from "../../src/cache/redis.js";
 import { PaymentRequiredError } from "../../src/errors.js";
 import { computePricing } from "../../src/payment/pricing.js";
 import { buildPaymentRequirements } from "../../src/payment/requirements.js";
@@ -37,6 +38,7 @@ interface HeaderOpts {
   value?: string;
   to?: string;
   validBeforeOffsetSec?: number;
+  nonce?: string;
 }
 
 function buildAuthHeader(opts: HeaderOpts = {}): string {
@@ -46,6 +48,7 @@ function buildAuthHeader(opts: HeaderOpts = {}): string {
   const to = opts.to ?? MERCHANT;
   const offset = opts.validBeforeOffsetSec ?? 600;
   const validBefore = Math.floor(Date.now() / 1000) + offset;
+  const nonce = opts.nonce ?? `0x${"ab".repeat(32)}`;
 
   const payload = {
     x402Version: 2,
@@ -59,7 +62,7 @@ function buildAuthHeader(opts: HeaderOpts = {}): string {
         value,
         validAfter: "0",
         validBefore: validBefore.toString(),
-        nonce: `0x${"ab".repeat(32)}`,
+        nonce,
       },
     },
   };
@@ -83,6 +86,11 @@ beforeEach(() => {
   verifyMock.mockReset();
   settleMock.mockReset();
   getFacilitatorMock.mockReset();
+  // The settle idempotency layer caches (auth.from, auth.nonce) results in
+  // the shared CacheClient singleton — reset between tests so per-test
+  // assertions about facilitator call counts aren't polluted by a prior
+  // test's cached success/failure entry.
+  resetCacheClientForTests();
 });
 
 afterEach(() => {
@@ -387,5 +395,273 @@ describe("settleX402Payment", () => {
     });
     // payer falls back to auth.from (lowercased).
     expect(result.payer).toBe(PAYER.toLowerCase());
+  });
+
+  it("surfaces nonce-conflict errorReason verbatim when facilitator returns success:false with empty fields", async () => {
+    // Production repro: Morph returns the failure body
+    //   { success:false, errorReason:"transaction exists, from nonce conflict: …",
+    //     transaction:"", network:"" }
+    // The discriminated-union schema must allow this to parse so the
+    // existing success-false branch surfaces errorReason verbatim in the
+    // PaymentRequiredError.message — replacing the previous
+    // "transaction: Invalid; network: CAIP-2 identifier" schema-drift mask.
+    const errorReason =
+      "transaction exists, from nonce conflict: from=0xd259649c98B416E4D898c34a1C8206f676E06D40, nonce=0x283455a367ead982ca743572aefc0159664b431310449048d086072c843d7109";
+    verifyMock.mockResolvedValue({ isValid: true });
+    settleMock.mockResolvedValue({
+      success: false,
+      errorReason,
+      transaction: "",
+      network: "",
+    });
+    getFacilitatorMock.mockReturnValue({
+      verify: verifyMock,
+      settle: settleMock,
+      baseUrl: "https://test.example.com/x402",
+      getSupported: vi.fn(),
+    });
+    const unpaidBody = buildUnpaid();
+    const context = await verifyX402Payment({
+      paymentHeader: buildAuthHeader({ nonce: `0x${"01".repeat(32)}` }),
+      unpaidBody,
+    });
+    let captured: unknown;
+    try {
+      await settleX402Payment({
+        context,
+        pricing: basePricing(),
+        sniffId: SNIFF_ID,
+        requestId: REQUEST_ID,
+        unpaidBody,
+      });
+    } catch (err) {
+      captured = err;
+    }
+    expect(captured).toBeInstanceOf(PaymentRequiredError);
+    const err = captured as PaymentRequiredError;
+    expect(err.code).toBe("settlement_failed");
+    expect(err.message).toContain("transaction exists, from nonce conflict");
+    expect(err.message).toContain("nonce=0x283455a3");
+  });
+});
+
+describe("settleX402Payment — idempotency", () => {
+  function mockSuccessfulFacilitator(): void {
+    verifyMock.mockResolvedValue({ isValid: true });
+    settleMock.mockResolvedValue({
+      success: true,
+      transaction: "0x" + "ab".repeat(32),
+      network: "eip155:2910",
+      payer: PAYER,
+    });
+    getFacilitatorMock.mockReturnValue({
+      verify: verifyMock,
+      settle: settleMock,
+      baseUrl: "https://test.example.com/x402",
+      getSupported: vi.fn(),
+    });
+  }
+
+  it("short-circuits to the cached receipt on a duplicate settle with the same auth nonce", async () => {
+    mockSuccessfulFacilitator();
+    const unpaidBody = buildUnpaid();
+    const nonce = `0x${"02".repeat(32)}`;
+
+    const firstContext = await verifyX402Payment({
+      paymentHeader: buildAuthHeader({ nonce }),
+      unpaidBody,
+    });
+    const first = await settleX402Payment({
+      context: firstContext,
+      pricing: basePricing(),
+      sniffId: SNIFF_ID,
+      requestId: REQUEST_ID,
+      unpaidBody,
+    });
+    expect(settleMock).toHaveBeenCalledOnce();
+    expect(first.mode).toBe("morph-official");
+    expect(first.receipt.transactionHash).toBe("0x" + "ab".repeat(32));
+
+    const secondContext = await verifyX402Payment({
+      paymentHeader: buildAuthHeader({ nonce }),
+      unpaidBody,
+    });
+    const second = await settleX402Payment({
+      context: secondContext,
+      pricing: basePricing(),
+      sniffId: SNIFF_ID,
+      requestId: REQUEST_ID,
+      unpaidBody,
+    });
+    // Facilitator must NOT have been called a second time — the cached
+    // receipt was replayed. Same tx hash + same payer.
+    expect(settleMock).toHaveBeenCalledOnce();
+    expect(second.receipt.transactionHash).toBe("0x" + "ab".repeat(32));
+    expect(second.payer).toBe(first.payer);
+  });
+
+  it("replays the cached settlement_failed error on a duplicate settle, without re-hitting the facilitator", async () => {
+    verifyMock.mockResolvedValue({ isValid: true });
+    settleMock.mockResolvedValue({
+      success: false,
+      errorReason: "insufficient balance",
+      transaction: "",
+      network: "",
+    });
+    getFacilitatorMock.mockReturnValue({
+      verify: verifyMock,
+      settle: settleMock,
+      baseUrl: "https://test.example.com/x402",
+      getSupported: vi.fn(),
+    });
+    const unpaidBody = buildUnpaid();
+    const nonce = `0x${"03".repeat(32)}`;
+
+    const firstContext = await verifyX402Payment({
+      paymentHeader: buildAuthHeader({ nonce }),
+      unpaidBody,
+    });
+    await expect(
+      settleX402Payment({
+        context: firstContext,
+        pricing: basePricing(),
+        sniffId: SNIFF_ID,
+        requestId: REQUEST_ID,
+        unpaidBody,
+      }),
+    ).rejects.toMatchObject({ code: "settlement_failed" });
+
+    const secondContext = await verifyX402Payment({
+      paymentHeader: buildAuthHeader({ nonce }),
+      unpaidBody,
+    });
+    await expect(
+      settleX402Payment({
+        context: secondContext,
+        pricing: basePricing(),
+        sniffId: SNIFF_ID,
+        requestId: REQUEST_ID,
+        unpaidBody,
+      }),
+    ).rejects.toMatchObject({
+      code: "settlement_failed",
+      message: expect.stringContaining("insufficient balance"),
+    });
+    // Failure was cached — only one facilitator call across both attempts.
+    expect(settleMock).toHaveBeenCalledOnce();
+  });
+
+  it("concurrent settles with the same auth nonce: one wins, the other gets in_flight 402", async () => {
+    // Hold the facilitator response open so both calls are in-flight at the
+    // same moment. Without idempotency both would hit settle and the second
+    // would 'succeed' twice with the same nonce — in production Morph
+    // would reject the second submission with "transaction exists, from
+    // nonce conflict".
+    let releaseSettle!: (value: unknown) => void;
+    const settlePending = new Promise((resolve) => {
+      releaseSettle = resolve;
+    });
+    verifyMock.mockResolvedValue({ isValid: true });
+    settleMock.mockReturnValue(settlePending);
+    getFacilitatorMock.mockReturnValue({
+      verify: verifyMock,
+      settle: settleMock,
+      baseUrl: "https://test.example.com/x402",
+      getSupported: vi.fn(),
+    });
+
+    const unpaidBody = buildUnpaid();
+    const nonce = `0x${"04".repeat(32)}`;
+
+    const ctxA = await verifyX402Payment({
+      paymentHeader: buildAuthHeader({ nonce }),
+      unpaidBody,
+    });
+    const ctxB = await verifyX402Payment({
+      paymentHeader: buildAuthHeader({ nonce }),
+      unpaidBody,
+    });
+
+    const aPromise = settleX402Payment({
+      context: ctxA,
+      pricing: basePricing(),
+      sniffId: SNIFF_ID,
+      requestId: REQUEST_ID,
+      unpaidBody,
+    });
+    // Yield so A has time to take the in_flight slot before B starts.
+    await new Promise((r) => setImmediate(r));
+    const bPromise = settleX402Payment({
+      context: ctxB,
+      pricing: basePricing(),
+      sniffId: SNIFF_ID,
+      requestId: REQUEST_ID,
+      unpaidBody,
+    });
+
+    // B should reject immediately with the in_flight 402 — A's settle is
+    // still pending so this can be awaited first.
+    await expect(bPromise).rejects.toMatchObject({
+      code: "settlement_failed",
+      message: expect.stringContaining("already in flight"),
+    });
+
+    // Now let A complete.
+    releaseSettle({
+      success: true,
+      transaction: "0x" + "ef".repeat(32),
+      network: "eip155:2910",
+      payer: PAYER,
+    });
+    const a = await aPromise;
+    expect(a.receipt.transactionHash).toBe("0x" + "ef".repeat(32));
+    expect(settleMock).toHaveBeenCalledOnce();
+  });
+
+  it("fails open when the cache backend throws — settle still proceeds against the facilitator", async () => {
+    mockSuccessfulFacilitator();
+
+    // Inject a failing cache by monkey-patching the singleton. The
+    // idempotency layer wraps every cache call in try/catch and treats
+    // any throw as a miss, so settle should still hit the facilitator
+    // exactly once and return the receipt.
+    const cacheModule = await import("../../src/cache/redis.js");
+    const realCache = cacheModule.getCacheClient();
+    const boom = (label: string) =>
+      async (..._args: unknown[]): Promise<never> => {
+        throw new Error(`redis ${label} boom`);
+      };
+    const originals = {
+      get: realCache.get.bind(realCache),
+      set: realCache.set.bind(realCache),
+      setIfNotExists: realCache.setIfNotExists.bind(realCache),
+      delete: realCache.delete.bind(realCache),
+    };
+    realCache.get = boom("get") as typeof realCache.get;
+    realCache.set = boom("set") as typeof realCache.set;
+    realCache.setIfNotExists = boom("setnx") as typeof realCache.setIfNotExists;
+    realCache.delete = boom("del") as typeof realCache.delete;
+
+    try {
+      const unpaidBody = buildUnpaid();
+      const context = await verifyX402Payment({
+        paymentHeader: buildAuthHeader({ nonce: `0x${"05".repeat(32)}` }),
+        unpaidBody,
+      });
+      const result = await settleX402Payment({
+        context,
+        pricing: basePricing(),
+        sniffId: SNIFF_ID,
+        requestId: REQUEST_ID,
+        unpaidBody,
+      });
+      expect(result.mode).toBe("morph-official");
+      expect(settleMock).toHaveBeenCalledOnce();
+    } finally {
+      realCache.get = originals.get;
+      realCache.set = originals.set;
+      realCache.setIfNotExists = originals.setIfNotExists;
+      realCache.delete = originals.delete;
+    }
   });
 });

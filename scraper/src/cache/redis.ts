@@ -27,6 +27,17 @@ export interface TryDecrementResult {
 export interface CacheClient {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
+  // Atomic SET-if-not-exists with TTL. Returns true when the key was newly
+  // claimed, false when another writer already holds the key. Used by the
+  // settle idempotency lock (`payment/idempotency.ts`) to prevent two
+  // concurrent diagnose requests with the same EIP-3009 authorization from
+  // both hitting `/x402/v2/settle` (which would cause a nonce conflict on
+  // the second call).
+  setIfNotExists(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean>;
   delete(key: string): Promise<void>;
   // Atomic counter with TTL — used by Phase-2 token buckets. Returns the
   // counter value AFTER the increment. The TTL is only applied on the
@@ -87,6 +98,20 @@ class MemoryCacheClient implements CacheClient {
       value,
       expiresAt: Date.now() + ttlSeconds * 1000,
     });
+  }
+
+  async setIfNotExists(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const existing = this.store.get(key);
+    if (existing && existing.expiresAt > Date.now()) return false;
+    this.store.set(key, {
+      value,
+      expiresAt: Date.now() + ttlSeconds * 1000,
+    });
+    return true;
   }
 
   async delete(key: string): Promise<void> {
@@ -208,6 +233,21 @@ class UpstashCacheClient implements CacheClient {
 
   async set(key: string, value: string, ttlSeconds: number): Promise<void> {
     await this.redis.set(key, value, { ex: ttlSeconds });
+  }
+
+  async setIfNotExists(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    // @upstash/redis returns "OK" on success, null when NX rejects (key
+    // already exists). Use atomic NX + EX so we never leave a key without a
+    // TTL even if we crash between SET and EXPIRE.
+    const result = await this.redis.set(key, value, {
+      ex: ttlSeconds,
+      nx: true,
+    });
+    return result === "OK";
   }
 
   async delete(key: string): Promise<void> {

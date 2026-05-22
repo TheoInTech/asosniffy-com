@@ -22,6 +22,12 @@ import {
   parsePaymentHeader,
   type PaymentPayload,
 } from "./header.js";
+import {
+  acquireSettleSlot,
+  recordSettleFailure,
+  recordSettleSuccess,
+  releaseInFlight,
+} from "./idempotency.js";
 import { assembleReceipt } from "./receipt.js";
 
 // Sprint C cleanup — shared x402 verify/settle chain. Before this module
@@ -237,35 +243,93 @@ export async function settleX402Payment(
   let mode: FacilitatorMode = "fixture-receipt";
 
   if (facilitator !== null) {
-    settleResponse = await facilitator
-      .settle({
-        x402Version: 2,
-        paymentPayload: wirePaymentPayload,
-        paymentRequirements: wireRequirements,
-      })
-      .catch((err: unknown) => {
-        if (isFacilitatorError(err)) {
-          throw new PaymentRequiredError(
-            "settlement_failed",
-            `Facilitator settle failed: ${err.message}`,
-            unpaidBody,
-            { status: err.status, body: err.body },
-          );
-        }
-        throw err;
-      });
+    // Idempotency check before submitting the EIP-3009 authorization. Same
+    // (auth.from, auth.nonce) hitting settle twice would cause Morph to
+    // reject the second call with "transaction exists, from nonce conflict"
+    // — even though the first one succeeded and the user already paid.
+    const slotParts = { authFrom: auth.from, authNonce: auth.nonce };
+    const slot = await acquireSettleSlot(slotParts);
 
-    if (!settleResponse.success) {
+    if (slot.kind === "cached_success") {
+      settleResponse = slot.settleResponse;
+      mode =
+        env.MORPH_FACILITATOR_MODE === "self-hosted-fallback"
+          ? "self-hosted-fallback"
+          : "morph-official";
+    } else if (slot.kind === "cached_failure") {
+      const details: { status?: number; body?: unknown } = {};
+      if (slot.facilitatorStatus !== undefined) details.status = slot.facilitatorStatus;
+      if (slot.facilitatorBody !== undefined) details.body = slot.facilitatorBody;
       throw new PaymentRequiredError(
         "settlement_failed",
-        settleResponse.errorReason ?? "Facilitator failed to settle",
+        slot.message,
+        unpaidBody,
+        Object.keys(details).length > 0 ? details : undefined,
+      );
+    } else if (slot.kind === "in_flight") {
+      throw new PaymentRequiredError(
+        "settlement_failed",
+        "Payment settle already in flight for this authorization",
         unpaidBody,
       );
+    } else {
+      // slot.kind === "fresh" — we own the in-flight slot and must record
+      // either success or failure before returning. The try/finally below
+      // guarantees the in_flight marker is cleared on unexpected throws so
+      // we don't block legitimate retries for the full 60s TTL.
+      let recorded = false;
+      try {
+        try {
+          settleResponse = await facilitator.settle({
+            x402Version: 2,
+            paymentPayload: wirePaymentPayload,
+            paymentRequirements: wireRequirements,
+          });
+        } catch (err: unknown) {
+          if (isFacilitatorError(err)) {
+            const message = `Facilitator settle failed: ${err.message}`;
+            await recordSettleFailure(slotParts, {
+              message,
+              facilitatorStatus: err.status,
+              facilitatorBody: err.body,
+            });
+            recorded = true;
+            throw new PaymentRequiredError(
+              "settlement_failed",
+              message,
+              unpaidBody,
+              { status: err.status, body: err.body },
+            );
+          }
+          throw err;
+        }
+
+        if (!settleResponse.success) {
+          const message =
+            settleResponse.errorReason ?? "Facilitator failed to settle";
+          await recordSettleFailure(slotParts, { message });
+          recorded = true;
+          throw new PaymentRequiredError(
+            "settlement_failed",
+            message,
+            unpaidBody,
+          );
+        }
+
+        await recordSettleSuccess(slotParts, settleResponse);
+        recorded = true;
+      } finally {
+        if (!recorded) {
+          // Unexpected throw — clear the in_flight slot so other writers
+          // aren't blocked for the full TTL.
+          await releaseInFlight(slotParts);
+        }
+      }
+      mode =
+        env.MORPH_FACILITATOR_MODE === "self-hosted-fallback"
+          ? "self-hosted-fallback"
+          : "morph-official";
     }
-    mode =
-      env.MORPH_FACILITATOR_MODE === "self-hosted-fallback"
-        ? "self-hosted-fallback"
-        : "morph-official";
   }
 
   // Receipt assembly. Always pass auth.from as payerFallback so the wallet-

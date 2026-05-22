@@ -412,6 +412,45 @@ describe("createFacilitatorClient", () => {
     });
   });
 
+  it("settle() PARSES success:false responses with empty transaction/network (Morph failure shape)", async () => {
+    // Regression: prior to the discriminated-union SettleResponse schema,
+    // Morph's actual failure body
+    //   { success:false, errorReason:"transaction exists, from nonce conflict: …",
+    //     transaction:"", network:"" }
+    // was rejected by the parser because `transaction:""` failed the
+    // `/^0x[a-fA-F0-9]+$/` regex and `network:""` failed the CAIP-2
+    // regex — even though both fields were marked .optional() (which only
+    // short-circuits `undefined`, not empty strings). The wrapped
+    // schema-validation FacilitatorError masked the real errorReason, so
+    // operators saw "transaction: Invalid; network: CAIP-2 identifier"
+    // instead of "transaction exists, from nonce conflict".
+    const errorReason =
+      "transaction exists, from nonce conflict: from=0xd259649c98B416E4D898c34a1C8206f676E06D40, nonce=0x283455a367ead982ca743572aefc0159664b431310449048d086072c843d7109";
+    const { fetchImpl } = captureFetch({
+      status: 200,
+      body: {
+        success: false,
+        errorReason,
+        transaction: "",
+        network: "",
+      },
+    });
+    const client = createFacilitatorClient({
+      accessKey: ACCESS_KEY,
+      secretKey: SECRET_KEY,
+      fetchImpl,
+    });
+    const result = await client.settle({
+      x402Version: 2,
+      paymentPayload: {},
+      paymentRequirements: {},
+    });
+    expect(result.success).toBe(false);
+    if (result.success === false) {
+      expect(result.errorReason).toBe(errorReason);
+    }
+  });
+
   it("verify() throws FacilitatorError when the 200 body fails schema validation", async () => {
     // Verify symmetry with settle(): a 200-with-garbage from /v2/verify must
     // also map to FacilitatorError, not a raw ZodError.
