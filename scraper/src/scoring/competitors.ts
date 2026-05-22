@@ -1,6 +1,9 @@
 import type { AppRecord } from "../providers/apple/types.js";
 import type { Provenance } from "../schemas/index.js";
-import type { CompetitorCandidate } from "../data/report-data.js";
+import type {
+  CompetitorCandidate,
+  CompetitorTier,
+} from "../data/report-data.js";
 
 // Competitor analysis using only the data Phase 03 already returns —
 // no extra Apple round-trips. For each competitor candidate we surface:
@@ -20,6 +23,12 @@ export interface CompetitorAnalysis {
   uniqueToCompetitor: string[];
   overlapScore: number;
   provenance: Provenance;
+  // Phase A — competitor tier + search-result position threaded through
+  // from CompetitorCandidate. Synthesis layer reads these to weight a
+  // leader's uniqueToCompetitor terms more than a shoulder's. Both
+  // optional for back-compat with legacy callers / fixtures.
+  tier?: CompetitorTier;
+  searchPosition?: number;
 }
 
 export interface AnalyzeCompetitorsInput {
@@ -52,7 +61,12 @@ export function analyzeCompetitors(
     input.candidateRecords,
   );
 
-  return input.candidates.slice(0, 3).map((candidate) => {
+  // Phase A — slice 3 → 15 so the synthesis opportunity pool sees the full
+  // competitor cohort (leaders + peers + shoulder), not just the top 3.
+  // Per-competitor unique cap raised 4 → 8 so each competitor surfaces a
+  // richer slice of its differentiated tokens. Tier weight does the final
+  // prioritization in the synthesis layer.
+  return input.candidates.slice(0, 15).map((candidate) => {
     const record = input.candidateRecords?.get(candidate.appId);
     const competitorTokens = collectSurfaceTokens({
       title: record?.name,
@@ -77,7 +91,7 @@ export function analyzeCompetitors(
       if (targetSurface.tokens.has(token)) continue;
       if (overlap.some((o) => o.toLowerCase().includes(token))) continue;
       if (!unique.includes(token)) unique.push(token);
-      if (unique.length >= 4) break;
+      if (unique.length >= 8) break;
     }
 
     return {
@@ -87,6 +101,10 @@ export function analyzeCompetitors(
       uniqueToCompetitor: unique,
       overlapScore: overlap.length / Math.max(input.targetKeywords.length, 1),
       provenance: candidate.provenance,
+      ...(candidate.tier !== undefined ? { tier: candidate.tier } : {}),
+      ...(candidate.searchPosition !== undefined
+        ? { searchPosition: candidate.searchPosition }
+        : {}),
     };
   });
 }

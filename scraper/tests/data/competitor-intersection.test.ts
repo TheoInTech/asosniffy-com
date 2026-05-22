@@ -108,14 +108,21 @@ describe("collectIosCompetitorsByIntersection", () => {
     expect(out.rows[1]?.appId).toBe("200");
   });
 
-  it("only counts the TOP 3 results per keyword toward the intersection", async () => {
-    // App X is at position 4 (index 3) in both keyword searches. With the
-    // top-3 cap it should NEVER be counted, so it must be absent from rows.
+  it("only counts the TOP 8 results per keyword toward the intersection (Phase A: raised from 3)", async () => {
+    // App X is at position 9 (index 8) in both keyword searches. With the
+    // top-8 cap it should NEVER be counted, so it must be absent from rows.
+    // Phase A raised TOP_PER_KEYWORD 3 → 8 so the intersection has more
+    // candidate apps to find ≥2-keyword matches in.
     searchAppsMock.mockImplementation(async () => [
       record("100", "A"),
       record("101", "B"),
       record("102", "C"),
-      record("999X", "X"), // index 3 — past the top-3 cap
+      record("103", "D"),
+      record("104", "E"),
+      record("105", "F"),
+      record("106", "G"),
+      record("107", "H"),
+      record("999X", "X"), // index 8 — past the top-8 cap
     ]);
     const out = await collectIosCompetitorsByIntersection({
       keywords: ["k1", "k2"],

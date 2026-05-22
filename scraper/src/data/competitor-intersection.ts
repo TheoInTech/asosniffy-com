@@ -8,9 +8,10 @@ import { withCache } from "../cache/wrapper.js";
 import { cacheKey } from "../cache/keys.js";
 import { CACHE_TTL } from "../cache/ttl.js";
 import { toProviderError } from "../providers/_lib/errors.js";
-import type {
-  CompetitorCandidate,
-  CompetitorSource,
+import {
+  tierForPosition,
+  type CompetitorCandidate,
+  type CompetitorSource,
 } from "./report-data.js";
 
 // Phase 9 (Day 2) — Multi-keyword competitor intersection.
@@ -44,9 +45,16 @@ import type {
 // targeted competitor trail than no trail at all.
 
 const APPLE_PROVIDER = "apple-itunes";
-const TOP_PER_KEYWORD = 3;
+// Phase A — TOP_PER_KEYWORD 3 → 8 and RESULT_CAP 5 → 15. Larger per-keyword
+// slice gives the intersection more candidates to find ≥2-keyword matches
+// in (especially helpful when the user's keywords overlap heavily in the
+// long tail). RESULT_CAP grows so the synthesis layer has 15 competitors
+// to mine unique terms from. SEARCH_LIMIT is unchanged — iTunes already
+// returns 20 results per /search and the cache key matches the legacy
+// shape so warm caches share entries.
+const TOP_PER_KEYWORD = 8;
 const MIN_MATCHES = 2;
-const RESULT_CAP = 5;
+const RESULT_CAP = 15;
 const SEARCH_LIMIT = 20;
 export const MIN_USEFUL_ROWS = 3;
 
@@ -156,14 +164,20 @@ export async function collectIosCompetitorsByIntersection(
     return a.bestRank - b.bestRank;
   });
 
+  // Phase A — tag each row with tier-by-final-position so the synthesis
+  // layer can weight a leader's unique terms above a shoulder's. Position
+  // here is the row's index after the matchedKeywords-desc + bestRank-asc
+  // sort, which mirrors "strongest signal first."
   const rows: CompetitorCandidate[] = intersected
     .slice(0, RESULT_CAP)
-    .map((e) => ({
+    .map((e, i) => ({
       appId: e.record.id,
       name: e.record.name,
       provenance: e.record.provenance,
       source: "search" as CompetitorSource,
       record: e.record,
+      tier: tierForPosition(i + 1),
+      searchPosition: i + 1,
     }));
 
   return { rows, errors };

@@ -8,10 +8,13 @@ import {
 import { searchApps } from "./itunes.js";
 import type { AppRecord } from "./types.js";
 
-// Top-N apps we surface for downstream keyword-difficulty scoring. Five is
-// the upstream `TOP_DIFFICULTY_DOC_LIMIT` and matches the top-five gate in
-// scoring/keyword-difficulty.ts.
-const TOP_COMPETITOR_LIMIT = 5;
+// Phase A — Raised 5 → 15. The keyword-difficulty gate (top-five) still
+// reads `topCompetitors.slice(0, 5)` so its semantics are preserved; the
+// additional positions 6-15 feed the synthesis layer's competitor-unique
+// term mining via the wider candidate pool collected at the report-data
+// layer. Iterating 15 records vs 5 here is bookkeeping — the iTunes
+// search response is already fetched at depth 50, no extra network cost.
+const TOP_COMPETITOR_LIMIT = 15;
 
 export interface SampleKeywordRankInput {
   keyword: string;
