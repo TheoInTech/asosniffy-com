@@ -71,6 +71,7 @@ docker-compose.override.yml
 .claude/settings.local.json
 .claude/cache/
 .claude/projects/
+.claude/agent-memory/
 .agents/cache/
 
 # Local scrape cache used by the firecrawl CLI when an agent runs
