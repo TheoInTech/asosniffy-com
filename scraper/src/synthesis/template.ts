@@ -83,6 +83,12 @@ export interface SynthesisInput {
   // (legacy callers, older tests), the previous unfiltered behavior holds.
   // The orchestrator always populates this on production paid /diagnose.
   scoredCandidates?: readonly ScoredCandidate[];
+  // Phase D — review-language tokens. Customers' vocabulary that the
+  // developer's listing doesn't carry — a language gap surfaced from the
+  // review corpus. Pre-computed by the orchestrator (extractReview-
+  // LanguageTokens) so the synthesis layer stays free of review-fetch
+  // concerns. Empty array or undefined means no review signal contributed.
+  reviewLanguageTokens?: readonly string[];
   // Phase B — product-context provider output. When present, collectOpportunity-
   // Keywords adds feature/audience/topical tokens to the pool at weight 0.7
   // (above any competitor tier). When omitted or in degraded provenance, the
@@ -425,7 +431,8 @@ interface OpportunityKeyword {
     | "user-keyword"
     | "competitor-unique"
     | "product-context"
-    | "description-extract";
+    | "description-extract"
+    | "review-language";
   weight: number;
   rankBucket?: string;
   // Pre-computed coverage flags against the user's current listing — only
@@ -576,18 +583,34 @@ function collectOpportunityKeywords(
     pushOpportunityTokens(out, seen, dt.topicalKeywords, 0.5, "description-extract");
   }
 
+  // Phase D — Review-language opportunities. Tokens reviewers use that the
+  // user's listing doesn't carry. Pre-computed by the orchestrator so the
+  // synthesis layer doesn't fetch reviews itself. Same weight tier as
+  // description-extract topicalKeywords (both are frequency-based signal
+  // but review-language comes from customers' voice — equally authoritative
+  // for "what words should this listing actually rank for").
+  if (input.reviewLanguageTokens && input.reviewLanguageTokens.length > 0) {
+    pushOpportunityTokens(
+      out,
+      seen,
+      input.reviewLanguageTokens,
+      0.5,
+      "review-language",
+    );
+  }
+
   return out.sort((a, b) => b.weight - a.weight);
 }
 
 // Helper for first-party opportunity pushes (product-context / description-
-// extract). Handles dedup and the uniform shape so the per-bucket pushes in
-// collectOpportunityKeywords stay one-liners.
+// extract / review-language). Handles dedup and the uniform shape so the
+// per-bucket pushes in collectOpportunityKeywords stay one-liners.
 function pushOpportunityTokens(
   out: OpportunityKeyword[],
   seen: Set<string>,
   tokens: readonly string[],
   weight: number,
-  origin: "product-context" | "description-extract",
+  origin: "product-context" | "description-extract" | "review-language",
 ): void {
   for (const raw of tokens) {
     const key = raw.toLowerCase().trim();
@@ -831,17 +854,19 @@ function buildKeywordsFieldField(args: {
     (k) =>
       !userKeywords.some((u) => u.toLowerCase().trim() === k),
   );
-  // Distinguish first-party (product-context / description-extract) sources
-  // from competitor-coverage in the reason copy. The opportunity pool is
-  // already deduped by keyword; we surface the strongest first-party label
-  // when any added token came from those sources. Product-page wins over
-  // description-extract when both contributed (product site is broader and
-  // more uniquely sourced).
+  // Distinguish first-party (product-context / description-extract /
+  // review-language) sources from competitor-coverage in the reason copy.
+  // Strongest-label-wins precedence: product-page > description > review >
+  // competitor. The opportunity pool is already deduped by keyword; we
+  // pick the label that best describes the strongest add.
   const hasProductContextAdd = opportunities.some(
     (o) => o.origin === "product-context" && added.includes(o.keyword),
   );
   const hasDescriptionExtractAdd = opportunities.some(
     (o) => o.origin === "description-extract" && added.includes(o.keyword),
+  );
+  const hasReviewLanguageAdd = opportunities.some(
+    (o) => o.origin === "review-language" && added.includes(o.keyword),
   );
   const reason = added.length === 0
     ? `Drops tokens already covered by title/subtitle so each slot earns a new rank.`
@@ -849,7 +874,9 @@ function buildKeywordsFieldField(args: {
       ? `Adds product-page terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
       : hasDescriptionExtractAdd
         ? `Adds description terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
-        : `Adds competitor-coverage terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`;
+        : hasReviewLanguageAdd
+          ? `Adds review-language terms — vocabulary customers already use (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`
+          : `Adds competitor-coverage terms (${added.slice(0, 3).join(", ")}) and drops tokens already in title/subtitle.`;
 
   return makeField({
     current,
