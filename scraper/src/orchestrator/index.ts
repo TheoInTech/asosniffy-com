@@ -60,6 +60,7 @@ import {
   fetchProductProfile,
   type ProductProfile,
 } from "../providers/product-context.js";
+import { extractReviewLanguageTokens } from "../scoring/review-language.js";
 import {
   buildCompetitorNotes,
   buildDescriptionDensityRecommendation,
@@ -271,6 +272,20 @@ export async function generateReportWithMeta(
     });
   }
 
+  // Phase D — Review-language extraction. Customers' vocabulary that the
+  // user's listing doesn't carry. reviewKeywordFrequency already runs for
+  // the suggestedKeywords path; this is a lightweight filter on top of
+  // its output, dedup'd against the user's title/subtitle/description/
+  // keywords surface. Empty reviewBodies → empty result, no-op downstream.
+  const reviewLanguage =
+    inputProvenance !== "fixture" && inputProvenance !== "degraded"
+      ? extractReviewLanguageTokens({
+          reviewBodies: data.reviewBodies,
+          appRecord: data.detect.appRecord,
+          userKeywords: input.keywords,
+        })
+      : { languageTokens: [] };
+
   const synthesisInput: SynthesisInput = {
     scoring: {
       metadata: metadataScoring,
@@ -285,6 +300,9 @@ export async function generateReportWithMeta(
     inputProvenance,
     scoredCandidates,
     ...(productProfile ? { productProfile } : {}),
+    ...(reviewLanguage.languageTokens.length > 0
+      ? { reviewLanguageTokens: reviewLanguage.languageTokens }
+      : {}),
   };
 
   // Sprint B — Quick tier short-circuits to the deterministic template path.
