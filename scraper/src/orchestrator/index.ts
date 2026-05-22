@@ -7,6 +7,7 @@ import {
   type CoverageProviderError,
   type DataProvenance,
   type DiagnosePaidResponse,
+  type DiagnoseTier,
   type KeywordDiagnosisItem,
   METADATA_SCORE_WEIGHTS,
   type MetadataScore,
@@ -51,6 +52,7 @@ import {
   embedText,
   isRelevanceGateEnabled,
 } from "../scoring/embeddings.js";
+import { getKnowledgeForRecommendation } from "../scoring/aso-knowledge.js";
 import { lookupLocalized } from "../providers/apple/multi-storefront.js";
 import {
   buildCompetitorNotes,
@@ -58,6 +60,7 @@ import {
   buildKeywordRecommendation,
   buildMetadataNotes,
   synthesizeReportOpenAi,
+  synthesizeReportTemplate,
   type SynthesisInput,
   type SynthesisOutput,
 } from "../synthesis/index.js";
@@ -84,7 +87,7 @@ import { signWildcardForRequest } from "../lib/history-hmac.js";
 
 export type ReportPayload = Omit<
   DiagnosePaidResponse,
-  "requestId" | "sniffId" | "receipt"
+  "requestId" | "sniffId" | "receipt" | "packCredit"
 >;
 
 export interface GenerateReportInput {
@@ -97,6 +100,13 @@ export interface GenerateReportInput {
   // When true, fixture fallback is allowed end-to-end (e.g. /sample).
   // /diagnose passes false — degraded beats fixture for paid responses.
   allowFixtureFallback?: boolean;
+  // Sprint B — diagnose tier. When `quick`, the orchestrator skips the
+  // OpenAI synthesis call and uses the deterministic template path. Quick
+  // still produces a structurally complete DiagnosePaidResponse — the
+  // savings come from skipping the LLM token spend, not from stripping
+  // fields. `standard` and `expert` (and omitted/legacy) run the full AI
+  // path. Expert-specific feature gating lands in a follow-up.
+  tier?: DiagnoseTier;
 }
 
 // Lean handle to the detected app's listing identity, surfaced for
@@ -253,9 +263,18 @@ export async function generateReportWithMeta(
     scoredCandidates,
   };
 
-  const synthesis = await synthesizeReportOpenAi(synthesisInput, {
-    requestId: input.requestId,
-  });
+  // Sprint B — Quick tier short-circuits to the deterministic template path.
+  // Skips the OpenAI request (no token cost, faster response) while still
+  // returning a structurally complete report — recommendations + ready-to-
+  // paste copy come from the same template engine that backs the existing
+  // synthesis fallback. Standard / Expert (and omitted/legacy callers) run
+  // the full AI synthesis.
+  const synthesis: SynthesisOutput =
+    input.tier === "quick"
+      ? synthesizeReportTemplate(synthesisInput)
+      : await synthesizeReportOpenAi(synthesisInput, {
+          requestId: input.requestId,
+        });
 
   // ---------- Phase 4: history-aware overlay ----------
   // Fetch rank-history series for every keyword in parallel. Compute trend
@@ -366,6 +385,32 @@ export async function generateReportWithMeta(
     recommendations.push(densityRec);
   }
 
+  // ---------- Sprint B knowledge enrichment ----------
+  // For each recommendation, pattern-match its action + rationale against the
+  // curated ASO knowledge base and attach a primary-source citation when one
+  // fits. Recommendations that don't match any topic stay clean
+  // (knowledge: null) — better to drop the citation than fabricate one.
+  // Runs equally for AI- and template-synthesized recommendations.
+  const enrichedRecommendations = recommendations.map((rec) => {
+    const entry = getKnowledgeForRecommendation({
+      action: rec.action,
+      rationale: rec.rationale,
+    });
+    if (!entry) return { ...rec, knowledge: null };
+    return {
+      ...rec,
+      knowledge: {
+        topic: entry.topic,
+        summary: entry.summary,
+        sourceName: entry.source.name,
+        sourceUrl: entry.source.url,
+        ...(entry.source.section !== undefined
+          ? { sourceSection: entry.source.section }
+          : {}),
+      },
+    };
+  });
+
   // ---------- Assembly ----------
   return {
     payload: {
@@ -400,7 +445,7 @@ export async function generateReportWithMeta(
         },
         diagnosis: keywordScoring,
       }),
-      recommendations,
+      recommendations: enrichedRecommendations,
       readyToPaste: synthesis.readyToPaste,
       suggestedKeywords: buildSuggestedKeywords({
         reviewBodies: data.reviewBodies,

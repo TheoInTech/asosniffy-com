@@ -14,6 +14,7 @@ import { PricingComparison } from "@/components/PricingComparison";
 import { QuoteForm } from "@/components/QuoteForm";
 import { QuoteResponseView } from "@/components/QuoteResponse";
 import { Report } from "@/components/Report";
+import { SniffPackReveal } from "@/components/SniffPackReveal";
 import { UnlockTrail } from "@/components/UnlockTrail";
 import { useQuote } from "@/lib/api/hooks";
 import { ApiNetworkError, type ProtocolTraceEntry } from "@/lib/api/errors";
@@ -112,8 +113,9 @@ export function HomeView() {
       ) : null}
 
       {!paidReport && !quote ? (
-        <div className="mt-8">
+        <div className="mt-8 space-y-6">
           <PricingComparison />
+          <SniffPackReveal />
         </div>
       ) : null}
 

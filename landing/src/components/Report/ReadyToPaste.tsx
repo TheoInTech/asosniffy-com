@@ -21,17 +21,17 @@ const SOURCE_ICON: Record<ReadyToPasteSource, string> = {
   "template-fallback": "◇",
 };
 
-type ReadyToPasteFieldKey = Exclude<
-  keyof DiagnosePaidResponse["readyToPaste"],
-  "source"
->;
-
-const FIELDS: Array<{ key: ReadyToPasteFieldKey; label: string }> = [
+const FIELDS = [
   { key: "title", label: "Title" },
   { key: "subtitle", label: "Subtitle" },
   { key: "keywordsField", label: "Keywords field (iOS)" },
-  { key: "shortDescription", label: "Short description (Android)" },
-];
+  { key: "promotionalText", label: "Promotional text (iOS, 170)" },
+  { key: "androidShortDescription", label: "Short description (Play, 80)" },
+  { key: "shortDescription", label: "Short description (legacy)" },
+] as const satisfies ReadonlyArray<{
+  key: Exclude<keyof DiagnosePaidResponse["readyToPaste"], "source">;
+  label: string;
+}>;
 
 function CharCount({ count, limit }: { count: number; limit: number }) {
   const ratio = limit > 0 ? count / limit : 0;
@@ -159,14 +159,18 @@ export function ReadyToPaste({ report }: { report: DiagnosePaidResponse }) {
         </p>
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {FIELDS.map((f) => (
-          <FieldCard
-            key={f.key as string}
-            label={f.label}
-            field={r[f.key]}
-            source={r.source}
-          />
-        ))}
+        {FIELDS.map((f) => {
+          const value = r[f.key];
+          if (value === null) return null;
+          return (
+            <FieldCard
+              key={f.key}
+              label={f.label}
+              field={value}
+              source={r.source}
+            />
+          );
+        })}
       </div>
     </section>
   );

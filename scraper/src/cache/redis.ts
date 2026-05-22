@@ -19,6 +19,11 @@ export interface ZRangeOptions {
   limit?: number;
 }
 
+export interface TryDecrementResult {
+  success: boolean;
+  balance: number;
+}
+
 export interface CacheClient {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
@@ -28,6 +33,15 @@ export interface CacheClient {
   // first increment (when the key is created); subsequent increments leave
   // the TTL alone so the bucket window doesn't extend forever.
   incr(key: string, ttlSeconds: number): Promise<number>;
+  // Sprint B — atomic check-and-decrement primitive for Sniff Pack balance
+  // spend. Returns { success: false, balance: <current> } when the current
+  // value is below `amount`, leaving the stored value unchanged. On success,
+  // decrements by `amount` and returns the new balance. Implementations MUST
+  // ensure two concurrent calls cannot both succeed when the post-decrement
+  // total would go negative — the Upstash backend achieves this via
+  // optimistic DECRBY + INCRBY rollback; the in-memory backend leverages
+  // the single-threaded JS event loop for natural atomicity.
+  tryDecrement(key: string, amount: number): Promise<TryDecrementResult>;
   // Phase-4 ZSet primitives — backing for rank-history timeseries.
   // Semantics match Redis ZADD / ZRANGE BYSCORE / ZREMRANGEBYSCORE.
   // TTL is applied on first add per (key) so the series window doesn't
@@ -93,6 +107,24 @@ class MemoryCacheClient implements CacheClient {
     const next = (parseInt(entry.value, 10) || 0) + 1;
     entry.value = String(next);
     return next;
+  }
+
+  async tryDecrement(
+    key: string,
+    amount: number,
+  ): Promise<TryDecrementResult> {
+    const entry = this.store.get(key);
+    const now = Date.now();
+    if (!entry || entry.expiresAt <= now) {
+      return { success: false, balance: 0 };
+    }
+    const current = parseInt(entry.value, 10) || 0;
+    if (current < amount) {
+      return { success: false, balance: current };
+    }
+    const next = current - amount;
+    entry.value = String(next);
+    return { success: true, balance: next };
   }
 
   async zadd(
@@ -190,6 +222,29 @@ class UpstashCacheClient implements CacheClient {
       await this.redis.expire(key, ttlSeconds);
     }
     return next;
+  }
+
+  async tryDecrement(
+    key: string,
+    amount: number,
+  ): Promise<TryDecrementResult> {
+    // Optimistic atomic check-and-decrement. Two concurrent callers running
+    // DECRBY at the same moment can both observe positive values; the
+    // post-decrement inspection + rollback ensures only one wins. The loser
+    // pays for an extra round-trip, but the credit ledger never goes
+    // negative under any interleaving.
+    //
+    // Pre-check via GET is intentionally absent — a GET-then-DECRBY shape
+    // would have a wider race window. DECRBY + conditional INCRBY is the
+    // tightest correct pattern available without Lua scripting on Upstash.
+    const next = (await this.redis.decrby(key, amount)) as number;
+    if (next < 0) {
+      // Roll back so the next caller observes the original balance. The
+      // failed call did not consume a credit, only one extra round-trip.
+      await this.redis.incrby(key, amount);
+      return { success: false, balance: Math.max(0, next + amount) };
+    }
+    return { success: true, balance: next };
   }
 
   async zadd(

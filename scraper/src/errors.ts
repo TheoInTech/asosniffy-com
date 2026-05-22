@@ -9,6 +9,12 @@ export type ErrorCode =
   | "amount_mismatch"
   | "verification_failed"
   | "settlement_failed"
+  // Sprint B — Sniff Pack credit spend on /diagnose. Returned when the
+  // authenticated wallet's Pack balance is below the required credit cost.
+  // Body carries the same DiagnoseUnpaidResponse shape so the client can
+  // fall back to per-call x402 or buy another pack.
+  | "insufficient_balance"
+  | "session_invalid"
   | "internal_error";
 
 export abstract class HttpError extends Error {

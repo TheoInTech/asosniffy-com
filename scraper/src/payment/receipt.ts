@@ -73,6 +73,14 @@ function fabricateTxHash(random: () => Buffer): string {
   return `0xsample${suffix}`;
 }
 
+function fabricatePackCreditTxHash(random: () => Buffer): string {
+  // Pack-credit marker: the `0xpack` prefix makes the receipt visibly
+  // non-onchain. No real ETH/USDC moved — the credit ledger in Redis is the
+  // settlement layer. Length matches fixture-receipt for parity.
+  const suffix = random().toString("hex").slice(0, 58);
+  return `0xpack${suffix}`;
+}
+
 export function assembleReceipt(input: AssembleReceiptInput): Receipt {
   const env = input.env ?? fromAppEnv();
   const network = (env.MORPH_NETWORK ?? DEFAULTS.network) as CAIP2;
@@ -81,8 +89,16 @@ export function assembleReceipt(input: AssembleReceiptInput): Receipt {
     ? Number.parseInt(env.SNIFFY_PAYMENT_ASSET_DECIMALS, 10)
     : DEFAULTS.assetDecimals;
 
-  const amount = input.pricing.estimatedTotal;
-  const atomicAmount = parseUnits(amount, decimals).toString();
+  // Pack-credit spend does NOT move ETH/USDC — the Pack balance in Redis is
+  // the settlement layer. We force amount="0.00" and atomicAmount="0" here
+  // rather than trusting the caller's pricing block so the receipt invariant
+  // ("amount * 10^decimals == atomicAmount") holds for verifiers.
+  const amount =
+    input.mode === "pack-credit" ? "0.00" : input.pricing.estimatedTotal;
+  const atomicAmount =
+    input.mode === "pack-credit"
+      ? "0"
+      : parseUnits(amount, decimals).toString();
   const settledAt = input.settledAt ?? new Date().toISOString();
 
   // facilitator label is a stable string the UI/CLI can switch on. It maps
@@ -118,6 +134,15 @@ export function assembleReceipt(input: AssembleReceiptInput): Receipt {
       const rng = input.random ?? (() => crypto.randomBytes(28));
       transactionHash = fabricateTxHash(rng);
       facilitatorLabel = "fixture-receipt";
+      break;
+    }
+    case "pack-credit": {
+      // No on-chain tx — the credit consumption is the settlement record.
+      // Synthetic 0xpack-prefixed hash gives consumers a stable, parseable
+      // identifier without lying about an on-chain settlement.
+      const rng = input.random ?? (() => crypto.randomBytes(29));
+      transactionHash = fabricatePackCreditTxHash(rng);
+      facilitatorLabel = "pack-credit";
       break;
     }
     default: {

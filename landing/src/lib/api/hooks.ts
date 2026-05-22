@@ -7,8 +7,17 @@ import type {
   QuoteRequest,
   QuoteResponse,
   SampleResponse,
+  SniffPackBuyRequest,
+  SniffPackBuyResponse,
+  SniffPackTiersResponse,
 } from "@sniffy/scraper/schemas";
-import { getQuote, getSample, postDiagnose } from "./client";
+import {
+  buySniffPack,
+  getQuote,
+  getSample,
+  getSniffPackTiers,
+  postDiagnose,
+} from "./client";
 import type { ProtocolTraceEntry } from "./errors";
 import {
   getHistory,
@@ -43,6 +52,38 @@ export function useDiagnose() {
     mutationKey: ["diagnose"],
     mutationFn: ({ request, paymentHeader, onProtocolTrace }) =>
       postDiagnose(request, {
+        ...(paymentHeader ? { paymentHeader } : {}),
+        ...(onProtocolTrace ? { onProtocolTrace } : {}),
+      }),
+  });
+}
+
+// Sprint A/B — Sniff Pack catalog. Static-ish data (only changes when we
+// retune the pricing constants in the scraper); cached aggressively so a
+// page revisit doesn't refetch.
+export function useSniffPackTiers(enabled = true) {
+  return useQuery<SniffPackTiersResponse, Error>({
+    queryKey: ["sniff-pack-tiers"],
+    queryFn: () => getSniffPackTiers(),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+// Sprint A/B — Sniff Pack purchase. Mirrors useDiagnose: first call returns
+// 402 via PaymentRequiredError → caller signs via buildPaymentHeader → second
+// call returns 200 with newBalance.
+export interface BuySniffPackMutationInput {
+  request: SniffPackBuyRequest;
+  paymentHeader?: string;
+  onProtocolTrace?: (entry: ProtocolTraceEntry) => void;
+}
+
+export function useBuySniffPack() {
+  return useMutation<SniffPackBuyResponse, Error, BuySniffPackMutationInput>({
+    mutationKey: ["sniff-pack-buy"],
+    mutationFn: ({ request, paymentHeader, onProtocolTrace }) =>
+      buySniffPack(request, {
         ...(paymentHeader ? { paymentHeader } : {}),
         ...(onProtocolTrace ? { onProtocolTrace } : {}),
       }),

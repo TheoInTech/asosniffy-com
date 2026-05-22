@@ -92,6 +92,10 @@ export const FacilitatorMode = z.enum([
   "morph-official",
   "fixture-receipt",
   "self-hosted-fallback",
+  // Sprint B — Sniff Pack credit spend. No on-chain settlement; the
+  // associated Receipt carries amount="0.00", a synthetic 0xpack… tx hash,
+  // and the DiagnosePaidResponse.packCredit block reports balance changes.
+  "pack-credit",
 ]);
 export type FacilitatorMode = z.infer<typeof FacilitatorMode>;
 

@@ -15,6 +15,7 @@ import { quoteRoute } from "./routes/quote.js";
 import { diagnoseRoute } from "./routes/diagnose.js";
 import { historyRoute } from "./routes/history.js";
 import { walletRoute } from "./routes/wallet.js";
+import { sniffPackRoute } from "./routes/sniff-pack.js";
 
 export function createApp() {
   const app = new Hono();
@@ -81,6 +82,17 @@ export function createApp() {
       perDay: 60 * 60 * 12,
     }),
   );
+  // Sniff Pack — /tiers + /balance are cheap reads; /buy runs an x402
+  // settlement chain on Morph. Same per-IP cap shape as wallet routes; the
+  // 402 verify+settle on /buy is the real cost-limit gate.
+  app.use(
+    "/api/v1/aso/sniff-pack/*",
+    rateLimitPerIp({
+      namespace: "sniff-pack",
+      perMinute: 60,
+      perDay: 60 * 60 * 12,
+    }),
+  );
 
   app.route("/health", healthRoute);
   app.route("/api/v1/aso/sample", sampleRoute);
@@ -88,6 +100,7 @@ export function createApp() {
   app.route("/api/v1/aso/diagnose", diagnoseRoute);
   app.route("/api/v1/aso/history", historyRoute);
   app.route("/api/v1/aso/wallet", walletRoute);
+  app.route("/api/v1/aso/sniff-pack", sniffPackRoute);
 
   return app;
 }

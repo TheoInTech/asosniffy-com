@@ -50,9 +50,51 @@ Returns: `requestId`, `sniffId`, `detectedApp` (id/name/developer), `pricing` (c
   "app": "<same as quote>",
   "country": "US",
   "keywords": ["habit tracker"],
-  "competitors": ["1000000101"]
+  "competitors": ["1000000101"],
+  "tier": "standard"
 }
 ```
+
+#### Pricing tiers
+
+The `tier` field is **optional**. Omitting it preserves the legacy hackathon base ($0.03) for back-compat with pre-tier SDK / CLI / MCP consumers. When set, base price changes per tier (per-keyword, per-additional-country, and competitor add-ons layer on top of the tier base unchanged):
+
+| Tier | Base | Recommended for |
+|---|---|---|
+| `quick` | $0.05 | Rank buckets + 6-factor metadata score — fast structural diagnostic. Template-only synthesis, no AI call, no `readyToPaste` copy. |
+| `standard` | $0.20 | Full diagnose with AI synthesis + `readyToPaste` copy. Closest to the legacy default feature set. |
+| `expert` | $1.00 | Standard + Apple Search Ads popularity overlay confirmation, broader sentiment + screenshot hooks. |
+
+Refresh-sniff discount (50% off, within 30 days for the same `(store, country, appId)` tuple) applies *after* the tier total — surfaced in the `pricing.discounts[]` line item, separate from the gross `breakdown`. Agents and UIs render both numbers.
+
+Anonymous comparison framing (also shipped as `savingsNote` on every `/quote`): even Expert × 10 audits/year is **$10**, still 169× cheaper than a typical ASO Pro Annual subscription. Built for the actual ASO usage curve — launch burst, quarterly refresh, "why am I not ranking" diagnostic — not constant use.
+
+#### Sniff Packs (prepaid bulk)
+
+Optional prepaid credits, no subscription. Three tiers — `sniff-pack-10` ($4 → $0.40 avg, 20% off), `sniff-pack-50` ($15 → $0.30 avg, 40% off), `sniff-pack-250` ($50 → $0.20 avg, 60% off). Even the largest pack ($50) is cheaper than one month of a typical ASO subscription Start tier ($59).
+
+Three endpoints, sharing the x402 verify+settle chain that powers `/diagnose`:
+
+```
+GET  /api/v1/aso/sniff-pack/tiers              # public catalog: { tiers[] }
+POST /api/v1/aso/sniff-pack/buy                # x402-paid: 402 then 200 + receipt + newBalance
+GET  /api/v1/aso/sniff-pack/balance            # SIWE-auth: { wallet, balance }
+```
+
+`/buy` accepts the same `PAYMENT-SIGNATURE` header shape as `/diagnose` — sign an EIP-3009 authorization for the pack price (advertised in the 402 body and `PAYMENT-REQUIRED` header), the server runs `Facilitator.verify` + `Facilitator.settle` against Morph's official facilitator, then increments the payer's balance ledger by `credits`. The 200 body carries the same `Receipt` shape as `/diagnose` for the same five-check on-chain verification recipe.
+
+`/balance` is read-only and authenticates via the existing SIWE session (`POST /api/v1/aso/wallet/nonce` → `POST /api/v1/aso/wallet/session` → `Authorization: Bearer <token>`).
+
+#### Spending Sniff Pack credits on `/diagnose`
+
+`POST /api/v1/aso/diagnose` accepts `Authorization: Bearer <siwe-session>` as an alternative to `PAYMENT-SIGNATURE`. With Bearer present:
+
+- The server resolves the session to a wallet, atomically decrements the wallet's Pack balance by **1 credit** (regardless of tier — Quick / Standard / Expert all consume one credit), then runs the report.
+- Response is the same `DiagnosePaidResponse` shape with `receipt.facilitatorMode: "pack-credit"`, `receipt.amount: "0.00"`, and a synthetic `0xpack…` transaction hash. The new `packCredit` block carries `{ wallet, creditsConsumed, balanceRemaining }` so callers can show the credits left.
+- If balance is below 1, the server returns `402 Payment Required` with error code `insufficient_balance` and the standard `DiagnoseUnpaidResponse` body — agents can fall back to per-call x402 or buy another pack at `POST /api/v1/aso/sniff-pack/buy`.
+- If the Bearer token is missing the `sniffy_sess_` prefix or has expired, the server returns `401 Unauthorized` with `session_invalid`. Bearer does NOT fall through to the x402 path on auth failure — clients with broken sessions should refresh their SIWE handshake rather than silently double-pay.
+
+When both `Authorization: Bearer` and `PAYMENT-SIGNATURE` are sent, Bearer wins (the user already authenticated, no reason to charge them again).
 
 Without a `PAYMENT-SIGNATURE` header → returns HTTP `402` with a body describing the payment requirements:
 
@@ -167,6 +209,8 @@ Pass the labels through to the user in your reply. Mixing `live` and `fixture` d
 - `no_rank` — the keyword has no rank in the requested country/store. Suggest reformulating the keyword.
 - `unsupported_country` — country isn't yet covered. iOS supports the 175 storefronts; Android is preview-quality.
 - `malformed_payment_header`, `wrong_network`, `expired_authorization`, `amount_mismatch`, `verification_failed`, `settlement_failed` — see the Paying section above.
+- `insufficient_balance` — `Authorization: Bearer` was presented on `/diagnose` but the wallet's Sniff Pack balance is below the required credit cost. Buy another pack at `POST /api/v1/aso/sniff-pack/buy` or drop the Bearer header to fall back to per-call x402.
+- `session_invalid` — `Authorization: Bearer` was presented but the token is malformed or expired. Re-run the SIWE handshake (`/wallet/nonce` → `/wallet/session`) to mint a fresh token.
 
 ## Signals Sniffy doesn't extract (and what to do)
 

@@ -28,8 +28,23 @@ import { recordSlo, SLO_METRICS } from "../observability/slo.js";
 import { getCurrentAudit } from "../observability/audit.js";
 import { recordSniff } from "../wallet/history.js";
 import { markDiagnoseCompleted } from "../wallet/refresh-sniff.js";
+import { tryDecrementBalance } from "../wallet/sniff-pack-balance.js";
+import { resolveSession } from "../wallet/session.js";
 import { tryNormalizeAddress } from "../lib/address.js";
 import { clampReportToContract } from "../lib/clamp-report.js";
+
+// Sprint B — pack-credit spend. One credit funds one paid /diagnose call,
+// regardless of tier. Users can choose between this path (Authorization
+// Bearer with positive balance) and the legacy x402 path (PAYMENT-SIGNATURE
+// EIP-3009 authorization) per call. The two are mutually exclusive at the
+// route level — Bearer takes priority when both are sent.
+const CREDITS_PER_DIAGNOSE = 1;
+
+function extractBearerToken(authorizationHeader: string | undefined): string | null {
+  if (!authorizationHeader) return null;
+  const match = /^Bearer\s+(\S+)$/i.exec(authorizationHeader);
+  return match && match[1] ? match[1] : null;
+}
 
 // Duck-type fallback for cross-realm Error identification: in tests, vitest
 // can hand the route a FacilitatorError instance from a different module
@@ -52,11 +67,14 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
   const requestId = c.get("requestId");
 
   // 1) Compute pricing + payment requirements up front so we can use them as
-  //    the 402 body at any failure point.
+  //    the 402 body at any failure point. Sprint B — tier passes through to
+  //    the base-price selector in pricing.ts; omitting it preserves the
+  //    legacy $0.03 base for back-compat.
   const pricing = computePricing({
     keywords: body.keywords,
     countries: [body.country],
     currency: "USDC",
+    ...(body.tier !== undefined ? { tier: body.tier } : {}),
   });
 
   const unpaidBody: DiagnoseUnpaidResponse = buildPaymentRequirements({
@@ -65,6 +83,147 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
     resourceUrl: `${env.RESOURCE_BASE_URL}/api/v1/aso/diagnose`,
     resourceDescription: "Sniffy ASO diagnosis report",
   });
+
+  // 1a) Sprint B — Sniff Pack credit spend path. When the caller presents an
+  //     Authorization: Bearer <siwe-session-token> header, this run is paid
+  //     with a credit from the wallet's Pack balance instead of an x402
+  //     per-call charge. Bearer takes priority over PAYMENT-SIGNATURE when
+  //     both are sent — the user already authenticated, no reason to re-pay.
+  //     A missing or invalid session here returns 401 (not 402) — we don't
+  //     silently fall through to x402 because that would mask client bugs.
+  const bearerToken = extractBearerToken(c.req.header("authorization"));
+  if (bearerToken) {
+    const session = await resolveSession(bearerToken);
+    if (!session) {
+      return c.json(
+        {
+          error: {
+            code: "session_invalid" as const,
+            message: "Session token is invalid or expired",
+          },
+        },
+        401,
+      );
+    }
+
+    const dec = await tryDecrementBalance(
+      session.address,
+      CREDITS_PER_DIAGNOSE,
+    );
+    if (!dec.success) {
+      throw new PaymentRequiredError(
+        "insufficient_balance",
+        `Sniff Pack balance ${dec.balance} is below the ${CREDITS_PER_DIAGNOSE} credit cost of this diagnose. Buy another pack at /api/v1/aso/sniff-pack/buy or pay per-call via PAYMENT-SIGNATURE.`,
+        unpaidBody,
+      );
+    }
+
+    // Pack-credit path: skip x402 verify+settle entirely. The credit ledger
+    // in Redis is the settlement record; assembleReceipt below mints a
+    // 0xpack…-prefixed synthetic tx hash with amount=0.00.
+    const {
+      payload: report,
+      providerErrors: _providerErrors,
+      detectedApp: packDetectedApp,
+    } = await generateReportWithMeta({
+      requestId,
+      sniffId: body.sniffId,
+      store: body.store,
+      app: body.app,
+      country: body.country,
+      keywords: body.keywords,
+      allowFixtureFallback: false,
+      ...(body.tier !== undefined ? { tier: body.tier } : {}),
+    });
+
+    // SLO S1: pack-credit paid runs still count toward the live-data SLO,
+    // matching the x402 path so the metric reflects all paid traffic.
+    const packCoreMarket =
+      body.store === "ios" && ["US", "GB", "CA"].includes(body.country);
+    if (packCoreMarket) {
+      const appMetaOk =
+        report.dataProvenance.appMetadata === "live" ||
+        report.dataProvenance.appMetadata === "cached";
+      const rankOk =
+        report.dataProvenance.keywordRank === "live" ||
+        report.dataProvenance.keywordRank === "cached";
+      recordSlo(SLO_METRICS.diagnoseLiveData, appMetaOk && rankOk);
+    }
+
+    const packReceipt = assembleReceipt({
+      mode: "pack-credit",
+      pricing,
+      sniffId: body.sniffId,
+      requestId,
+      // Use the SIWE-authenticated wallet as the payer of record so
+      // wallet-history indexing keys correctly against this user.
+      payerFallback: session.address,
+    });
+
+    const packPaid: DiagnosePaidResponseType = {
+      requestId,
+      sniffId: body.sniffId,
+      receipt: packReceipt,
+      ...report,
+      packCredit: {
+        wallet: session.address,
+        creditsConsumed: CREDITS_PER_DIAGNOSE,
+        balanceRemaining: dec.balance,
+      },
+    };
+
+    // Refresh-sniff marker (same semantics as x402 path) — a pack-paid
+    // diagnose is still a paid diagnose, so subsequent /quote calls for the
+    // same tuple deserve the refresh discount.
+    void markDiagnoseCompleted({
+      store: body.store,
+      country: body.country,
+      appId: packDetectedApp.id,
+    });
+
+    // Wallet-history index — pack-credit always has a payer (the SIWE wallet)
+    // so we skip the malformed-payer log branch and write directly.
+    if (env.WALLET_HISTORY_ENABLED) {
+      const normalizedPayer = tryNormalizeAddress(session.address);
+      if (normalizedPayer) {
+        const audit = getCurrentAudit();
+        if (audit) audit.payer = normalizedPayer;
+        try {
+          await recordSniff({
+            payer: normalizedPayer,
+            sniffId: body.sniffId,
+            store: body.store,
+            country: body.country,
+            keywords: body.keywords,
+            appId: packDetectedApp.id,
+            appName: packDetectedApp.name,
+            appDeveloper: packDetectedApp.developer,
+            appIconUrl: packDetectedApp.iconUrl,
+            overallScore: report.metadataScore?.overall ?? null,
+            appMetadataProvenance: report.dataProvenance.appMetadata,
+            settledAt: packReceipt.settledAt,
+            report: packPaid,
+          });
+        } catch (err) {
+          process.stderr.write(
+            `${JSON.stringify({
+              ts: new Date().toISOString(),
+              level: "warn",
+              requestId,
+              event: "wallet_history_write_failed",
+              payer: normalizedPayer,
+              sniffId: body.sniffId,
+              error: err instanceof Error ? err.message : String(err),
+            })}\n`,
+          );
+        }
+      }
+    }
+
+    return c.json(
+      DiagnosePaidResponse.parse(clampReportToContract(packPaid, { requestId })),
+    );
+  }
 
   // 2) Read header. Hono normalizes header names to lower-case lookup keys.
   const rawHeader = c.req.header("payment-signature");
@@ -187,6 +346,10 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
   // 6) Run the report. Phase 1: /diagnose does NOT allow fixture fallback —
   //    transient provider errors degrade rows to "degraded" rather than fake
   //    fixture substitutes. See PLAN.md "Anti-pattern" list.
+  //
+  //    Sprint B: pass body.tier so Quick tier short-circuits to the template
+  //    synthesizer (no OpenAI call, no token cost) while Standard / Expert
+  //    run the full AI path.
   const { payload: report, providerErrors, detectedApp } =
     await generateReportWithMeta({
       requestId,
@@ -196,6 +359,7 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
       country: body.country,
       keywords: body.keywords,
       allowFixtureFallback: false,
+      ...(body.tier !== undefined ? { tier: body.tier } : {}),
     });
 
   // SLO S1: iOS US/UK/CA /diagnose should have appMetadata=='live'|'cached'
@@ -263,6 +427,9 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
     sniffId: body.sniffId,
     receipt,
     ...report,
+    // x402 path doesn't consume a Sniff Pack credit. Explicit null keeps the
+    // wire shape stable across both payment modes for consumers.
+    packCredit: null,
   };
 
   // 8a) Refresh-sniff marker. Sets a 30-day TTL key keyed by (store, country,

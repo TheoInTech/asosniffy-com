@@ -8,9 +8,11 @@ import {
   type Mock,
 } from "vitest";
 import {
+  buySniffPack,
   deleteWalletSession,
   getQuote,
   getSample,
+  getSniffPackTiers,
   getWalletNonce,
   getWalletSniff,
   getWalletSniffs,
@@ -371,6 +373,8 @@ describe("api/client", () => {
               charCount: 0,
               charLimit: 100,
             },
+            promotionalText: null,
+            androidShortDescription: null,
             shortDescription: {
               current: "",
               recommended: null,
@@ -404,6 +408,130 @@ describe("api/client", () => {
       await expect(
         deleteWalletSession("sniffy_sess_logout"),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe("sniff-pack/* (Sprint A/B)", () => {
+    const VALID_TIERS = {
+      tiers: [
+        {
+          id: "sniff-pack-10",
+          label: "Sniff Pack 10",
+          credits: 10,
+          totalAmount: "4.00",
+          avgPerSniffAmount: "0.40",
+          discountPercent: 20,
+        },
+        {
+          id: "sniff-pack-50",
+          label: "Sniff Pack 50",
+          credits: 50,
+          totalAmount: "15.00",
+          avgPerSniffAmount: "0.30",
+          discountPercent: 40,
+        },
+        {
+          id: "sniff-pack-250",
+          label: "Sniff Pack 250",
+          credits: 250,
+          totalAmount: "50.00",
+          avgPerSniffAmount: "0.20",
+          discountPercent: 60,
+        },
+      ],
+    };
+
+    const VALID_BUY_RESPONSE = {
+      requestId: "req_buy_test",
+      packId: "sniff-pack-10",
+      creditsGranted: 10,
+      newBalance: 10,
+      receipt: {
+        network: "eip155:2910",
+        facilitator: "morph-official",
+        facilitatorMode: "morph-official",
+        amount: "4.00",
+        atomicAmount: "4000000000000000000",
+        asset: "0xEcF966Cc754BC411E1F1106fbb4e343b835E85E4",
+        transactionHash: "0xdeadbeef",
+        settledAt: "2026-05-22T12:00:00.000Z",
+        payer: "0x" + "11".repeat(20),
+      },
+    };
+
+    it("getSniffPackTiers parses a valid 3-tier catalog", async () => {
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => VALID_TIERS,
+      });
+      const res = await getSniffPackTiers();
+      expect(res.tiers).toHaveLength(3);
+      expect(res.tiers.map((t) => t.id)).toEqual([
+        "sniff-pack-10",
+        "sniff-pack-50",
+        "sniff-pack-250",
+      ]);
+    });
+
+    it("buySniffPack throws PaymentRequiredError when server returns 402", async () => {
+      mockFetchOnce({
+        ok: false,
+        status: 402,
+        json: async () => ({
+          ...VALID_UNPAID_402,
+          payment: { ...VALID_UNPAID_402.payment, amount: "4.00" },
+        }),
+      });
+      await expect(
+        buySniffPack({ packId: "sniff-pack-10" }),
+      ).rejects.toBeInstanceOf(PaymentRequiredError);
+    });
+
+    it("buySniffPack returns SniffPackBuyResponse on 200 with valid receipt", async () => {
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => VALID_BUY_RESPONSE,
+      });
+      const res = await buySniffPack(
+        { packId: "sniff-pack-10" },
+        { paymentHeader: "base64signature" },
+      );
+      expect(res.packId).toBe("sniff-pack-10");
+      expect(res.creditsGranted).toBe(10);
+      expect(res.newBalance).toBe(10);
+      expect(res.receipt.facilitatorMode).toBe("morph-official");
+    });
+
+    it("buySniffPack forwards the paymentHeader as PAYMENT-SIGNATURE", async () => {
+      const fetchMock = mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => VALID_BUY_RESPONSE,
+      });
+      await buySniffPack(
+        { packId: "sniff-pack-10" },
+        { paymentHeader: "base64-signed-eip3009-payload" },
+      );
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+      const headers = init.headers as Record<string, string>;
+      expect(headers["PAYMENT-SIGNATURE"]).toBe("base64-signed-eip3009-payload");
+    });
+
+    it("buySniffPack omits PAYMENT-SIGNATURE on the first 402-probing call", async () => {
+      mockFetchOnce({
+        ok: false,
+        status: 402,
+        json: async () => VALID_UNPAID_402,
+      });
+      await expect(
+        buySniffPack({ packId: "sniff-pack-50" }),
+      ).rejects.toBeInstanceOf(PaymentRequiredError);
+      const fetchMock = (globalThis as unknown as { fetch: Mock }).fetch;
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+      const headers = init.headers as Record<string, string>;
+      expect("PAYMENT-SIGNATURE" in headers).toBe(false);
     });
   });
 });

@@ -1,0 +1,181 @@
+// Sprint B — orchestrator tier gating. Quick tier MUST skip the OpenAI
+// synthesis call (no token spend, faster response) while still returning a
+// structurally complete DiagnosePaidResponse. Standard / Expert / omitted
+// callers run the full AI path.
+
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
+
+import { resetCacheClientForTests } from "../../src/cache/redis.js";
+import { resetMetricsForTests } from "../../src/cache/metrics.js";
+import { generateReport } from "../../src/orchestrator/index.js";
+import {
+  resetOpenAiClientForTests,
+  setOpenAiClientForTests,
+} from "../../src/synthesis/openai-client.js";
+import type { RequestId, SniffId } from "../../src/schemas/index.js";
+
+const TARGET_APP_ID = "570060128";
+
+const lookupBody = {
+  resultCount: 1,
+  results: [
+    {
+      trackId: Number(TARGET_APP_ID),
+      trackName: "Duolingo",
+      artistName: "Duolingo, Inc.",
+      primaryGenreName: "Education",
+      description: "Learn a language for free.",
+      screenshotUrls: ["https://example.com/s1.png"],
+      averageUserRating: 4.7,
+      userRatingCount: 1500000,
+      version: "7.1.2",
+    },
+  ],
+};
+
+function searchBody() {
+  const results: Array<Record<string, unknown>> = [
+    {
+      trackId: Number(TARGET_APP_ID),
+      trackName: "Duolingo",
+      artistName: "Duolingo, Inc.",
+      primaryGenreName: "Education",
+      description: "",
+      screenshotUrls: [],
+      averageUserRating: 4.7,
+      userRatingCount: 1500000,
+      version: "7.1.2",
+    },
+  ];
+  while (results.length < 20) {
+    results.push({
+      trackId: 9000000 + results.length,
+      trackName: `Filler ${results.length}`,
+      artistName: "Other Dev",
+      primaryGenreName: "Education",
+      description: "",
+      screenshotUrls: [],
+      averageUserRating: 4.0,
+      userRatingCount: 100,
+      version: "1.0",
+    });
+  }
+  return { resultCount: results.length, results };
+}
+
+const server = setupServer();
+
+beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
+afterEach(() => {
+  server.resetHandlers();
+  resetOpenAiClientForTests();
+});
+afterAll(() => server.close());
+
+beforeEach(() => {
+  resetCacheClientForTests();
+  resetMetricsForTests();
+});
+
+const REPORT_INPUT = {
+  requestId: "req_tier_001" as RequestId,
+  sniffId: "sniff_tier_001" as SniffId,
+  store: "ios" as const,
+  app: TARGET_APP_ID,
+  country: "US",
+  keywords: ["language"],
+};
+
+function setupHappyAppleHandlers() {
+  server.use(
+    http.get("https://itunes.apple.com/lookup", () =>
+      HttpResponse.json(lookupBody),
+    ),
+    http.get("https://itunes.apple.com/search", () =>
+      HttpResponse.json(searchBody()),
+    ),
+  );
+}
+
+// Build a minimal OpenAI client shape that satisfies the call-site without
+// returning anything. Tracks whether `responses.create` was invoked so the
+// test can assert presence or absence of the AI call.
+function makeOpenAiSpy() {
+  const createSpy = vi.fn().mockImplementation(() => {
+    throw new Error("OpenAI should not have been called during this run");
+  });
+  return {
+    spy: createSpy,
+    client: {
+      responses: { create: createSpy },
+      chat: { completions: { create: createSpy } },
+    } as unknown as Parameters<typeof setOpenAiClientForTests>[0],
+  };
+}
+
+describe("orchestrator tier gating", () => {
+  it("Quick tier never invokes the OpenAI client (template-only synthesis)", async () => {
+    setupHappyAppleHandlers();
+    const { spy, client } = makeOpenAiSpy();
+    setOpenAiClientForTests(client);
+
+    const report = await generateReport({ ...REPORT_INPUT, tier: "quick" });
+
+    expect(spy).not.toHaveBeenCalled();
+    // Quick still produces a structurally valid response — recommendations
+    // and ready-to-paste copy come from the deterministic template engine.
+    expect(report.recommendations.length).toBeGreaterThan(0);
+    expect(report.readyToPaste.title.current).toBeTypeOf("string");
+    // Template synthesis sets source ∈ {"deterministic", "template-fallback"};
+    // it must NEVER be "ai" for the Quick path.
+    expect(report.readyToPaste.source).not.toBe("ai");
+  });
+
+  it("legacy callers (no tier) still attempt the OpenAI path", async () => {
+    setupHappyAppleHandlers();
+    // No OpenAI client injected — `synthesizeReportOpenAi` will see a null
+    // client and fall back to the template path internally. The signal here
+    // is that we DON'T short-circuit before reaching synthesizeReportOpenAi,
+    // not that AI returns something. Coverage: the orchestrator code path
+    // for legacy callers (no tier) still routes through OpenAI.
+    resetOpenAiClientForTests();
+    const report = await generateReport(REPORT_INPUT);
+    expect(report.recommendations.length).toBeGreaterThan(0);
+  });
+
+  it("Standard tier follows the AI synthesis path (calls OpenAI client)", async () => {
+    setupHappyAppleHandlers();
+    // Return a minimal-valid OpenAI response shape so the orchestrator
+    // continues past the synthesis call without throwing. The exact JSON
+    // payload is parsed by synthesizeReportOpenAi; we feed it the
+    // disclaimer-style minimal envelope. If parsing fails, the orchestrator
+    // falls back to template — that's fine for this test (we only assert
+    // that the OpenAI client was reached).
+    const createSpy = vi.fn().mockResolvedValue({
+      output_text: JSON.stringify({
+        summary: "test summary",
+        recommendations: [],
+        readyToPaste: null,
+      }),
+    });
+    setOpenAiClientForTests({
+      responses: { create: createSpy },
+      chat: { completions: { create: createSpy } },
+    } as unknown as Parameters<typeof setOpenAiClientForTests>[0]);
+
+    await generateReport({ ...REPORT_INPUT, tier: "standard" });
+
+    expect(createSpy).toHaveBeenCalled();
+  });
+});

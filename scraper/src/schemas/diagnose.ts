@@ -13,6 +13,23 @@ import {
 } from "./shared.js";
 import { AppIdentifier } from "./quote.js";
 
+// Sprint B — tiered diagnose. Tier is an opt-in pricing surface; omitting it
+// preserves the legacy hackathon price ($0.03 base) for existing SDK / CLI /
+// MCP consumers. Tier mapping:
+//   quick    — $0.05 base, rank buckets + 6-factor metadata score,
+//              template-only synthesis (no AI call), no readyToPaste copy.
+//   standard — $0.20 base, full AI synthesis with readyToPaste — closest to
+//              the legacy default feature set.
+//   expert   — $1.00 base, Standard + ASA popularity overlay confirmation,
+//              broader sentiment + screenshot caption hooks (orchestrator
+//              gates land in Sprint B follow-up; pricing ships first).
+//
+// Anonymous comparison framing (see also savingsNote on /quote): even Expert
+// × 10 audits/year is $10 — still beats a typical ASO Pro Annual ($1,699)
+// by ~169×.
+export const DiagnoseTier = z.enum(["quick", "standard", "expert"]);
+export type DiagnoseTier = z.infer<typeof DiagnoseTier>;
+
 // Diagnose request carries the full context inline (sniffId references a prior
 // quote for funnel analytics; store/app/country/keywords let the server run
 // statelessly without a quote-lookup store). Keyword cap is 5 here, while
@@ -23,6 +40,7 @@ export const DiagnoseRequest = z.object({
   app: AppIdentifier,
   country: CountryCode,
   keywords: z.array(z.string().min(1)).min(1).max(5),
+  tier: DiagnoseTier.optional(),
 });
 export type DiagnoseRequest = z.infer<typeof DiagnoseRequest>;
 
@@ -93,9 +111,10 @@ export const Receipt = z.object({
   amount: DecimalAmount,
   atomicAmount: AtomicAmount,
   asset: EvmAddress,
-  // Accept the fixture marker `0xsample<hex>` alongside real `0x<hex>` hashes
-  // so fixture-receipt mode produces a Receipt that still parses.
-  transactionHash: z.string().regex(/^0x(?:sample)?[a-fA-F0-9]+$/),
+  // Accept the fixture marker `0xsample<hex>` and the pack-credit marker
+  // `0xpack<hex>` alongside real `0x<hex>` hashes so non-onchain receipts
+  // (fixture-receipt mode, pack-credit spend) still parse.
+  transactionHash: z.string().regex(/^0x(?:sample|pack)?[a-fA-F0-9]+$/),
   settledAt: z.string().datetime(),
   // Payer wallet address recovered from the facilitator settle response.
   // Lowercased. Optional because fixture-receipt mode has no real payer.
@@ -387,12 +406,30 @@ export const MetadataScore = z.object({
 });
 export type MetadataScore = z.infer<typeof MetadataScore>;
 
+// Sprint B — knowledge citation. Attached to recommendations during the
+// orchestrator's enrichment pass when a synthesis output matches a curated
+// topic from scoring/aso-knowledge.ts. Sources are always primary docs
+// (Apple HIG, Apple Search Ads, App Store Connect Help, Play Store policy);
+// never third-party blog or tool vendor wording. Null/omitted on
+// recommendations that don't pattern-match any topic — better to drop the
+// citation than invent one.
+export const KnowledgeCitation = z.object({
+  topic: z.string().min(1),
+  summary: z.string().min(1),
+  sourceName: z.string().min(1),
+  sourceUrl: z.string().url(),
+  sourceSection: z.string().optional(),
+});
+export type KnowledgeCitation = z.infer<typeof KnowledgeCitation>;
+
 export const RecommendationItem = z.object({
   rank: z.number().int().positive(),
   action: z.string().min(1),
   impact: z.enum(["high", "medium", "low"]),
   effort: z.enum(["high", "medium", "low"]),
   rationale: z.string().min(1),
+  // Optional, default null — back-compat with cached fixtures and pre-B SDK.
+  knowledge: KnowledgeCitation.nullable().default(null),
 });
 export type RecommendationItem = z.infer<typeof RecommendationItem>;
 
@@ -482,5 +519,18 @@ export const DiagnosePaidResponse = z.object({
   // `null` for region-locked listings without releaseDate or when AppRecord
   // couldn't be fetched. Default null keeps every existing fixture parsing.
   targetAppSignals: TargetAppSignals.nullable().default(null),
+  // Sprint B — Sniff Pack credit spend block. Populated when /diagnose ran
+  // against an authenticated SIWE wallet with a positive Pack balance. The
+  // associated Receipt has facilitatorMode="pack-credit" and amount="0.00"
+  // — no on-chain settlement. Null/omitted for x402-paid runs and legacy
+  // callers preserves backward compatibility with cached fixtures.
+  packCredit: z
+    .object({
+      wallet: EvmAddress,
+      creditsConsumed: z.number().int().positive(),
+      balanceRemaining: z.number().int().nonnegative(),
+    })
+    .nullable()
+    .default(null),
 });
 export type DiagnosePaidResponse = z.infer<typeof DiagnosePaidResponse>;

@@ -37,6 +37,8 @@ describe("ReadyToPaste", () => {
           }),
           subtitle: field(),
           keywordsField: field(),
+          promotionalText: null,
+          androidShortDescription: null,
           shortDescription: field(),
           source: "deterministic",
         })}
@@ -62,6 +64,8 @@ describe("ReadyToPaste", () => {
           }),
           subtitle: field(),
           keywordsField: field(),
+          promotionalText: null,
+          androidShortDescription: null,
           shortDescription: field(),
           source: "deterministic",
         })}
@@ -87,6 +91,8 @@ describe("ReadyToPaste", () => {
           }),
           subtitle: field(),
           keywordsField: field(),
+          promotionalText: null,
+          androidShortDescription: null,
           shortDescription: field(),
           source: "ai",
         })}
@@ -105,6 +111,8 @@ describe("ReadyToPaste", () => {
           title: field(),
           subtitle: field(),
           keywordsField: field(),
+          promotionalText: null,
+          androidShortDescription: null,
           shortDescription: field(),
           source: "ai",
         })}
@@ -121,6 +129,8 @@ describe("ReadyToPaste", () => {
           title: field(),
           subtitle: field(),
           keywordsField: field(),
+          promotionalText: null,
+          androidShortDescription: null,
           shortDescription: field({
             current: "",
             recommended: "Tally: pickleball and scoring for clubs.",

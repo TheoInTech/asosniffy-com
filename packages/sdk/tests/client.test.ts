@@ -46,6 +46,13 @@ const QUOTE_FIXTURE = {
       provenance: "live" as const,
     },
   },
+  savingsNote: {
+    message:
+      "This sniff: $0.04 USDC. Typical ASO subscription: $59/month (or $589/year). Pay only when you sniff — no subscription, no seats, no card on file.",
+    estimatedSniffCost: "0.04",
+    typicalSubscriptionMonthlyUSD: 59,
+    typicalSubscriptionAnnualUSD: 589,
+  },
   next: { paidEndpoint: "/api/v1/aso/diagnose" },
 };
 

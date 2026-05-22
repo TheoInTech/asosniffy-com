@@ -1,5 +1,6 @@
 import { env } from "../env.js";
 import type {
+  DiagnoseTier,
   Pricing,
   PricingBreakdownItem,
   SavingsNote,
@@ -18,6 +19,41 @@ const PRICE_PER_KEYWORD_CENTS = 1n;
 const PRICE_PER_ADDITIONAL_COUNTRY_CENTS = 1n;
 const PRICE_COMPETITOR_SHALLOW_CENTS = 2n;
 const PRICE_COMPETITOR_DEEP_CENTS = 5n;
+
+// Sprint B — tier-aware base prices. Quick is intentionally below the legacy
+// hackathon base because Quick omits AI synthesis and readyToPaste. Standard
+// and Expert price up to recover the AI cost plus margin. Omitting tier
+// (legacy path) preserves the $0.03 base for back-compat with existing SDK /
+// CLI / MCP consumers — tier is an opt-in.
+const PRICE_TIER_QUICK_BASE_CENTS = 5n;
+const PRICE_TIER_STANDARD_BASE_CENTS = 20n;
+const PRICE_TIER_EXPERT_BASE_CENTS = 100n;
+
+function baseCentsFor(tier: DiagnoseTier | undefined): bigint {
+  switch (tier) {
+    case "quick":
+      return PRICE_TIER_QUICK_BASE_CENTS;
+    case "standard":
+      return PRICE_TIER_STANDARD_BASE_CENTS;
+    case "expert":
+      return PRICE_TIER_EXPERT_BASE_CENTS;
+    default:
+      return PRICE_BASE_CENTS;
+  }
+}
+
+function baseLabelFor(tier: DiagnoseTier | undefined): string {
+  switch (tier) {
+    case "quick":
+      return "base diagnosis (quick)";
+    case "standard":
+      return "base diagnosis (standard)";
+    case "expert":
+      return "base diagnosis (expert)";
+    default:
+      return "base diagnosis";
+  }
+}
 
 // Sprint A — refresh-sniff discount. When the same (store, country, appId)
 // has been diagnosed within the last 30 days, the next /diagnose price drops
@@ -120,6 +156,29 @@ export function listSniffPackQuotes(): SniffPackQuote[] {
   }));
 }
 
+// Build a Pricing object for a Sniff Pack purchase. Mirrors the Pricing shape
+// used by /quote and /diagnose so the same buildPaymentRequirements() builder
+// can produce an x402 402-style offer for pack purchases. Single-line
+// breakdown (the whole pack is one line) with no add-ons.
+export function buildPackPricing(packId: SniffPackId): Pricing {
+  const pack = getSniffPack(packId);
+  if (!pack) {
+    throw new Error(`Unknown sniff pack id: ${packId}`);
+  }
+  return {
+    currency: "USDC",
+    network: networkSlug(env.MORPH_NETWORK),
+    estimatedTotal: formatCents(pack.totalCents),
+    breakdown: [
+      {
+        label: `${pack.label} (${pack.credits} sniffs)`,
+        amount: formatCents(pack.totalCents),
+      },
+    ],
+    discounts: [],
+  };
+}
+
 export type CompetitorDepth = "shallow" | "deep";
 
 export interface ComputePricingInput {
@@ -132,6 +191,10 @@ export interface ComputePricingInput {
   // surfaced as a positive-amount line item under pricing.discounts. Set by
   // the route layer when it observes a recent /diagnose for the same tuple.
   refreshDiscount?: boolean;
+  // Sprint B — diagnose tier. Optional opt-in; omitting it preserves the
+  // legacy $0.03 base for back-compat. See baseCentsFor() / baseLabelFor()
+  // and the DiagnoseTier enum in schemas/diagnose.ts.
+  tier?: DiagnoseTier;
 }
 
 // Format an integer cents value as a fixed-2-decimal string ("50" -> "0.50").
@@ -151,7 +214,10 @@ export function computePricing(input: ComputePricingInput): Pricing {
   const additionalCountries = countries.length > 1 ? BigInt(countries.length - 1) : 0n;
 
   const breakdown: PricingBreakdownItem[] = [
-    { label: "base diagnosis", amount: formatCents(PRICE_BASE_CENTS) },
+    {
+      label: baseLabelFor(input.tier),
+      amount: formatCents(baseCentsFor(input.tier)),
+    },
   ];
 
   if (keywordCount > 0n) {

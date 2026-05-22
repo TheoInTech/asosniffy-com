@@ -32,6 +32,12 @@ const VARIANTS: Record<FacilitatorMode, Variant> = {
     tooltip:
       "Primary Morph facilitator was unavailable; the request settled via the configured self-hosted fallback.",
   },
+  "pack-credit": {
+    label: "Paid with Sniff Pack credit",
+    tint: "bg-sniffy-teal text-sniffy-ink",
+    tooltip:
+      "This diagnose was paid by decrementing the connected wallet's Sniff Pack balance. No on-chain settlement this call — the receipt carries amount=0.00 and a synthetic 0xpack… hash. The pack itself was purchased earlier via /api/v1/aso/sniff-pack/buy with a real x402 settle.",
+  },
 };
 
 export function X402Mode({ mode, isFixtureHash, className }: Props) {

@@ -5,6 +5,9 @@ import {
   type QuoteRequest,
   QuoteResponse,
   SampleResponse,
+  type SniffPackBuyRequest,
+  SniffPackBuyResponse,
+  SniffPackTiersResponse,
   WalletNonceResponse,
   WalletSessionResponse,
   WalletSniffsResponse,
@@ -240,6 +243,34 @@ export async function getSample(options: RequestOptions = {}) {
   return getJSON(
     "/api/v1/aso/sample",
     (raw) => SampleResponse.parse(raw),
+    options,
+  );
+}
+
+// ---------- sniff-pack/* (prepaid credit purchase + balance) ----------
+
+// Public pack catalog — no auth, no payment. Used by the landing's
+// SniffPackReveal to render up-to-date prices without hard-coding them.
+export async function getSniffPackTiers(options: RequestOptions = {}) {
+  return getJSON(
+    "/api/v1/aso/sniff-pack/tiers",
+    (raw) => SniffPackTiersResponse.parse(raw),
+    options,
+  );
+}
+
+// Pack purchase. Same x402 402-retry shape as postDiagnose — the postJSON
+// helper already throws PaymentRequiredError carrying the unpaid offer; the
+// caller signs via buildPaymentHeader and re-calls with `paymentHeader`.
+// Success returns SniffPackBuyResponse with newBalance.
+export async function buySniffPack(
+  req: SniffPackBuyRequest,
+  options: RequestOptions = {},
+) {
+  return postJSON(
+    "/api/v1/aso/sniff-pack/buy",
+    req,
+    (raw) => SniffPackBuyResponse.parse(raw),
     options,
   );
 }

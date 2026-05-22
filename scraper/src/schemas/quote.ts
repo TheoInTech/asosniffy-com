@@ -22,11 +22,19 @@ export const AppIdentifier = z.union([
 ]);
 export type AppIdentifier = z.infer<typeof AppIdentifier>;
 
+// Sprint B — tier mirrors the DiagnoseTier enum on diagnose.ts so callers can
+// preview the tiered price via /quote before committing the wallet step. Kept
+// here (not in shared.ts) to avoid a forward import; the union is small and
+// the diagnose schema validates against the same literal set.
+export const QuoteTier = z.enum(["quick", "standard", "expert"]);
+export type QuoteTier = z.infer<typeof QuoteTier>;
+
 export const QuoteRequest = z.object({
   store: Store,
   app: AppIdentifier,
   country: CountryCode,
   keywords: z.array(z.string().min(1)).min(1).max(10),
+  tier: QuoteTier.optional(),
 });
 export type QuoteRequest = z.infer<typeof QuoteRequest>;
 

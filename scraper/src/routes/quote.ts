@@ -56,6 +56,7 @@ quoteRoute.post("/", validateBody(QuoteRequest), async (c) => {
     countries: [body.country],
     currency: "USDC",
     refreshDiscount,
+    ...(body.tier !== undefined ? { tier: body.tier } : {}),
   });
 
   const coverage = buildCoverage({
