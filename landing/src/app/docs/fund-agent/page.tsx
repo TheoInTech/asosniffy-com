@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { TutorialStep } from "@/components/Docs/TutorialStep";
 import { CodeBlock } from "@/components/Docs/CodeBlock";
 import { Callout } from "@/components/Docs/Callout";
 import { getActiveMorphNetwork, MORPH_HOODI, MORPH_MAINNET } from "@/lib/morph-urls";
+
+const BITGET_REFERRAL_URL =
+  "https://www.bitget.com/en/referral/register?from=referral&clacCode=9TB6K2NK";
 
 export const metadata: Metadata = {
   title: "Fund your AI agent — Sniffy",
@@ -126,9 +130,60 @@ export default function FundAgentPage() {
 
           <TutorialStep n={3} title="Fund the EOA on Morph Mainnet">
             <p>
-              Mainnet is the path that actually settles today. Bridge a small
-              amount of USDC to your fresh address — $0.50 covers dozens of
-              diagnose calls.
+              Mainnet is the path that actually settles today. $0.50 of USDC
+              on Morph covers dozens of diagnose calls.
+            </p>
+
+            <p className="mt-4 font-semibold text-sniffy-ink">
+              Fastest path: buy USDC on Bitget
+            </p>
+            <p>
+              Bitget lists Morph natively, so USDC withdrawals land directly
+              on your agent&apos;s Morph Mainnet address — no L1↔L2 bridging
+              required.
+            </p>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>
+                Sign up or{" "}
+                <Link
+                  href={BITGET_REFERRAL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono underline decoration-sniffy-ink underline-offset-2 hover:text-sniffy-warn"
+                >
+                  log in
+                </Link>{" "}
+                to Bitget.
+              </li>
+              <li>Buy USDC on the Bitget spot market.</li>
+              <li>
+                Withdraw → pick{" "}
+                <span className="font-mono">Morph Mainnet</span> as the
+                network → paste your agent EOA address → confirm. The
+                withdrawal will show up on the{" "}
+                <Link
+                  href={MORPH_MAINNET.explorer}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono underline decoration-sniffy-ink underline-offset-2 hover:text-sniffy-warn"
+                >
+                  Morph explorer
+                </Link>{" "}
+                once it settles.
+              </li>
+            </ol>
+            <a
+              href={BITGET_REFERRAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 border-2 border-sniffy-ink bg-sniffy-paper px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.18em] text-sniffy-ink shadow-ink-tab-sm transition-transform hover:bg-sniffy-yellow hover:-translate-x-[2px] hover:-translate-y-[2px] focus:outline-none focus-visible:ring-2 focus-visible:ring-sniffy-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-sniffy-paper motion-reduce:transition-none motion-reduce:hover:translate-x-0 motion-reduce:hover:translate-y-0"
+            >
+              Get USDC on Bitget
+              <ExternalLink size={12} aria-hidden />
+            </a>
+
+            <p className="mt-6 font-semibold text-sniffy-ink">
+              Or bridge from L1
             </p>
             <ul className="list-disc space-y-1 pl-5">
               <li>

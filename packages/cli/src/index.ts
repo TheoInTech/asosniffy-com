@@ -9,9 +9,11 @@ import {
 } from "@sniffy/sdk";
 import { loadWallet, WalletConfigError } from "./wallet.js";
 import { formatPaid, formatQuote, formatSample } from "./format.js";
+import pkg from "../package.json" with { type: "json" };
 
 const DEFAULT_BASE_URL =
   process.env["SNIFFY_BASE_URL"] ?? "https://api.sniffy.io";
+const CLIENT_ID = `@sniffy/cli@${pkg.version}`;
 
 function parseList(raw: string): string[] {
   return raw
@@ -35,7 +37,7 @@ const program = new Command()
   .description(
     "Sniffy — pay-per-sniff ASO intelligence (x402 on Morph Hoodi). Quote/diagnose/sample.",
   )
-  .version("0.0.0")
+  .version(pkg.version)
   .option("--base-url <url>", "Override the Sniffy API base URL", DEFAULT_BASE_URL)
   .option("--json", "Print the raw JSON response (no formatting)", false);
 
@@ -50,7 +52,7 @@ program
   .action(async () => {
     const { baseUrl, json } = getCommonOpts();
     try {
-      const sniffy = createSniffy({ baseUrl });
+      const sniffy = createSniffy({ baseUrl, clientId: CLIENT_ID });
       const result = await sniffy.sample();
       if (json) {
         process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -97,7 +99,7 @@ program
   .action(async (app: string, opts: QuoteCmdOpts) => {
     const { baseUrl, json } = getCommonOpts();
     try {
-      const sniffy = createSniffy({ baseUrl });
+      const sniffy = createSniffy({ baseUrl, clientId: CLIENT_ID });
       const input: QuoteRequest = {
         store: opts.store,
         app,
@@ -163,7 +165,7 @@ program
       throw err;
     }
     try {
-      const sniffy = createSniffy({ baseUrl, signer });
+      const sniffy = createSniffy({ baseUrl, signer, clientId: CLIENT_ID });
       const input: DiagnoseRequest = {
         sniffId: opts.sniffId as DiagnoseRequest["sniffId"],
         store: opts.store,

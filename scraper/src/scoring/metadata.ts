@@ -1,11 +1,27 @@
 import type { AppRecord } from "../providers/apple/types.js";
-import type { DetectedApp, Provenance } from "../schemas/index.js";
+import type { DetectedApp, Provenance, RankBucket } from "../schemas/index.js";
 import { classifyKeywordMatch } from "./keyword-match.js";
+
+// Minimal shape needed by `scoreKeywordRankings`. Accepts any record with a
+// rankBucket — works for both schema `KeywordDiagnosisItem` and the internal
+// `keywordRanks` rows produced upstream of diagnosis.
+export interface RankedKeywordInput {
+  rankBucket: RankBucket;
+}
 
 // Deterministic ASO metadata scorer.
 //
-// Weights from docs/04-scoring-and-synthesis.md §04.p1 + ASO orthodoxy:
-//   title 35 / subtitle 30 / keywordsField 25 / description 10.
+// Weighted 6-factor Score Card. Weights sum to 100; `overall` is the
+// weighted sum of per-factor subscores. Schema mirror lives in
+// `schemas/diagnose.ts` (`METADATA_SCORE_WEIGHTS`) — keep the two in sync.
+//
+//   title 20 / subtitle 15 / keywords 20 / screenshots 10 /
+//   ratingsAndReviews 15 / keywordRankings 20.
+//
+// `screenshots` is a misnomer preserved for SDK back-compat: it carries the
+// description-density heuristic, not screenshot caption analysis. Sniffy
+// doesn't extract caption text — Apple's semantic search does index it, so
+// the field's `notes` calls that out and suggests OCR.
 //
 // Apple field caps (referenced by length checks below):
 //   • title       30 chars
@@ -20,10 +36,12 @@ import { classifyKeywordMatch } from "./keyword-match.js";
 // 04.p3) can verbalize the deterministic findings without re-deriving them.
 
 export const METADATA_WEIGHTS = {
-  title: 0.35,
-  subtitle: 0.3,
-  keywordsField: 0.25,
+  title: 0.2,
+  subtitle: 0.15,
+  keywordsField: 0.2,
   description: 0.1,
+  ratingsAndReviews: 0.15,
+  keywordRankings: 0.2,
 } as const;
 
 export const APPLE_CAPS = {
@@ -62,18 +80,41 @@ function recordReason(
   if (polarity === "negative") state.negativeReasons.push(reason);
 }
 
+// Phase H — per-keyword description density. Computed alongside the
+// description subscore; surfaced as a sibling so the synthesis layer can
+// generate "Lift mentions of X in description from N to M" recommendations
+// without re-tokenizing. Target is 1 exact-phrase mention per ~250 chars
+// (asomobile.net 2026). Below target = "under" (under-using description
+// as a human-readability signal); at = within tolerance; over = density
+// past the Android spam threshold of 5 mentions.
+export interface DescriptionDensityRow {
+  keyword: string;
+  count: number;
+  charsPerMention: number | null;
+  target: number;
+  polarity: "under" | "at" | "over";
+}
+
 export interface MetadataScoringResult {
   overall: number;
   title: MetadataSubscoreInternal;
   subtitle: MetadataSubscoreInternal;
   keywordsField: MetadataSubscoreInternal;
   description: MetadataSubscoreInternal;
+  ratingsAndReviews: MetadataSubscoreInternal;
+  keywordRankings: MetadataSubscoreInternal;
+  descriptionDensity: DescriptionDensityRow[];
 }
 
 export interface ScoreMetadataInput {
   app: AppRecord | null;
   detectedApp: DetectedApp;
   keywords: readonly string[];
+  // Optional — when provided, the keywordRankings subscore reflects actual
+  // rank coverage. Absent during cold-start (fixture path or when no rank
+  // data is fetched yet); `scoreMetadataFull` defaults to a "no data"
+  // subscore in that case.
+  rankedKeywords?: readonly RankedKeywordInput[];
 }
 
 export function scoreMetadata(input: ScoreMetadataInput): MetadataScoringResult {
@@ -93,23 +134,84 @@ export function scoreMetadata(input: ScoreMetadataInput): MetadataScoringResult 
     subtitle: scoreSubtitle(subtitle, primaryKeyword, lowercased, subtitleProvenance),
     keywordsField: scoreKeywordsField(lowercased, title, subtitle),
     description: scoreDescription(description, lowercased),
+    ratingsAndReviews: scoreRatingsAndReviews(input.app),
+    keywordRankings: scoreKeywordRankings(input.rankedKeywords ?? []),
+    descriptionDensity: computeDescriptionDensity(description, lowercased),
     overall: 0, // populated below
   } as MetadataScoringResult & { overall: number };
 }
 
+// Phase H — count per-keyword exact-phrase mentions in the description and
+// classify each as under/at/over relative to the 1-per-250-chars target.
+// Used by the synthesis layer to generate "Lift mentions of X in
+// description from N to M" recommendations. Android: max 5 = spam
+// threshold (per appdna.ai 2026). Sniffy doesn't currently know the
+// store (iOS vs Android) at this layer; we apply the conservative iOS
+// rule (1-per-250) and use 5+ as the over-threshold regardless. Future
+// Tier 3 can pass `store` through and apply per-platform rules.
+const DESCRIPTION_DENSITY_CHARS_PER_MENTION = 250;
+const DESCRIPTION_DENSITY_SPAM_THRESHOLD = 5;
+
+export function computeDescriptionDensity(
+  description: string,
+  keywords: readonly string[],
+): DescriptionDensityRow[] {
+  const normalized = description.toLowerCase();
+  const len = description.length;
+  // Target floor: at least 1 mention even for short descriptions.
+  const target = Math.max(1, Math.floor(len / DESCRIPTION_DENSITY_CHARS_PER_MENTION));
+
+  return keywords
+    .map((rawKeyword) => {
+      const keyword = rawKeyword.toLowerCase().trim();
+      if (keyword.length === 0) return null;
+      const count = countExactPhrase(normalized, keyword);
+      const charsPerMention = count > 0 ? Math.floor(len / count) : null;
+
+      let polarity: DescriptionDensityRow["polarity"];
+      if (count >= DESCRIPTION_DENSITY_SPAM_THRESHOLD && count > target) {
+        polarity = "over";
+      } else if (count < target) {
+        polarity = "under";
+      } else {
+        polarity = "at";
+      }
+
+      return { keyword, count, charsPerMention, target, polarity };
+    })
+    .filter((row): row is DescriptionDensityRow => row !== null);
+}
+
+function countExactPhrase(haystack: string, needle: string): number {
+  if (needle.length === 0) return 0;
+  let count = 0;
+  let index = 0;
+  while ((index = haystack.indexOf(needle, index)) !== -1) {
+    count += 1;
+    index += needle.length;
+  }
+  return count;
+}
+
 // Compose overall after the subscores so the weight constants stay in one
 // place. Exposed separately so tests can verify the math independently.
+// Schema names: `description` here maps to the schema's `screenshots`
+// field (back-compat); `keywordsField` maps to the schema's `keywords`.
 export function composeOverall(parts: {
   title: MetadataSubscoreInternal;
   subtitle: MetadataSubscoreInternal;
   keywordsField: MetadataSubscoreInternal;
   description: MetadataSubscoreInternal;
+  ratingsAndReviews: MetadataSubscoreInternal;
+  keywordRankings: MetadataSubscoreInternal;
 }): number {
   const raw =
     parts.title.score * METADATA_WEIGHTS.title +
     parts.subtitle.score * METADATA_WEIGHTS.subtitle +
     parts.keywordsField.score * METADATA_WEIGHTS.keywordsField +
-    parts.description.score * METADATA_WEIGHTS.description;
+    parts.description.score * METADATA_WEIGHTS.description +
+    parts.ratingsAndReviews.score * METADATA_WEIGHTS.ratingsAndReviews +
+    parts.keywordRankings.score * METADATA_WEIGHTS.keywordRankings;
   return Math.round(clamp(raw, 0, 100));
 }
 
@@ -120,6 +222,117 @@ export function scoreMetadataFull(input: ScoreMetadataInput): MetadataScoringRes
   return {
     ...partial,
     overall: composeOverall(partial),
+  };
+}
+
+// Tiered rating + count rubric. Apple weighs both — a 4.9 with 30 ratings
+// is brittle; a 4.2 with 50k is durable. Tiers gate on both axes so the
+// score reflects the harder constraint. `null` app or zero count returns
+// score 0 with an honest "unavailable" note; never fabricated.
+export function scoreRatingsAndReviews(
+  app: AppRecord | null,
+): MetadataSubscoreInternal {
+  if (!app || app.ratingsSummary.count === 0) {
+    return {
+      score: 0,
+      reasons: ["Ratings data unavailable for this listing."],
+      negativeReasons: [],
+    };
+  }
+  const { average, count } = app.ratingsSummary;
+  let score = 0;
+  let reason = "";
+  let polarity: "negative" | "positive" | "neutral" = "neutral";
+
+  if (average >= 4.7 && count >= 1000) {
+    score = 95;
+    reason = `${average.toFixed(1)}★ across ${count.toLocaleString()} ratings — excellent social proof.`;
+    polarity = "positive";
+  } else if (average >= 4.5 && count >= 500) {
+    score = 80;
+    reason = `${average.toFixed(1)}★ across ${count.toLocaleString()} ratings — strong social proof.`;
+    polarity = "positive";
+  } else if (average >= 4.0 && count >= 100) {
+    score = 60;
+    reason = `${average.toFixed(1)}★ across ${count.toLocaleString()} ratings — solid but room to grow.`;
+    polarity = "neutral";
+  } else if (average >= 3.5 || count < 100) {
+    score = 35;
+    reason =
+      count < 100
+        ? `Only ${count} ratings — too thin a base for Apple to weight heavily.`
+        : `${average.toFixed(1)}★ — below the 4.0 threshold most categories expect.`;
+    polarity = "negative";
+  } else {
+    score = 15;
+    reason = `${average.toFixed(1)}★ across ${count.toLocaleString()} ratings — a discoverability drag.`;
+    polarity = "negative";
+  }
+
+  const state: ReasonState = { reasons: [], negativeReasons: [] };
+  recordReason(state, reason, polarity);
+  return {
+    score,
+    reasons: state.reasons,
+    negativeReasons: state.negativeReasons,
+  };
+}
+
+// Coverage-based rubric. Each submitted keyword contributes by its rank
+// bucket: top10 = full credit, 11-30 = half, 31-50 = quarter; 51+ counts
+// as zero so the score reflects findable ranks, not aspirational ones.
+// Final = (weighted sum / submitted count) × 100. `not_found` keywords
+// pull the score down; that's the honest signal.
+const RANK_BUCKET_WEIGHTS: Record<RankBucket, number> = {
+  "1-10": 1.0,
+  "11-30": 0.5,
+  "31-50": 0.25,
+  "51-100": 0.0,
+  "100+": 0.0,
+  not_found: 0.0,
+};
+
+export function scoreKeywordRankings(
+  ranks: readonly RankedKeywordInput[],
+): MetadataSubscoreInternal {
+  if (ranks.length === 0) {
+    return {
+      score: 0,
+      reasons: ["Keyword ranking data unavailable."],
+      negativeReasons: [],
+    };
+  }
+  const buckets = { top10: 0, top30: 0, top50: 0, beyond: 0, notFound: 0 };
+  let weighted = 0;
+  for (const item of ranks) {
+    weighted += RANK_BUCKET_WEIGHTS[item.rankBucket];
+    if (item.rankBucket === "1-10") buckets.top10 += 1;
+    else if (item.rankBucket === "11-30") buckets.top30 += 1;
+    else if (item.rankBucket === "31-50") buckets.top50 += 1;
+    else if (item.rankBucket === "not_found") buckets.notFound += 1;
+    else buckets.beyond += 1;
+  }
+  const score = Math.round((weighted / ranks.length) * 100);
+
+  const state: ReasonState = { reasons: [], negativeReasons: [] };
+  const summary = `${buckets.top10} in top 10, ${buckets.top30} in 11-30, ${buckets.top50} in 31-50, ${buckets.beyond + buckets.notFound} beyond / not found.`;
+  if (score >= 70) {
+    recordReason(state, `${summary} Strong rank coverage.`, "positive");
+  } else if (score >= 40) {
+    recordReason(state, `${summary} Mid-pack — push for top-10 on the strongest keywords.`, "neutral");
+  } else if (buckets.notFound > 0) {
+    recordReason(
+      state,
+      `${summary} ${buckets.notFound} keyword${buckets.notFound === 1 ? "" : "s"} not surfacing at all — biggest single lever.`,
+      "negative",
+    );
+  } else {
+    recordReason(state, `${summary} Coverage is thin — most rankings sit below page 1.`, "negative");
+  }
+  return {
+    score: clamp(score, 0, 100),
+    reasons: state.reasons,
+    negativeReasons: state.negativeReasons,
   };
 }
 

@@ -28,6 +28,7 @@ import { recordSlo, SLO_METRICS } from "../observability/slo.js";
 import { getCurrentAudit } from "../observability/audit.js";
 import { recordSniff } from "../wallet/history.js";
 import { tryNormalizeAddress } from "../lib/address.js";
+import { clampReportToContract } from "../lib/clamp-report.js";
 
 // Duck-type fallback for cross-realm Error identification: in tests, vitest
 // can hand the route a FacilitatorError instance from a different module
@@ -243,12 +244,16 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
       : "morph-official";
   }
 
-  // 8) Assemble receipt + final paid response.
+  // 8) Assemble receipt + final paid response. We always pass auth.from as
+  //    payerFallback so the wallet-history index can be written even when
+  //    Morph's facilitator omits payer from /v2/settle (it's optional in their
+  //    response shape). settleResponse.payer still wins when present.
   const receipt = assembleReceipt({
     mode,
     pricing,
     sniffId: body.sniffId,
     requestId,
+    payerFallback: auth.from,
     ...(settleResponse !== undefined ? { settleResponse } : {}),
   });
 
@@ -300,7 +305,36 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
           })}\n`,
         );
       }
+    } else {
+      // receipt.payer was present but failed checksum/format validation. Don't
+      // throw — the user paid and the response goes out fine — but surface it
+      // so a malformed-payer regression can't sneak in silently.
+      process.stderr.write(
+        `${JSON.stringify({
+          ts: new Date().toISOString(),
+          level: "warn",
+          requestId,
+          event: "wallet_history_skipped",
+          reason: "payer_malformed",
+          rawPayer: receipt.payer,
+          sniffId: body.sniffId,
+        })}\n`,
+      );
     }
+  } else {
+    // History-index write skipped. Logged so we can tell at a glance whether
+    // the index is being populated (the original bug was a silent skip when
+    // Morph's facilitator omitted payer and we had no fallback).
+    process.stderr.write(
+      `${JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "warn",
+        requestId,
+        event: "wallet_history_skipped",
+        reason: env.WALLET_HISTORY_ENABLED ? "payer_missing" : "history_disabled",
+        sniffId: body.sniffId,
+      })}\n`,
+    );
   }
 
   // x402 V2 spec: PAYMENT-RESPONSE header carries Base64(JSON) of the
@@ -320,5 +354,12 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
     );
   }
 
-  return c.json(DiagnosePaidResponse.parse(paid));
+  // Response-boundary sanitizer. Payment is settled on Morph mainnet and
+  // non-refundable; the paying user should never see a 400 because some
+  // producer drifted past a `.min()/.max()` schema constraint. The
+  // sanitizer clamps the few constrained numeric fields back into range
+  // and emits a structured warn-log per clamp so any drift is observable.
+  // See scraper/src/lib/clamp-report.ts.
+  const sanitized = clampReportToContract(paid, { requestId });
+  return c.json(DiagnosePaidResponse.parse(sanitized));
 });

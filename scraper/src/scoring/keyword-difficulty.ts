@@ -53,7 +53,7 @@ export interface KeywordDifficultyBreakdown {
   normalizedAppCount: number;
   rawDifficulty: number;
   difficultyScore: number; // 1..100, clamped
-  minDifficultyScore: number; // 0..100, weakest of the top group
+  minDifficultyScore: number; // 1..100, clamped, weakest of the top group
 }
 
 // --- Tunables (upstream constants, preserved verbatim) ---
@@ -171,10 +171,12 @@ export function computeKeywordDifficulty(
     normalizedAppCount,
     rawDifficulty,
     difficultyScore: clamp(rawDifficulty * 100, 1, 100),
-    // Upstream returns minCompetitive*100 unclamped. We mirror that — a
-    // weakest-top-app score of 0 honestly says "nobody in the top group has
-    // any signal", which is useful diagnostic information.
-    minDifficultyScore: clamp(minCompetitive * 100, 0, 100),
+    // Floor at 1 to match the public API contract:
+    // DiagnosePaidResponse.keywordDiagnosis[].minDifficulty is
+    // z.number().int().min(1).max(100). A "no signal in the top group" is
+    // already communicated to consumers via `difficultyIsFallback` + `null`,
+    // never via a sub-1 minDifficulty.
+    minDifficultyScore: clamp(minCompetitive * 100, 1, 100),
   };
 }
 

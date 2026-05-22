@@ -9,6 +9,7 @@ import type {
 import {
   APPLE_CAPS,
   type CompetitorAnalysis,
+  type DescriptionDensityRow,
   type KeywordDiagnosis,
   type MetadataScoringResult,
 } from "../scoring/index.js";
@@ -18,11 +19,21 @@ import {
   impactForAction,
 } from "./deterministic-prose.js";
 
-// Google Play short-description cap doesn't match this number, but the
-// existing scoring + UI treat the `shortDescription` slot as a punchy
-// 1-2 sentence summary closer to iOS promotional text. Kept at 240 to
-// preserve pre-refactor behavior; revisit when Android scraping is wired.
+// Legacy `shortDescription` slot — 240 chars, doesn't map to either real
+// platform field but kept for back-compat with existing SDK / CLI / MCP
+// consumers. Tier 2 (Phase F) introduces the two real fields below.
 export const SHORT_DESCRIPTION_CAP = 240;
+
+// Apple App Store promotional text. 170 chars, sits above the description
+// on iOS, refreshable without a new App Review submission. Per the 2026
+// ASO references this is one of the top-3 metadata levers founders have
+// (right after title + subtitle).
+export const PROMOTIONAL_TEXT_CAP = 170;
+
+// Google Play short description. 80 chars, indexed by Play search. The
+// canonical Android counterpart to iOS promotional text — different rules,
+// distinct value.
+export const ANDROID_SHORT_DESCRIPTION_CAP = 80;
 
 // Deterministic template fallback synthesizer.
 //
@@ -150,6 +161,10 @@ function synthesizeDisclaimerOutput(input: SynthesisInput): SynthesisOutput {
         changeReason: disclaimerReason,
         charLimit: SHORT_DESCRIPTION_CAP,
       }),
+      // Phase F: sample/disclaimer paths get null for the two new fields —
+      // we don't fabricate promo text or short-desc copy over fixture data.
+      promotionalText: null,
+      androidShortDescription: null,
       source: "template-fallback",
     },
   };
@@ -318,10 +333,61 @@ function buildRecommendations(
   return items.slice(0, 5);
 }
 
+// Phase H — "Lift mentions of X in description" recommendation card.
+// Fires once per diagnose run with the worst-under-density user keyword
+// (count vs target). Capped at one card to avoid drowning out other
+// recommendations; the descriptionDensity[] sibling on the public
+// MetadataScore still surfaces every keyword for UI consumption. Returns
+// null when no keyword is under-target or when description is too short
+// to compute a meaningful target.
+export function buildDescriptionDensityRecommendation(
+  density: readonly DescriptionDensityRow[],
+  userKeywords: readonly string[],
+  nextRank: number,
+): RecommendationItem | null {
+  if (density.length === 0) return null;
+  const userKeywordSet = new Set(
+    userKeywords.map((k) => k.toLowerCase().trim()).filter(Boolean),
+  );
+
+  const underKeywords = density
+    .filter((d) => d.polarity === "under")
+    .filter((d) => userKeywordSet.has(d.keyword))
+    // Prioritize highest target/count gap, then alphabetical for stability.
+    .sort((a, b) => {
+      const gapA = a.target - a.count;
+      const gapB = b.target - b.count;
+      if (gapA !== gapB) return gapB - gapA;
+      return a.keyword.localeCompare(b.keyword);
+    });
+
+  if (underKeywords.length === 0) return null;
+  const worst = underKeywords[0]!;
+  const fromTo =
+    worst.count === 0
+      ? `from 0 to ${worst.target}`
+      : `from ${worst.count} to ${worst.target}`;
+
+  return {
+    rank: nextRank,
+    action: `Lift mentions of "${worst.keyword}" in description ${fromTo}.`,
+    impact: "low",
+    effort: "low",
+    rationale:
+      worst.count === 0
+        ? `The description doesn't mention "${worst.keyword}" at all. At the 2026 target of 1 exact-phrase mention per 250 chars, your description warrants ${worst.target}. On Android the description is indexed for search; on iOS it's scanned by humans for "on-topic" confidence — both reward correct density.`
+        : `Description currently mentions "${worst.keyword}" ${worst.count}× (1 per ${worst.charsPerMention} chars). The 2026 target is 1 per 250 chars, so lift to ${worst.target}× to match the indexed-density sweet spot.`,
+  };
+}
+
 // Pool of keywords we can splice into the listing. Sorted descending by
 // `weight` so callers iterate in best-first order.
 interface OpportunityKeyword {
+  // Lowercased canonical form used for matching + dedup.
   keyword: string;
+  // Original input casing — passed to displayCasing() at splice points so
+  // DUPR-style acronyms aren't flattened to "Dupr".
+  originalKeyword: string;
   origin: "user-keyword" | "competitor-unique";
   weight: number;
   rankBucket?: string;
@@ -331,6 +397,13 @@ interface OpportunityKeyword {
   // ad-hoc at the splice site.
   coverageInTitle: boolean;
   coverageInSubtitle: boolean;
+  // Lifecycle gate — true when the source keyword is `not_found` on an
+  // app that's still seeding. Title / subtitle / promo-text / android
+  // short-desc pickers skip ineligible opportunities; keywords-field
+  // picker still considers them (low-risk slot, high-reward if it ranks).
+  // Without this flag, the readyToPaste layer promotes speculative
+  // not_found keywords to the most valuable real estate on the listing.
+  ineligibleForVisiblePromotion: boolean;
 }
 
 function collectOpportunityKeywords(
@@ -343,13 +416,17 @@ function collectOpportunityKeywords(
     const key = k.keyword.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
+    const ineligible =
+      k.isAppSeeding === true && k.rankBucket === "not_found";
     out.push({
-      keyword: k.keyword,
+      keyword: key,
+      originalKeyword: k.keyword,
       origin: "user-keyword",
       weight: k.intentScore,
       rankBucket: k.rankBucket,
       coverageInTitle: k.coverageInTitle,
       coverageInSubtitle: k.coverageInSubtitle,
+      ineligibleForVisiblePromotion: ineligible,
     });
   }
 
@@ -362,11 +439,17 @@ function collectOpportunityKeywords(
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({
-        keyword: term,
+        keyword: key,
+        originalKeyword: term,
         origin: "competitor-unique",
         weight: 0.5,
         coverageInTitle: false,
         coverageInSubtitle: false,
+        // Competitor-unique terms have no Sniffy rank data for the target
+        // app — promote them only via subtitle (lower-risk visible slot)
+        // and keywords-field. Excluding from title promotion is handled
+        // case-by-case in buildTitleField.
+        ineligibleForVisiblePromotion: false,
       });
     }
   }
@@ -410,18 +493,29 @@ function buildTitleField(args: {
   // brand candidates longest-first so we don't shorten the brand more than
   // necessary. Return the first (opportunity, brand) combo that fits the cap.
   for (const o of opportunities) {
+    // Lifecycle gate (Phase E1): a `not_found` keyword on a seeding listing
+    // is "still seeding," not "high intent." The keyword-diagnosis layer
+    // refuses to declare it dead, and the readyToPaste layer must refuse
+    // to promote it to the most valuable real estate on the listing.
+    // Without this skip the cascade goes: bad title → cascading bad
+    // subtitle → cascading bad keywords-field strip.
+    if (o.ineligibleForVisiblePromotion) continue;
+    // Competitor-unique terms never go in the title — that's the
+    // "Tally — Stars" anti-pattern. Tier 1 stripped brand tokens, but
+    // even legitimate generic competitor coverage (e.g., "social",
+    // "nearby") doesn't belong above the user's own brand-keyword combo.
+    if (o.origin === "competitor-unique") continue;
     if (o.coverageInTitle) continue;
     if (fieldContainsKeyword(currentTitle, o.keyword)) continue;
 
     for (const brand of brands) {
-      const recommended = `${brand} — ${capitalize(o.keyword)}`;
+      const recommended = `${brand} — ${displayCasing(o.keyword, o.originalKeyword)}`;
       if (recommended.length > cap) continue;
       if (recommended.toLowerCase() === currentTitle.toLowerCase()) continue;
 
-      const reason =
-        o.origin === "user-keyword" && o.rankBucket
-          ? `Promotes "${o.keyword}" (rank ${o.rankBucket}) into the title — Apple's heaviest-weighted indexed field.`
-          : `Promotes "${o.keyword}" (competitor coverage you don't carry) into the title.`;
+      const reason = o.rankBucket
+        ? `Promotes "${o.originalKeyword}" (rank ${o.rankBucket}) into the title — Apple's heaviest-weighted indexed field.`
+        : `Promotes "${o.originalKeyword}" into the title — Apple's heaviest-weighted indexed field.`;
 
       return makeField({
         current: currentTitle,
@@ -445,18 +539,38 @@ function buildSubtitleField(args: {
   opportunities: OpportunityKeyword[];
   primaryCategory: string | undefined;
   consumedKeyword: string | null;
+  // Phase E2 — the title text the subtitle picker must dedup against.
+  // Pass `title.recommended ?? currentTitle` so a keyword that ended up in
+  // the rewritten title doesn't ALSO get spliced into the subtitle.
+  // Apple's keyword indexer treats a token in title + subtitle as one rank
+  // signal, not two — duplicating wastes the subtitle's 30-char budget.
+  recommendedOrCurrentTitle: string;
 }): ReadyToPasteField {
   const cap = APPLE_CAPS.subtitle;
-  const { currentSubtitle, opportunities, primaryCategory, consumedKeyword } =
-    args;
+  const {
+    currentSubtitle,
+    opportunities,
+    primaryCategory,
+    consumedKeyword,
+    recommendedOrCurrentTitle,
+  } = args;
   const consumed = consumedKeyword?.toLowerCase() ?? "";
+  // Phase E4 — suffix may be null when the category has no vetted cue.
+  // We then emit subtitle as just the keyword (with brand cue) if that
+  // alone is meaningful; otherwise return null. No "Daily Practice" fluff.
   const suffix = suffixForCategory(primaryCategory);
 
   const candidate = opportunities.find((o) => {
-    if (consumed && o.keyword.toLowerCase() === consumed) return false;
+    if (consumed && o.keyword === consumed) return false;
+    // Phase E1 — same lifecycle gate as title.
+    if (o.ineligibleForVisiblePromotion) return false;
+    // Phase E2 — never duplicate a keyword already in the title.
+    if (o.coverageInTitle) return false;
+    if (fieldContainsKeyword(recommendedOrCurrentTitle, o.keyword)) return false;
     if (o.coverageInSubtitle) return false;
     if (fieldContainsKeyword(currentSubtitle, o.keyword)) return false;
-    const text = `${capitalize(o.keyword)} · ${suffix}`;
+    const display = displayCasing(o.keyword, o.originalKeyword);
+    const text = suffix ? `${display} · ${suffix}` : display;
     return text.length <= cap;
   });
 
@@ -469,7 +583,8 @@ function buildSubtitleField(args: {
     });
   }
 
-  const recommended = `${capitalize(candidate.keyword)} · ${suffix}`;
+  const display = displayCasing(candidate.keyword, candidate.originalKeyword);
+  const recommended = suffix ? `${display} · ${suffix}` : display;
   if (recommended.toLowerCase() === currentSubtitle.toLowerCase()) {
     return makeField({
       current: currentSubtitle,
@@ -479,10 +594,11 @@ function buildSubtitleField(args: {
     });
   }
 
+  const cueClause = suffix ? ", paired with a category cue" : "";
   const reason =
     candidate.origin === "user-keyword" && candidate.rankBucket
-      ? `Promotes "${candidate.keyword}" (rank ${candidate.rankBucket}) into the subtitle, paired with a category cue.`
-      : `Adds "${candidate.keyword}" (competitor coverage) to the subtitle, paired with a category cue.`;
+      ? `Promotes "${candidate.originalKeyword}" (rank ${candidate.rankBucket}) into the subtitle${cueClause}.`
+      : `Adds "${candidate.originalKeyword}" (competitor coverage) to the subtitle${cueClause}.`;
 
   return makeField({
     current: currentSubtitle,
@@ -495,16 +611,24 @@ function buildSubtitleField(args: {
 function buildKeywordsFieldField(args: {
   userKeywords: readonly string[];
   opportunities: OpportunityKeyword[];
-  titleText: string;
-  subtitleText: string;
+  // Phase E5 — strip against the CURRENT visible-field text, not the
+  // recommended rewrites. Two reasons: (a) the keywords-field advice has
+  // to stand on its own (a user who keeps the current title/subtitle and
+  // only adopts this recommendation should still get a coherent listing);
+  // (b) the Apple-dedup recommendation card surfaces title/subtitle dupes
+  // separately, so we don't need to encode the "if you accept the title
+  // rewrite, also drop these" coupling here.
+  currentTitleText: string;
+  currentSubtitleText: string;
 }): ReadyToPasteField {
   const cap = APPLE_CAPS.keywordsField;
-  const { userKeywords, opportunities, titleText, subtitleText } = args;
+  const { userKeywords, opportunities, currentTitleText, currentSubtitleText } =
+    args;
   const current = joinKeywords(userKeywords, cap);
 
   // Recommended set: user keywords + competitor-unique terms not already in
   // title/subtitle. Apple counts visible-field tokens, so we strip those out.
-  const visibleTokens = tokenize(`${titleText} ${subtitleText}`);
+  const visibleTokens = tokenize(`${currentTitleText} ${currentSubtitleText}`);
   const recommendedSet = new Set<string>();
   for (const k of userKeywords) {
     const norm = k.toLowerCase().trim();
@@ -548,12 +672,15 @@ function buildKeywordsFieldField(args: {
 
 function buildShortDescriptionField(args: {
   appName: string;
+  currentTitle: string;
   opportunities: OpportunityKeyword[];
   primaryCategory: string | undefined;
 }): ReadyToPasteField {
   const cap = SHORT_DESCRIPTION_CAP;
-  const { appName, opportunities, primaryCategory } = args;
-  const top = opportunities.slice(0, 2).map((o) => o.keyword.toLowerCase());
+  const { appName, currentTitle, opportunities, primaryCategory } = args;
+  // Phase E1 — only visible-eligible opportunities (skip seeding+not_found).
+  const eligible = opportunities.filter((o) => !o.ineligibleForVisiblePromotion);
+  const top = eligible.slice(0, 2);
 
   if (top.length === 0) {
     return makeField({
@@ -564,14 +691,169 @@ function buildShortDescriptionField(args: {
     });
   }
 
+  // Phase E6 — when appName is a prefix of (or substring of) the current
+  // title, leading with the appName echoes the title and wastes chars.
+  // Collapse to bare keyword copy in that case.
+  const titleLower = currentTitle.toLowerCase();
+  const appLower = appName.toLowerCase();
+  const echoesTitle =
+    titleLower.includes(appLower) && titleLower !== appLower;
+
+  // Phase E3 — preserve brand casing on each keyword.
+  const displayTops = top.map((o) => displayCasing(o.keyword, o.originalKeyword));
+  const tokensJoined =
+    displayTops.length === 2
+      ? `${displayTops[0]} and ${displayTops[1]}`
+      : displayTops[0]!;
+
+  // Phase E4 — emit the "for X" tail only when the category has a vetted
+  // benefit. No generic "for indie builders" filler.
   const benefit = benefitForCategory(primaryCategory);
-  const headline =
-    top.length === 2
-      ? `${appName}: ${top[0]} and ${top[1]} for ${benefit}.`
-      : `${appName}: ${top[0]} for ${benefit}.`;
+  const headlineBody = benefit ? `${tokensJoined} for ${benefit}.` : `${tokensJoined}.`;
+  const headline = echoesTitle ? headlineBody : `${appName}: ${headlineBody}`;
   const recommended = truncate(headline, cap);
 
-  const reason = `Leads with your top-intent keyword${top.length === 2 ? "s" : ""} (${top.join(", ")}) instead of generic copy.`;
+  if (recommended.length === 0) {
+    return makeField({
+      current: "",
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  const reason = `Leads with your top-intent keyword${top.length === 2 ? "s" : ""} (${top.map((o) => o.originalKeyword).join(", ")}) instead of generic copy.`;
+
+  return makeField({
+    current: "",
+    recommended,
+    changeReason: reason,
+    charLimit: cap,
+  });
+}
+
+// Phase F — Apple App Store promotional text. 170 chars, sits above the
+// description on iOS, refreshable without a new App Review submission.
+// Per 2026 ASO references this is one of the top-3 metadata levers a
+// founder has after title + subtitle. We can't observe the user's current
+// promo text (iTunes API doesn't expose it), so this is a write-only slot:
+// `current` is always empty; the value is the paste-able recommendation.
+function buildPromotionalTextField(args: {
+  appName: string;
+  currentTitle: string;
+  opportunities: OpportunityKeyword[];
+  primaryCategory: string | undefined;
+}): ReadyToPasteField {
+  const cap = PROMOTIONAL_TEXT_CAP;
+  const { appName, currentTitle, opportunities, primaryCategory } = args;
+  const eligible = opportunities.filter((o) => !o.ineligibleForVisiblePromotion);
+  const top = eligible.slice(0, 2);
+  if (top.length === 0) {
+    return makeField({
+      current: "",
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  const displayTops = top.map((o) => displayCasing(o.keyword, o.originalKeyword));
+  const tokensJoined =
+    displayTops.length === 2
+      ? `${displayTops[0]} and ${displayTops[1]}`
+      : displayTops[0]!;
+
+  // Promo text is 170 chars — more room than short description. We can
+  // include the brand prefix (if it doesn't echo the title), the keyword
+  // pair, and a meaningful tail.
+  const titleLower = currentTitle.toLowerCase();
+  const appLower = appName.toLowerCase();
+  const echoesTitle =
+    titleLower.includes(appLower) && titleLower !== appLower;
+  const benefit = benefitForCategory(primaryCategory);
+
+  // Compose three candidate forms in decreasing specificity; first one
+  // that fits the cap wins. Each form is honest (no template filler).
+  const candidates: string[] = [];
+  if (!echoesTitle) {
+    if (benefit) {
+      candidates.push(`${appName} — ${tokensJoined} for ${benefit}. Updated regularly.`);
+      candidates.push(`${appName} — ${tokensJoined} for ${benefit}.`);
+    }
+    candidates.push(`${appName} — ${tokensJoined}. Refresh anytime without re-review.`);
+    candidates.push(`${appName} — ${tokensJoined}.`);
+  }
+  if (benefit) {
+    candidates.push(`${tokensJoined} for ${benefit}. Refresh anytime without re-review.`);
+    candidates.push(`${tokensJoined} for ${benefit}.`);
+  }
+  candidates.push(`${tokensJoined}. Refresh anytime without re-review.`);
+  candidates.push(`${tokensJoined}.`);
+
+  const recommended = candidates.find((c) => c.length <= cap) ?? null;
+  if (recommended === null) {
+    return makeField({
+      current: "",
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  const reason = `iOS promotional text indexes at 170 chars and refreshes without App Review — leads with "${top.map((o) => o.originalKeyword).join('", "')}" so the timely-update slot still pulls rank weight.`;
+
+  return makeField({
+    current: "",
+    recommended,
+    changeReason: reason,
+    charLimit: cap,
+  });
+}
+
+// Phase F — Google Play short description. 80 chars, indexed for Play
+// search. The Android counterpart to iOS promotional text — different
+// platform, different rules. Density matters more here than narrative
+// since Play actually scans this field for keyword matches.
+function buildAndroidShortDescriptionField(args: {
+  opportunities: OpportunityKeyword[];
+}): ReadyToPasteField {
+  const cap = ANDROID_SHORT_DESCRIPTION_CAP;
+  const { opportunities } = args;
+  const eligible = opportunities.filter((o) => !o.ineligibleForVisiblePromotion);
+  const top = eligible.slice(0, 3);
+  if (top.length === 0) {
+    return makeField({
+      current: "",
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  // Try compositions from richest to leanest until one fits the 80-char cap.
+  const displayTops = top.map((o) => displayCasing(o.keyword, o.originalKeyword));
+  const candidates: string[] = [];
+  if (displayTops.length >= 3) {
+    candidates.push(`${displayTops[0]}, ${displayTops[1]}, ${displayTops[2]}.`);
+    candidates.push(`${displayTops[0]} · ${displayTops[1]} · ${displayTops[2]}`);
+  }
+  if (displayTops.length >= 2) {
+    candidates.push(`${displayTops[0]} and ${displayTops[1]}.`);
+    candidates.push(`${displayTops[0]} · ${displayTops[1]}`);
+  }
+  candidates.push(`${displayTops[0]}.`);
+
+  const recommended = candidates.find((c) => c.length <= cap) ?? null;
+  if (recommended === null) {
+    return makeField({
+      current: "",
+      recommended: null,
+      changeReason: null,
+      charLimit: cap,
+    });
+  }
+
+  const reason = `Play indexes the 80-char short description directly — denser keyword inclusion here outranks long-description density per token.`;
 
   return makeField({
     current: "",
@@ -586,10 +868,12 @@ function buildReadyToPaste(input: SynthesisInput): ReadyToPaste {
   const currentTitle =
     input.context.appRecord?.name ?? input.context.detectedApp.name;
   const currentSubtitle = input.context.appRecord?.subtitle ?? "";
+  const primaryCategory = input.context.appRecord?.primaryCategory;
+  const appName = input.context.detectedApp.name;
 
   const title = buildTitleField({
     currentTitle,
-    appName: input.context.detectedApp.name,
+    appName,
     opportunities,
   });
 
@@ -599,21 +883,39 @@ function buildReadyToPaste(input: SynthesisInput): ReadyToPaste {
   const subtitle = buildSubtitleField({
     currentSubtitle,
     opportunities,
-    primaryCategory: input.context.appRecord?.primaryCategory,
+    primaryCategory,
     consumedKeyword: titleConsumed,
+    // Phase E2 — dedup subtitle against the recommended-or-current title
+    // so we never duplicate a keyword across both visible fields.
+    recommendedOrCurrentTitle: title.recommended ?? currentTitle,
   });
 
+  // Phase E5 — keywords-field strips against CURRENT title/subtitle, not
+  // recommended. The Apple-dedup recommendation card already addresses
+  // the "if you accept the title rewrite, also drop these" coupling.
   const keywordsField = buildKeywordsFieldField({
     userKeywords: input.context.keywords,
     opportunities,
-    titleText: title.recommended ?? currentTitle,
-    subtitleText: subtitle.recommended ?? currentSubtitle,
+    currentTitleText: currentTitle,
+    currentSubtitleText: currentSubtitle,
   });
 
   const shortDescription = buildShortDescriptionField({
-    appName: input.context.detectedApp.name,
+    appName,
+    currentTitle,
     opportunities,
-    primaryCategory: input.context.appRecord?.primaryCategory,
+    primaryCategory,
+  });
+
+  // Phase F — two new platform-correct fields.
+  const promotionalText = buildPromotionalTextField({
+    appName,
+    currentTitle,
+    opportunities,
+    primaryCategory,
+  });
+  const androidShortDescription = buildAndroidShortDescriptionField({
+    opportunities,
   });
 
   return {
@@ -621,6 +923,8 @@ function buildReadyToPaste(input: SynthesisInput): ReadyToPaste {
     subtitle,
     keywordsField,
     shortDescription,
+    promotionalText,
+    androidShortDescription,
     source: "deterministic",
   };
 }
@@ -699,8 +1003,13 @@ function extractKeywordFromTitle(recommended: string | null): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
-function benefitForCategory(category: string | undefined): string {
-  if (!category) return "indie builders";
+// Returns a meaningful "for X" benefit phrase only when the category has a
+// vetted, specific audience description. Returns null for everything else
+// so callers can skip the "for X" suffix rather than ship template filler
+// ("indie builders", "players, leagues, and clubs" — generic copy that
+// applies to nothing in particular). Honesty over breadth.
+function benefitForCategory(category: string | undefined): string | null {
+  if (!category) return null;
   switch (category.toLowerCase()) {
     case "productivity":
       return "people who track what matters";
@@ -710,17 +1019,16 @@ function benefitForCategory(category: string | undefined): string {
       return "anyone building healthier habits";
     case "lifestyle":
       return "daily rituals that stick";
-    case "sports":
-      return "players, leagues, and clubs";
-    case "games":
-      return "fans who want to win more";
     default:
-      return "indie builders";
+      return null;
   }
 }
 
-function suffixForCategory(category: string | undefined): string {
-  if (!category) return "Streaks";
+// Returns a meaningful subtitle suffix only when the category has a vetted
+// short cue. Returns null otherwise so the subtitle builder skips the
+// generic "Daily Practice" / "Streaks" filler rather than ship it.
+function suffixForCategory(category: string | undefined): string | null {
+  if (!category) return null;
   switch (category.toLowerCase()) {
     case "productivity":
       return "Streaks & Routines";
@@ -731,7 +1039,7 @@ function suffixForCategory(category: string | undefined): string {
     case "lifestyle":
       return "Daily Rituals";
     default:
-      return "Daily Practice";
+      return null;
   }
 }
 
@@ -745,4 +1053,42 @@ function capitalize(text: string): string {
     .split(" ")
     .map((word) => (word ? word[0]!.toUpperCase() + word.slice(1) : word))
     .join(" ");
+}
+
+// Preserve brand casing for paste-able output. Used at every keyword splice
+// point so we don't strip the DUPR-acronym down to "Dupr" when the user
+// typed "dupr" but the token is structurally brand-like (4–7 chars, no
+// common English suffix, unusual vowel ratio). The structural test mirrors
+// the brand-likeness detector in `scoring/intent.ts:singleWordAdjustment`
+// so the two layers agree on what counts as a brand.
+//
+// Casing rules:
+//   • If the original input has uppercase letters after the first char,
+//     return it verbatim ("iOS", "DUPR", "macOS" stay unchanged).
+//   • Else if the lowercased token is single-word and structurally
+//     brand-like, return UPPERCASE ("dupr" → "DUPR").
+//   • Else fall back to Title Case via capitalize().
+function displayCasing(keyword: string, originalKeyword: string): string {
+  const trimmedOriginal = originalKeyword.trim();
+  if (trimmedOriginal.length === 0) return keyword;
+  if (/[A-Z]/.test(trimmedOriginal.slice(1))) return trimmedOriginal;
+
+  const tokens = keyword.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
+  if (tokens.length !== 1) return capitalize(keyword);
+
+  const token = tokens[0]!;
+  const len = token.length;
+  if (len < 3 || len > 7) return capitalize(keyword);
+
+  const hasCommonSuffix =
+    /(ing|tion|sion|ness|ment|ity|able|ible|ful|less|ous|ish|ly|er|ed|est|ies)$/.test(
+      token,
+    );
+  if (hasCommonSuffix) return capitalize(keyword);
+
+  const vowels = (token.match(/[aeiou]/g) ?? []).length;
+  const vowelRatio = vowels / len;
+  if (vowelRatio >= 0.3 && vowelRatio <= 0.6) return capitalize(keyword);
+
+  return token.toUpperCase();
 }

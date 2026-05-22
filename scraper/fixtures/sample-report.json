@@ -1,7 +1,7 @@
 {
   "requestId": "req_sample_2026_05_mvp",
   "sniffId": "sniff_sample_001",
-  "reportVersion": "2026-05-mvp-3",
+  "reportVersion": "2026-05-mvp-4",
   "receipt": {
     "network": "eip155:2910",
     "facilitator": "fixture-receipt",
@@ -62,7 +62,15 @@
     }
   ],
   "metadataScore": {
-    "overall": 62,
+    "overall": 63,
+    "weights": {
+      "title": 20,
+      "subtitle": 15,
+      "keywords": 20,
+      "screenshots": 10,
+      "ratingsAndReviews": 15,
+      "keywordRankings": 20
+    },
     "title": {
       "score": 70,
       "notes": "Strong brand recall, but doesn't carry a category keyword."
@@ -77,7 +85,15 @@
     },
     "screenshots": {
       "score": 72,
-      "notes": "Captions are readable and benefit-led; first frame buries the streak feature below the fold."
+      "notes": "Description-density proxy — Sniffy doesn't extract screenshot caption text. Apple's semantic search does index captions; cross-check yours by hand."
+    },
+    "ratingsAndReviews": {
+      "score": 80,
+      "notes": "4.5★ across 1,200 ratings — strong social proof."
+    },
+    "keywordRankings": {
+      "score": 60,
+      "notes": "1 in top 10, 1 in 11-30, 0 in 31-50, 0 beyond / not found. Mid-pack — push for top-10 on the strongest keywords."
     }
   },
   "recommendations": [

@@ -2,7 +2,7 @@
 
 exports[`formatPaid (and formatSample, which wraps it) > renders all expected sections deterministically 1`] = `
 "Sniffy report — sniffId sniff_sample_001
-requestId req_sample_2026_05_mvp  ·  version 2026-05-mvp-2
+requestId req_sample_2026_05_mvp  ·  version 2026-05-mvp-4
 
 Summary
   Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has two low-value slots that should be reclaimed.
@@ -31,12 +31,14 @@ Competitor trail
   RoutineLab (1000000102)     overlap: daily routine   ○ fixture
     └─ Lower ratings volume but tighter keyword field — three high-intent terms, no filler.
 
-Metadata score
-  overall                     62
-  title                       70 — Strong brand recall, but doesn't carry a category keyword.
-  subtitle                    55 — 'Daily Routine & Streaks' uses one medium-intent term — leaves the highest-intent keyword on the table.
-  keywords                    48 — Two of ten slots spent on near-duplicates of words already in the subtitle.
-  screenshots                 72 — Captions are readable and benefit-led; first frame buries the streak feature below the fold.
+ASO Score Card                        Overall: 63/100
+
+  Title (20%)               70/100   ███████░░░  Strong brand recall, but doesn't carry a category keyword.
+  Subtitle (15%)            55/100   ██████░░░░  'Daily Routine & Streaks' uses one medium-intent term — leaves the highest-intent keyword on the table.
+  Keyword Field (20%)       48/100   █████░░░░░  Two of ten slots spent on near-duplicates of words already in the subtitle.
+  Screenshots (10%)         72/100   ███████░░░  Description-density proxy — Sniffy doesn't extract screenshot caption text. Apple's semantic search does index captions; cross-check yours by hand.
+  Ratings & Reviews (15%)   80/100   ████████░░  4.5★ across 1,200 ratings — strong social proof.
+  Keyword Rankings (20%)    60/100   ██████░░░░  1 in top 10, 1 in 11-30, 0 in 31-50, 0 beyond / not found. Mid-pack — push for top-10 on the strongest keywords.
 
 Recommendations
   #1 Rewrite subtitle to lead with 'Habit Tracker'.   (high/low)

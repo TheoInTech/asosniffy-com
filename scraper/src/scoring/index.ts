@@ -36,12 +36,17 @@ export {
 export {
   scoreMetadata,
   scoreMetadataFull,
+  scoreRatingsAndReviews,
+  scoreKeywordRankings,
   composeOverall,
+  computeDescriptionDensity,
   METADATA_WEIGHTS,
   APPLE_CAPS,
   type MetadataScoringResult,
   type MetadataSubscoreInternal,
+  type DescriptionDensityRow,
   type ScoreMetadataInput,
+  type RankedKeywordInput,
 } from "./metadata.js";
 export {
   diagnoseKeywords,
@@ -55,3 +60,10 @@ export {
   type CompetitorAnalysis,
   type AnalyzeCompetitorsInput,
 } from "./competitors.js";
+export {
+  computeKeywordDistribution,
+  type KeywordPresence,
+  type KeywordDistributionLocations,
+  type KeywordDistributionRow,
+  type ComputeKeywordDistributionInput,
+} from "./keyword-distribution.js";

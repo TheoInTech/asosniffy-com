@@ -3,10 +3,14 @@ import {
   APPLE_CAPS,
   METADATA_WEIGHTS,
   composeOverall,
+  scoreKeywordRankings,
   scoreMetadata,
   scoreMetadataFull,
+  scoreRatingsAndReviews,
 } from "../../src/scoring/metadata.js";
 import type { AppRecord } from "../../src/providers/apple/types.js";
+
+const ZERO_SUB = { score: 0, reasons: [], negativeReasons: [] };
 
 function makeApp(overrides: Partial<AppRecord> = {}): AppRecord {
   return {
@@ -26,17 +30,20 @@ function makeApp(overrides: Partial<AppRecord> = {}): AppRecord {
 }
 
 describe("scoreMetadata", () => {
-  it("returns title/subtitle/keywordsField/description subscores with reasons", () => {
+  it("returns all six subscores with reasons", () => {
     const result = scoreMetadata({
       app: makeApp(),
       detectedApp: { id: "1", name: "Pawprint Habits", developer: "Sniffy" },
       keywords: ["habit tracker", "daily routine"],
+      rankedKeywords: [{ rankBucket: "1-10" }, { rankBucket: "11-30" }],
     });
 
     expect(result.title.reasons.length).toBeGreaterThan(0);
     expect(result.subtitle.reasons.length).toBeGreaterThan(0);
     expect(result.keywordsField.reasons.length).toBeGreaterThan(0);
     expect(result.description.reasons.length).toBeGreaterThan(0);
+    expect(result.ratingsAndReviews.reasons.length).toBeGreaterThan(0);
+    expect(result.keywordRankings.reasons.length).toBeGreaterThan(0);
   });
 
   it("penalizes title that exceeds the 30-char cap", () => {
@@ -122,14 +129,35 @@ describe("scoreMetadata", () => {
 });
 
 describe("composeOverall", () => {
-  it("respects the documented 35/30/25/10 weights", () => {
+  it("isolates the title weight when only title scores", () => {
     const overall = composeOverall({
       title: { score: 100, reasons: [], negativeReasons: [] },
-      subtitle: { score: 0, reasons: [], negativeReasons: [] },
-      keywordsField: { score: 0, reasons: [], negativeReasons: [] },
-      description: { score: 0, reasons: [], negativeReasons: [] },
+      subtitle: ZERO_SUB,
+      keywordsField: ZERO_SUB,
+      description: ZERO_SUB,
+      ratingsAndReviews: ZERO_SUB,
+      keywordRankings: ZERO_SUB,
     });
     expect(overall).toBe(Math.round(METADATA_WEIGHTS.title * 100));
+  });
+
+  it("treats overall as the weighted sum to ±1 rounding", () => {
+    const parts = {
+      title: { score: 80, reasons: [], negativeReasons: [] },
+      subtitle: { score: 60, reasons: [], negativeReasons: [] },
+      keywordsField: { score: 50, reasons: [], negativeReasons: [] },
+      description: { score: 70, reasons: [], negativeReasons: [] },
+      ratingsAndReviews: { score: 95, reasons: [], negativeReasons: [] },
+      keywordRankings: { score: 40, reasons: [], negativeReasons: [] },
+    };
+    const expected =
+      parts.title.score * METADATA_WEIGHTS.title +
+      parts.subtitle.score * METADATA_WEIGHTS.subtitle +
+      parts.keywordsField.score * METADATA_WEIGHTS.keywordsField +
+      parts.description.score * METADATA_WEIGHTS.description +
+      parts.ratingsAndReviews.score * METADATA_WEIGHTS.ratingsAndReviews +
+      parts.keywordRankings.score * METADATA_WEIGHTS.keywordRankings;
+    expect(composeOverall(parts)).toBe(Math.round(expected));
   });
 
   it("returns an integer 0–100", () => {
@@ -138,10 +166,98 @@ describe("composeOverall", () => {
       subtitle: { score: 61, reasons: [], negativeReasons: [] },
       keywordsField: { score: 44, reasons: [], negativeReasons: [] },
       description: { score: 80, reasons: [], negativeReasons: [] },
+      ratingsAndReviews: { score: 50, reasons: [], negativeReasons: [] },
+      keywordRankings: { score: 65, reasons: [], negativeReasons: [] },
     });
     expect(Number.isInteger(overall)).toBe(true);
     expect(overall).toBeGreaterThanOrEqual(0);
     expect(overall).toBeLessThanOrEqual(100);
+  });
+
+  it("weights sum to 1.0 (so the rubric is honest)", () => {
+    const sum =
+      METADATA_WEIGHTS.title +
+      METADATA_WEIGHTS.subtitle +
+      METADATA_WEIGHTS.keywordsField +
+      METADATA_WEIGHTS.description +
+      METADATA_WEIGHTS.ratingsAndReviews +
+      METADATA_WEIGHTS.keywordRankings;
+    expect(sum).toBeCloseTo(1.0, 5);
+  });
+});
+
+describe("scoreRatingsAndReviews", () => {
+  function withRatings(average: number, count: number): AppRecord {
+    return makeApp({ ratingsSummary: { average, count } });
+  }
+
+  it("returns 0 with an honest unavailable note when app is null", () => {
+    const result = scoreRatingsAndReviews(null);
+    expect(result.score).toBe(0);
+    expect(result.reasons[0]?.toLowerCase()).toContain("unavailable");
+  });
+
+  it("returns 0 when the count is zero (no ratings at all)", () => {
+    const result = scoreRatingsAndReviews(withRatings(0, 0));
+    expect(result.score).toBe(0);
+  });
+
+  it("scores the strong tier highly", () => {
+    const result = scoreRatingsAndReviews(withRatings(4.8, 5000));
+    expect(result.score).toBeGreaterThanOrEqual(90);
+  });
+
+  it("scores thin rating bases below the mid tier", () => {
+    const result = scoreRatingsAndReviews(withRatings(4.5, 30));
+    expect(result.score).toBeLessThanOrEqual(40);
+    expect(result.reasons[0]).toMatch(/ratings|count/i);
+  });
+
+  it("scores sub-3.5 averages low even with many ratings", () => {
+    const result = scoreRatingsAndReviews(withRatings(3.1, 10000));
+    expect(result.score).toBeLessThanOrEqual(20);
+  });
+});
+
+describe("scoreKeywordRankings", () => {
+  it("returns 0 with an honest note when no ranks are provided", () => {
+    const result = scoreKeywordRankings([]);
+    expect(result.score).toBe(0);
+    expect(result.reasons[0]?.toLowerCase()).toContain("unavailable");
+  });
+
+  it("scores 100 when every keyword ranks top-10", () => {
+    const result = scoreKeywordRankings([
+      { rankBucket: "1-10" },
+      { rankBucket: "1-10" },
+      { rankBucket: "1-10" },
+    ]);
+    expect(result.score).toBe(100);
+  });
+
+  it("scores 0 when every keyword is not_found", () => {
+    const result = scoreKeywordRankings([
+      { rankBucket: "not_found" },
+      { rankBucket: "not_found" },
+    ]);
+    expect(result.score).toBe(0);
+  });
+
+  it("weights 11-30 at half credit", () => {
+    const result = scoreKeywordRankings([
+      { rankBucket: "11-30" },
+      { rankBucket: "11-30" },
+    ]);
+    expect(result.score).toBe(50);
+  });
+
+  it("surfaces a negative reason when keywords are not_found", () => {
+    const result = scoreKeywordRankings([
+      { rankBucket: "1-10" },
+      { rankBucket: "not_found" },
+      { rankBucket: "not_found" },
+    ]);
+    expect(result.negativeReasons.length).toBeGreaterThan(0);
   });
 });
 

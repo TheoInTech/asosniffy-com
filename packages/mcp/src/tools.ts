@@ -2,10 +2,13 @@ import { z } from "zod";
 import type { SniffyClient } from "@sniffy/sdk";
 import { mapSdkError } from "./errors.js";
 
-const MAINNET_NOTE =
+// Sniffy settles on Morph Mainnet only (eip155:2818). Hoodi testnet support
+// was dropped 2026-05-21 — the demo/payment surface is mainnet-only from here.
+const PAYMENT_NOTE =
   "Settles on Morph Mainnet (eip155:2818) via x402. Each sniffy_diagnose call " +
-  "charges ~$0.05 USDC from the wallet configured as SNIFFY_PRIVATE_KEY. Fund " +
-  "that wallet with only what you plan to spend; the payment is non-refundable.";
+  "charges `pricing.estimatedTotal` from the wallet configured as " +
+  "SNIFFY_PRIVATE_KEY. Fund that wallet with only what you plan to spend; " +
+  "payments are non-refundable.";
 
 const StoreEnum = z.enum(["ios", "android"]);
 const KeywordsList = z
@@ -64,7 +67,7 @@ export function buildTools(client: SniffyClient): ToolDef[] {
       config: {
         description:
           "Free fixture report (no payment required). Use when the user wants to see what a Sniffy ASO diagnosis looks like, or when no wallet is available. Returns the same shape as sniffy_diagnose but every field is bundled fixture data marked `provenance: \"fixture\"`. " +
-          MAINNET_NOTE,
+          PAYMENT_NOTE,
       },
       handler: async () => {
         try {
@@ -83,7 +86,7 @@ export function buildTools(client: SniffyClient): ToolDef[] {
       config: {
         description:
           "Free quote with a shallowScan preview (detected app, ratings, one preview keyword bucket). Use this BEFORE sniffy_diagnose to validate the app/keywords and surface the price. Returns pricing.estimatedTotal — sniffy_diagnose will charge this amount over x402. " +
-          MAINNET_NOTE,
+          PAYMENT_NOTE,
         inputSchema: quoteShape,
       },
       handler: async (args) => {
@@ -103,8 +106,8 @@ export function buildTools(client: SniffyClient): ToolDef[] {
       name: "sniffy_diagnose",
       config: {
         description:
-          "PAID. Full ASO diagnosis: keyword rank, keyword difficulty (1-100, derived from the top-5 competitors), per-keyword match granularity (title-exact vs title-all-words vs subtitle-exact etc.), competitor trail, metadata score, target-app momentum (ratings-per-day + growing/steady/declining), recommendations, ready-to-paste copy, plus an x402 settlement receipt. Auto-pays from SNIFFY_PRIVATE_KEY. Requires a sniffId from a prior sniffy_quote. Costs `pricing.estimatedTotal` USDC on Morph Mainnet. " +
-          MAINNET_NOTE,
+          "PAID. Full ASO diagnosis: keyword rank, keyword difficulty (1-100, derived from the top-5 competitors), per-keyword match granularity (title-exact vs title-all-words vs subtitle-exact etc.), competitor trail, metadata score, target-app momentum (ratings-per-day + growing/steady/declining), recommendations, ready-to-paste copy, plus an x402 settlement receipt. Auto-pays from SNIFFY_PRIVATE_KEY. Requires a sniffId from a prior sniffy_quote. Costs `pricing.estimatedTotal` on the configured Morph network. " +
+          PAYMENT_NOTE,
         inputSchema: diagnoseShape,
       },
       handler: async (args) => {

@@ -1,9 +1,11 @@
 ---
 name: sniffy
-description: Pay-per-sniff ASO intelligence for App Store apps. Use when a user asks for keyword diagnosis, competitor analysis, or metadata recommendations for an iOS app. Handles x402 payment on Morph Hoodi automatically.
+description: Pay-per-sniff ASO intelligence for App Store apps. Use when a user asks for keyword diagnosis, competitor analysis, or metadata recommendations for an iOS app. Handles x402 payment on Morph Mainnet automatically.
 ---
 
 # Sniffy — ASO Intelligence with x402 Payment
+
+> This file is the canonical API reference. For task-specific guidance ("audit my listing", "rewrite my subtitle", "find new keywords", "expand to Japan"), the repo ships a small specialist catalog at `skills/` — `sniffy-router`, `sniffy-audit`, `sniffy-keywords`, `sniffy-metadata`, `sniffy-compete`, `sniffy-localize`, `sniffy-momentum`, and a foundation `sniffy-context` skill. Routing into a specialist is faster than reading the whole reference.
 
 Sniffy returns structured App Store Optimization diagnoses for an `(app, country, keywords)` tuple: per-keyword rank buckets, **keyword difficulty (1-100 derived from the top-5 competitors)**, **listing match granularity** (title-exact-phrase vs title-all-words vs subtitle-exact vs combined), competitor trail, metadata score, **target-app momentum** (ratings-per-day + growing/steady/declining), prioritized recommendations, and ready-to-paste copy. Free `/quote` and `/sample` endpoints let you preview before paying. The `/diagnose` endpoint is paid: it returns HTTP `402 Payment Required` until a valid x402 `PAYMENT-SIGNATURE` is presented, then settles over the Morph facilitator and returns the full report plus a settlement receipt.
 
@@ -59,15 +61,15 @@ Without a `PAYMENT-SIGNATURE` header → returns HTTP `402` with a body describi
   "sniffId": "...",
   "payment": {
     "x402Version": 2,
-    "network": "eip155:2910",
+    "network": "eip155:2818",
     "facilitator": "https://morph-rails.morph.network/x402",
     "amount": "0.04",
-    "atomicAmount": "40000000000000000",
-    "decimals": 18,
-    "asset": "0xEcF966Cc754BC411E1F1106fbb4e343b835E85E4",
+    "atomicAmount": "40000",
+    "decimals": 6,
+    "asset": "<USDC address on Morph Mainnet>",
     "payTo": "<merchant>",
     "scheme": "exact",
-    "extra": { "name": "HoodiTestToken", "version": "1.0" }
+    "extra": { "name": "USD Coin", "version": "1.0" }
   },
   "accepts": [ /* canonical x402 v2 accepts[] */ ]
 }
@@ -77,12 +79,34 @@ The same canonical offer is also Base64-encoded into the `PAYMENT-REQUIRED` resp
 
 With a valid `PAYMENT-SIGNATURE` → returns HTTP `200` with the full report and a `receipt` block (network, transactionHash, settledAt, facilitatorMode). The receipt is also Base64-encoded into the `PAYMENT-RESPONSE` response header.
 
+## App Store / Play Store field reference
+
+Sniffy scores against these limits. When you surface `readyToPaste` copy to the user, the char counts already cross-check the appropriate limit; this card is here so the agent can explain the constraints when asked.
+
+**iOS App Store** (Sniffy's primary target):
+- **Title** — 30 chars, indexed. Highest keyword weight. A primary keyword in the title can lift rank by ~10%.
+- **Subtitle** — 30 chars, indexed. Distinct keywords from title; both fields are indexed together.
+- **Keyword field** — 100 chars, indexed, hidden from users. Comma-separated, **NO spaces after commas**.
+- **Description** — 4000 chars, **NOT** indexed for search ranking on iOS. Conversion-only.
+- **Promotional text** — 170 chars, NOT indexed, refreshable without a new App Review submission.
+
+**Google Play**:
+- **Title** — 30 chars, indexed.
+- **Short description** — 80 chars, indexed. (Distinct from iOS promotional text.)
+- **Full description** — 4000 chars, **indexed**. Keyword density matters; 1 mention per ~250 chars is the target.
+
+**Cross-field rules**:
+- Don't repeat keywords across title / subtitle / keyword field — Apple indexes each token once across all three.
+- Use singular forms in the keyword field; Apple indexes both forms.
+- Don't include your app name, category name, "app", "free", or competitor brands in the keyword field.
+- Each locale gets its own title, subtitle, keyword field, and screenshots — most apps only do English and leave large markets untapped.
+
 ## Paying
 
-The payment scheme is **`exact`** on Morph Hoodi (`eip155:2910`). The signature is an EIP-3009 `transferWithAuthorization` over the advertised `(asset, amount, payTo)`. Steps:
+The payment scheme is **`exact`** on Morph Mainnet (`eip155:2818`). The signature is an EIP-3009 `transferWithAuthorization` over the advertised `(asset, amount, payTo)`. Steps:
 
 1. POST `/diagnose` without `PAYMENT-SIGNATURE` and read the 402 body or the `PAYMENT-REQUIRED` header for the offer.
-2. Sign an EIP-3009 authorization using a viem-style signer with `signTypedData`. The EIP-712 domain is `(name: "HoodiTestToken", version: "1.0", chainId: 2910, verifyingContract: asset)` unless `payment.extra` overrides it.
+2. Sign an EIP-3009 authorization using a viem-style signer with `signTypedData`. The EIP-712 domain is `(name, version, chainId: 2818, verifyingContract: asset)` — read `name` and `version` from `payment.extra` (they match the token contract; e.g. `name: "USD Coin"` for USDC).
 3. Build the V2 `PaymentPayload` (`{ x402Version: 2, accepted: <the chosen accepts[] entry>, payload: { signature, authorization } }`), Base64-encode it, and put it in the `PAYMENT-SIGNATURE` request header.
 4. POST `/diagnose` again with the header → expect 200 with the report.
 
@@ -107,9 +131,9 @@ The receipt block (in the 200 body and in the Base64-JSON `PAYMENT-RESPONSE` hea
 }
 ```
 
-To verify, query any Morph RPC (`https://rpc.morphl2.io` for mainnet, `https://rpc-hoodi.morph.network` for Hoodi testnet) and the facilitator's `/v2/supported`:
+To verify, query Morph Mainnet RPC (`https://rpc.morphl2.io`) and the facilitator's `/v2/supported`:
 
-1. **Tx exists on the declared network.** `eth_getTransactionByHash` for `receipt.transactionHash`. The returned `chainId` must match the CAIP-2 in `receipt.network` (`eip155:2818` = 2818 mainnet, `eip155:2910` = 2910 Hoodi).
+1. **Tx exists on Morph Mainnet.** `eth_getTransactionByHash` for `receipt.transactionHash`. The returned `chainId` must match the CAIP-2 in `receipt.network` (`eip155:2818` = 2818 Mainnet).
 
 2. **Settlement contract matches the official facilitator.** `tx.to` should be the Morph facilitator settlement contract. For Morph mainnet (`eip155:2818`) this is `0x154dd21f7386c4c49481c1fe568dad365cfc34e5`. If `tx.to` is the token contract directly, the relayer bypassed the facilitator — not a real x402 settlement.
 
@@ -119,7 +143,7 @@ To verify, query any Morph RPC (`https://rpc.morphl2.io` for mainnet, `https://r
 
 5. **Payer ≠ relayer (the meta-transaction pattern).** The `AuthorizationUsed` event's `topics[1]` is the indexed `authorizer` address — that's the payer who signed off-chain. It must be different from `tx.from` (the relayer). Self-signed transfers are not x402.
 
-A receipt passing all five checks is a genuine x402 settlement. A receipt failing any one of checks 3, 4, or 5 is not — flag it to the user. Checks 1 and 2 may legitimately fail if the network is Hoodi (which doesn't yet have a verified settlement contract recorded) or if the facilitator's `/v2/supported` is temporarily unreachable; in those cases mark the check `skipped`, not `failed`.
+A receipt passing all five checks is a genuine x402 settlement. A receipt failing any one of checks 3, 4, or 5 is not — flag it to the user. Check 2 may legitimately fail if the facilitator's `/v2/supported` is temporarily unreachable; mark it `skipped`, not `failed`.
 
 The five-check pattern is implemented in `@sniffy/sdk` as `verifyReceiptOnChain(receipt)` for Node/Edge consumers and in the demo UI's `AuthenticityChecklist` component. The forensic recipe with worked curl commands lives at `docs/07-verifying-x402.md` in the repo.
 
@@ -142,9 +166,21 @@ Pass the labels through to the user in your reply. Mixing `live` and `fixture` d
 - `unsupported_country` — country isn't yet covered. iOS supports the 175 storefronts; Android is preview-quality.
 - `malformed_payment_header`, `wrong_network`, `expired_authorization`, `amount_mismatch`, `verification_failed`, `settlement_failed` — see the Paying section above.
 
-## Hard rule: testnet only
+## Signals Sniffy doesn't extract (and what to do)
 
-This skill, and the Sniffy demo API, run on **Morph Hoodi testnet** (`eip155:2910`). Never use a mainnet private key. If the user asks to use a mainnet wallet, refuse and direct them to the [Morph Hoodi faucet](https://faucet-hoodi.morph.network/) for testnet funds.
+Sniffy reads metadata, keyword ranks, ratings + review counts, competitor metadata, and rank history. It does NOT extract:
+
+- **Screenshot caption text.** Apple's semantic search indexes the text rendered inside screenshot frames. Sniffy's `metadataScore.screenshots` is a description-density proxy — don't pretend it covers caption analysis. When the user asks about screenshots, ask them what their captions say and cross-check against the target keywords in `keywordDiagnosis[]`.
+- **App Preview video content.** First-3-second hook + sound-off readability affect conversion. Ask the user to describe their preview video; recommend a 15-30s length with captions if they don't have one.
+- **App icon.** Distinctiveness vs category competitors. You can show the user the competitor `appId`s from `competitorTrail[]` and ask whether their icon stands out in that lineup.
+- **Review body topic mining.** Sniffy uses review *count* + *average rating* for the `ratingsAndReviews` subscore and review *frequency* (single-word counts) for `suggestedKeywords[reason="review-frequency"]`. It does NOT do sentiment analysis or extract product complaints from review bodies.
+- **In-App Events.** Apple's event card visibility mechanic. Not on Sniffy's roadmap; mention the feature exists if the user is preparing a launch or seasonal push.
+
+When the user asks about any of these, prompt them to share the data manually and tie it back to the keywords / competitor signals Sniffy DID return.
+
+## Network: Morph Mainnet only
+
+This skill, and the Sniffy demo API, run on **Morph Mainnet** (`eip155:2818`). Hoodi testnet support was dropped 2026-05-21 — there is no longer a testnet path. The wallet configured as `SNIFFY_PRIVATE_KEY` must hold mainnet USDC. Payments are non-refundable; fund the wallet only with what you plan to spend on diagnose calls.
 
 ## Install paths for other surfaces
 

@@ -11,7 +11,7 @@ Sniffy has two product layers:
 - Layer 1: an x402-paywalled ASO data API that agents, scripts, and indie builders can call directly.
 - Layer 2: a founder-facing co-pilot UI where Sniffy visibly buys data, follows the ranking trail, and produces an app distribution action plan.
 
-The MVP should be built on Morph Hoodi testnet by default and use Morph's official x402 facilitator at `https://morph-rails.morph.network/x402`. A custom facilitator is not part of the MVP unless the official route specifically blocks Hoodi judging.
+The MVP runs on Morph Mainnet (`eip155:2818`) and uses Morph's official x402 facilitator at `https://morph-rails.morph.network/x402`. A custom facilitator is not part of the MVP unless the official route is unavailable.
 
 The repo should be split into two top-level apps:
 
@@ -93,7 +93,7 @@ Judge-facing interpretation:
 - The ASO report is the paid digital good.
 - The HTTP API is the resource server.
 - x402 is the payment protocol.
-- Morph Hoodi is the low-cost settlement layer for the demo.
+- Morph Mainnet is the low-cost settlement layer for the demo.
 - The AI agent or scripted client is the buyer.
 - The frontend is only the demo surface, not the core product.
 
@@ -234,16 +234,16 @@ Sniffy is not "Asolytics but cheaper." Sniffy is "an agent-native ASO action API
 
 ### Payment Friction Strategy
 
-Wallet and USDC setup is real friction for normal indie hackers. It is acceptable for the hackathon demo because the track is explicitly about x402 agentic payments, and judges should expect testnet payment flows. It is not acceptable as the only long-term onboarding path for mainstream indie developers.
+Wallet and USDC setup is real friction for normal indie hackers. It is acceptable for the hackathon demo because the track is explicitly about x402 agentic payments and the spend trail is the point. It is not acceptable as the only long-term onboarding path for mainstream indie developers.
 
 MVP in scope:
 
-- Use Morph Hoodi testnet so judges can test without real funds.
+- Use Morph Mainnet so judges can test without real funds.
 - Show a free quote before asking for payment.
 - Provide a free sample report so users see value before wallet setup.
 - Use Reown AppKit for wallet connection.
 - Make the payment state transparent: amount, network, token, facilitator, and receipt.
-- Include a short "How to fund testnet wallet" panel for judges.
+- Include a short "How to fund the demo wallet with Mainnet USDC on Morph" panel for judges.
 
 MVP not in scope:
 
@@ -255,7 +255,7 @@ MVP not in scope:
 
 Demo messaging:
 
-- Say clearly: "For the hackathon, Sniffy uses Morph Hoodi testnet so agents and judges can try pay-per-use without real funds."
+- Say clearly: "For the hackathon, Sniffy uses Morph Mainnet so agents and judges can try pay-per-use without real funds."
 - Then say: "For real indie users, the same product can add card-funded credits or Reown/AppKit on-ramp later, while keeping x402 as the agent/payment rail under the hood."
 
 Post-hackathon friction reducers:
@@ -290,7 +290,7 @@ Product decision:
 - Do not make full Android parity mandatory.
 - Do not require paid ASO data providers for the MVP.
 - Do not require fiat off-ramp for the demo.
-- Do not build or fork a facilitator unless the official Morph facilitator blocks Hoodi usage.
+- Do not build or fork a facilitator unless the official Morph facilitator is unavailable for Mainnet.
 - Do not add a relational database for MVP unless report history becomes required.
 
 ## 6. MVP Scope
@@ -341,7 +341,7 @@ Product decision:
    - expected data coverage;
    - Sniff ID.
 7. User clicks `Unlock full trail`.
-8. Sniffy triggers x402 payment on Morph Hoodi.
+8. Sniffy triggers x402 payment on Morph Mainnet.
 9. After payment, Sniffy shows:
    - ranking diagnosis;
    - competitor trail;
@@ -491,7 +491,7 @@ Unpaid response:
   "sniffId": "sniff_...",
   "payment": {
     "x402Version": 2,
-    "network": "eip155:2910",
+    "network": "eip155:2818",
     "facilitator": "https://morph-rails.morph.network/x402",
     "amount": "0.05",
     "asset": "USDC_OR_TEST_TOKEN_ADDRESS",
@@ -508,7 +508,7 @@ Paid response:
   "sniffId": "sniff_...",
   "reportVersion": "2026-05-mvp",
   "receipt": {
-    "network": "eip155:2910",
+    "network": "eip155:2818",
     "facilitator": "morph-official",
     "amount": "0.05",
     "asset": "USDC_OR_TEST_TOKEN_ADDRESS",
@@ -542,7 +542,24 @@ Paid response:
     }
   ],
   "competitorTrail": [],
-  "metadataScore": {},
+  "metadataScore": {
+    "overall": 63,
+    "weights": {
+      "title": 20,
+      "subtitle": 15,
+      "keywords": 20,
+      "screenshots": 10,
+      "ratingsAndReviews": 15,
+      "keywordRankings": 20
+    },
+    "title": { "score": 70, "notes": "…" },
+    "subtitle": { "score": 55, "notes": "…" },
+    "keywords": { "score": 48, "notes": "…" },
+    "screenshots": { "score": 72, "notes": "Description-density proxy — Sniffy doesn't extract screenshot caption text." },
+    "ratingsAndReviews": { "score": 80, "notes": "…" },
+    "keywordRankings": { "score": 60, "notes": "…" },
+    "descriptionDensity": []
+  },
   "recommendations": [],
   "readyToPaste": {},
   "targetAppSignals": {
@@ -555,6 +572,8 @@ Paid response:
 ```
 
 The `difficulty` / `minDifficulty` / `difficultyIsFallback` / `matchKind` fields on each `keywordDiagnosis` row, plus the top-level `targetAppSignals` block, are derived from a keyword-difficulty formula adapted from [semihcihan/App-Store-Optimization-CLI](https://github.com/semihcihan/App-Store-Optimization-CLI) (MIT — see `LICENSE-THIRD-PARTY.md`). `difficulty` is `null` and `difficultyIsFallback: true` when the top-5 competitor gate trips (rate-limit, niche keyword); we never fabricate the number. `targetAppSignals` is `null` for region-locked listings without a `releaseDate`.
+
+`metadataScore` is a weighted 6-factor 0-100 Score Card. `overall = Σ(score_i × weight_i / 100)` where weights are declared in the `weights` block (sum to 100; `z.literal()` in the schema so any change is a deliberate version bump). The 6 factors and their weights: **title 20%, subtitle 15%, keywords 20%, screenshots 10%, ratingsAndReviews 15%, keywordRankings 20%**. The `screenshots` subscore is a misnomer preserved for SDK back-compat — it carries a description-density heuristic, NOT screenshot caption analysis (Sniffy doesn't extract screenshot text). `ratingsAndReviews` derives from `app.ratingsSummary` (average × count tiered rubric); `keywordRankings` derives from the rank-bucket distribution of submitted keywords (top10 = full credit, 11-30 = half, 31-50 = quarter, 51+ / not_found = zero).
 
 ### `GET /api/v1/aso/sample`
 
@@ -571,7 +590,7 @@ flowchart TD
   B --> D["Diagnose API"]
   D --> E["Payment Adapter"]
   E --> F["Morph x402 Facilitator"]
-  F --> G["Morph Hoodi / Optional Mainnet"]
+  F --> G["Morph Mainnet / Optional Mainnet"]
   D --> H["Agent Orchestrator"]
   H --> I["Data Provider Layer"]
   I --> J["Apple Provider"]
@@ -776,19 +795,19 @@ Use official Morph x402 facilitator:
 
 ### Default Network
 
-Use Morph Hoodi testnet for development, judging, and public demo.
+Use Morph Mainnet for development, judging, and public demo.
 
 Verify before implementation:
 
 - Morph mainnet chain ID: `2818`, CAIP-2 `eip155:2818`.
-- Morph Hoodi chain ID: `2910`, CAIP-2 `eip155:2910`.
-- Hoodi RPC: `https://rpc-hoodi.morph.network`.
-- Hoodi explorer: `https://explorer-hoodi.morph.network`.
+- Morph Mainnet chain ID: `2818`, CAIP-2 `eip155:2818`.
+- Mainnet RPC: `https://rpc.morphl2.io`.
+- Mainnet explorer: `https://explorer.morphl2.io`.
 - Supported networks from `GET https://morph-rails.morph.network/x402/v2/supported`.
 - Test payment token address, decimals, EIP-712 name, and EIP-712 version.
 - Whether token path is EIP-3009, Permit2, or Morph-specific exact transfer.
 
-If official facilitator support for Hoodi is unavailable, request the Hoodi route/API credentials from Morph or use fallback only for the Hoodi demo.
+If the official facilitator is unavailable for Mainnet, the demo falls back to fixture-receipt mode (`facilitatorMode: "fixture-receipt"`) so the agent flow still demonstrates a 402 → 200 cycle. This is the documented fallback path; never claim a fake on-chain settlement.
 
 ### Pricing
 
@@ -799,7 +818,7 @@ MVP pricing model:
 - Add-on per country.
 - Add-on for competitor depth.
 
-Do not force `$0.001` live settlement until Morph token/facilitator behavior is confirmed. The concept can show granular pricing, while the live demo should use a reliably settling Hoodi amount.
+Do not force `$0.001` live settlement until Morph token/facilitator behavior is confirmed. The concept can show granular pricing, while the live demo uses a reliably settling Mainnet amount.
 
 ### Receipt Metadata
 
@@ -904,7 +923,7 @@ Weak-data cases:
 - Public demo URL works without login.
 - Quote endpoint works without payment.
 - Diagnose endpoint demonstrates real `402 Payment Required`.
-- Paid flow settles through Morph Hoodi or clearly disclosed fallback.
+- Paid flow settles through Morph Mainnet or clearly disclosed fallback.
 - Report is useful within 60 seconds.
 - Demo video clearly shows problem, quote, x402 unlock, report, and next steps.
 
@@ -930,7 +949,7 @@ This section distinguishes two different uses of "agent" that the rest of the PR
    - Owns positioning, judge story, scope control, and Sniffy tone.
 
 2. Morph x402 Protocol Agent
-   - Owns network config, facilitator integration, HMAC signing, payment headers, receipts, Hoodi verification, and optional mainnet check.
+   - Owns network config, facilitator integration, HMAC signing, payment headers, receipts, and on-chain Mainnet verification.
 
 3. ASO Data Agent
    - Owns Apple/Google data feasibility, public data limits, confidence labels, and cache strategy.
@@ -991,8 +1010,8 @@ These are the load-bearing distribution channels for the indie-hacker persona. S
 ### Milestone 0: Pre-Build Validation
 
 - Confirm Morph facilitator supported networks via `/v2/supported`.
-- Confirm Hoodi route/token support.
-- Confirm Reown AppKit Morph Hoodi wallet behavior.
+- Confirm Mainnet route/token support via `GET https://morph-rails.morph.network/x402/v2/supported`.
+- Confirm Reown AppKit Morph Mainnet wallet behavior.
 - Test Apple lookup/search inputs.
 - Test Play Store lookup from hosting environment.
 - Confirm team registration requirements.
@@ -1031,7 +1050,7 @@ These are the load-bearing distribution channels for the indie-hacker persona. S
 
 - Implement `@sniffy/sdk` against the Railway endpoints. Derive request/response types from the `scraper/` Zod schemas.
 - Implement `@sniffy/cli` on top of the SDK. Include `--json` flag for piping; pretty terminal output with provenance icons by default.
-- Implement `@sniffy/mcp` exposing three tools: `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample`. Tool descriptions written for agent consumption. Wallet config read from env (`SNIFFY_PRIVATE_KEY`) with explicit testnet-only warning.
+- Implement `@sniffy/mcp` exposing three tools: `sniffy_quote`, `sniffy_diagnose`, `sniffy_sample`. Tool descriptions written for agent consumption. Wallet config read from env (`SNIFFY_PRIVATE_KEY`) with an explicit mainnet non-refundable warning before each paid call.
 - Author `SKILL.md` at repo root (Vercel skills format).
 - Add `LICENSE` (MIT), `NOTICE`, `SECURITY.md`, `CONTRIBUTING.md`, repo-root `README.md`.
 - Verify no secrets in commit history; confirm `.gitignore` covers `.env*` and any wallet/key files.
@@ -1055,7 +1074,7 @@ These are the load-bearing distribution channels for the indie-hacker persona. S
 - Quote with 5 keywords.
 - Quote with explicit competitors.
 - Diagnose without payment returns `402`.
-- Diagnose with valid Hoodi payment returns `200`.
+- Diagnose with valid Mainnet payment returns `200`.
 - Diagnose includes receipt metadata.
 - Sample endpoint returns valid JSON.
 
@@ -1087,14 +1106,14 @@ These are the load-bearing distribution channels for the indie-hacker persona. S
 - HMAC signature valid.
 - Missing payment returns `402`.
 - Wrong network is rejected.
-- Valid Hoodi payment settles.
+- Valid Mainnet payment settles.
 - Receipt transaction link opens in explorer.
 
 ## 19. Risks and Mitigations
 
-### Risk: Hoodi support is not available through official facilitator
+### Risk: Mainnet facilitator route is intermittent
 
-Mitigation: ask Morph for Hoodi route/API credentials; use fallback only for Hoodi demo if needed.
+Mitigation: the scraper supports a `fixture-receipt` fallback (`facilitatorMode: "fixture-receipt"` in the response) so the agentic flow still completes the 402 → 200 cycle. The fallback is clearly disclosed in the receipt; never claim a fake on-chain settlement.
 
 ### Risk: Public store scraping fails
 
@@ -1120,12 +1139,12 @@ Mitigation: MVP remains quote, paid diagnosis, sample, and one strong report.
 
 ### 200-Word Write-Up Draft
 
-Sniffy lets indie app founders and AI agents buy one ASO answer at a time. Instead of subscribing to a heavy analytics suite, a founder submits an app, country, and keywords. The API quotes the job, returns `402 Payment Required`, accepts x402 payment on Morph Hoodi testnet, and returns a structured visibility diagnosis with competitor gaps, metadata recommendations, receipt data, and provenance. The same endpoint is agent-readable, so AI tools can price, pay for, and retrieve app-market intelligence programmatically. This matters for Philippine and Southeast Asian builders because many are shipping globally but cannot justify expensive monthly ASO tools for occasional launch decisions. Sniffy uses public app-store data, cache-backed reliability, and confidence labels to keep recommendations honest. The demo shows the full agentic payment loop: free quote, raw `402`, x402 unlock, Morph settlement trail, and a practical report for improving discoverability.
+Sniffy lets indie app founders and AI agents buy one ASO answer at a time. Instead of subscribing to a heavy analytics suite, a founder submits an app, country, and keywords. The API quotes the job, returns `402 Payment Required`, accepts x402 payment on Morph Mainnet, and returns a structured visibility diagnosis with competitor gaps, metadata recommendations, receipt data, and provenance. The same endpoint is agent-readable, so AI tools can price, pay for, and retrieve app-market intelligence programmatically. This matters for Philippine and Southeast Asian builders because many are shipping globally but cannot justify expensive monthly ASO tools for occasional launch decisions. Sniffy uses public app-store data, cache-backed reliability, and confidence labels to keep recommendations honest. The demo shows the full agentic payment loop: free quote, raw `402`, x402 unlock, Morph settlement trail, and a practical report for improving discoverability.
 
 ### Demo Video Structure
 
 - 0:00-0:30: problem and chosen x402 use case: agents need paid app-market intelligence without subscriptions or API-key contracts.
-- 0:30-1:30: live quote, raw `402 Payment Required`, x402 retry/payment on Hoodi, receipt, and final report.
+- 0:30-1:30: live quote, raw `402 Payment Required`, x402 retry/payment on Morph Mainnet, receipt, and final report.
 - 1:30-2:00: next steps: Android parity, review forensics, multi-country opportunity scoring, owner-provided App Store Connect data.
 
 ### Build Diary Posts
@@ -1138,9 +1157,8 @@ Use `#MorphBuildSprint` and `#MorphBuildPH`.
 
 ## 21. Open Questions
 
-- Does the official Morph facilitator currently expose Hoodi through `/v2/supported`?
-- Which Hoodi payment token should the demo use, and what are its EIP-712 fields?
-- Will Reown AppKit's on-ramp UI be useful on testnet, or should it be framed as mainnet onboarding roadmap only?
+- Which Mainnet USDC contract does the official facilitator currently advertise via `/v2/supported`, and what EIP-712 domain fields (name, version) does it expect for the `exact` scheme?
+- What is the Reown AppKit Mainnet onboarding UX (gas top-up, USDC bridge) for users new to Morph?
 - Is Apple Search Ads keyword popularity available in time, or should it remain a post-MVP enrichment?
 - Who are the 3-4 registered team members?
 
@@ -1152,12 +1170,13 @@ Sniffy's product thesis is that ASO is an agent-buyable resource. The agent-dist
 
 | Surface | Who installs it | How they install it | Scope |
 |---|---|---|---|
-| `SKILL.md` | Any user of Claude Code, Cursor, Codex, OpenCode, or other Vercel-skills-aware agent | `npx skills add asosniffy/asosniffy-com` | General API instruction the agent reads before calling Sniffy. |
+| `SKILL.md` | Any user of Claude Code, Cursor, Codex, OpenCode, or other Agent-Skills-aware agent | `npx skills add asosniffy/asosniffy-com` | Canonical API reference (endpoints, x402 payment, receipt verification, provenance, signal gaps). |
+| `skills/` (8-file catalog) | Same as above; installed alongside root `SKILL.md` | `npx skills add asosniffy/asosniffy-com` (catalog comes with the install) | Specialist skills: `sniffy-router` (intent dispatch), `sniffy-context` (foundation workspace doc), `sniffy-audit`, `sniffy-keywords`, `sniffy-metadata`, `sniffy-compete`, `sniffy-localize`, `sniffy-momentum`. Each wraps the same `sniffy_quote`/`sniffy_diagnose` calls and focuses output on one section. Discriminative `description:` triggers drive per-task selection. |
 | `@sniffy/mcp` | Claude Desktop, Cursor, or any MCP client user | MCP config block (see §22.6) | Three callable tools wrapped around the API; handles x402 under the hood. |
 | `@sniffy/cli` | Any developer with `npx` | `npx @sniffy/cli quote ...` | Terminal-native entry point for scripts and humans. |
 | `@sniffy/sdk` | Any TypeScript/JavaScript project | `npm i @sniffy/sdk` | Typed client; the substrate for CLI and MCP. Also usable directly. |
 
-All four surfaces target the same `scraper` API and share the same payment flow. The differences are envelope and ergonomics, not capability.
+All five surfaces target the same `scraper` API and share the same payment flow. The differences are envelope and ergonomics, not capability. The skills catalog under `skills/` is the agent-discovery layer over the same MCP/CLI/SDK calls.
 
 ### 22.2 `SKILL.md`
 
@@ -1166,14 +1185,14 @@ Located at repo root. Vercel skills format:
 ```yaml
 ---
 name: sniffy
-description: Pay-per-sniff ASO intelligence for App Store apps. Use when a user asks for keyword diagnosis, competitor analysis, or metadata recommendations for an iOS app. Handles x402 payment on Morph Hoodi automatically.
+description: Pay-per-sniff ASO intelligence for App Store apps. Use when a user asks for keyword diagnosis, competitor analysis, or metadata recommendations for an iOS app. Handles x402 payment on Morph Mainnet automatically.
 ---
 
 # Sniffy
 
 [Body teaches the agent four things:
   (a) the three endpoints and their request/response shapes,
-  (b) how to read a 402 Payment Required, sign x402 on Morph Hoodi (eip155:2910), and retry,
+  (b) how to read a 402 Payment Required, sign x402 on Morph Mainnet (eip155:2818), and retry,
   (c) the provenance labels (live/cached/fixture/inferred) and how to surface them in agent output,
   (d) error semantics — payment_required, app_not_found, no_rank, unsupported_country.]
 ```
@@ -1188,7 +1207,7 @@ A Node-based MCP server. Three tools:
 - `sniffy_diagnose` — input: same as above plus `{ sniffId }`. Wraps the x402 payment flow: on first attempt the upstream API returns 402, the MCP server signs and pays via the configured wallet, then retries. Returns the paid report with receipt metadata.
 - `sniffy_sample` — input: none. Returns the canned sample response. Useful for agents that want to inspect the report shape before committing to a paid call.
 
-Wallet config: testnet signer read from env (`SNIFFY_PRIVATE_KEY`). Each tool description includes an explicit "testnet only — do not use a mainnet key" warning so agents surface this to the user.
+Wallet config: Mainnet signer read from env (`SNIFFY_PRIVATE_KEY`). Each tool description includes an explicit "Mainnet — payments are non-refundable" warning so agents surface this to the user before triggering paid calls.
 
 ### 22.4 `@sniffy/cli`
 
@@ -1320,7 +1339,7 @@ This is the difference that makes the business interesting: the cost of selling 
 
 Pricing has three eras, in order:
 
-- **Hackathon (now, Hoodi testnet)** — Granular pricing per §12: base diagnosis $0.03 + add-on per keyword + add-on per country + add-on for competitor depth. The point is judge clarity and a visible spend trail in the demo, not revenue. Hoodi USDC-equivalent test token is the asset; the official Morph facilitator settles.
+- **Hackathon (now, Morph Mainnet)** — Granular pricing per §12: base diagnosis $0.03 + add-on per keyword + add-on per country + add-on for competitor depth. The point is judge clarity and a visible spend trail in the demo, not revenue. Mainnet USDC is the asset; the official Morph facilitator settles.
 - **Mainnet demo (optional, §6)** — A single ~$0.01 USDC transaction on Morph mainnet, recorded for the submission video, that proves the same code path works against `eip155:2818`. Not a pricing decision; a proof-of-portability decision.
 - **Post-hackathon, public (~Q3 2026)** — Real USDC settlement on Morph mainnet. Public pricing page at sniffy.io/pricing. Target price band $0.05–$0.50 per diagnosis, scaling with keyword count, country count, and competitor depth. Same `pricing.breakdown` wire format as the hackathon API, just with mainnet amounts.
 - **Post-PMF (~Q4 2026+)** — Pre-funded credit balances. The friction reducer §5A acknowledges is real: most indie hackers will not stand up a wallet to spend $0.10. Credit balances funded via Reown AppKit on-ramp (card → USDC → Sniffy account credit) keep the agent-native x402 backend intact while making the front door card-payable. Team plans / metered API keys for agencies layer on top.
@@ -1338,7 +1357,7 @@ Variable cost per paid diagnosis call:
 | Android preview (when used) | $0 (amortized) | Public Play Store sampling; preview-quality only |
 | Redis read/write | < $0.0001 | Upstash or Railway Redis pricing |
 | **OpenAI synthesis** | **$0.005–$0.02** | **Dominant variable cost.** Depends on model and prompt size |
-| Morph x402 facilitator settlement | $0 (Hoodi) / negligible (mainnet) | Settlement fee passed through; not a Sniffy cost |
+| Morph x402 facilitator settlement | Negligible (Mainnet gas) | Settlement fee passed through; not a Sniffy cost |
 | Infra (Railway dyno + Vercel build minutes) | Fixed | Not per-call |
 
 Cache hit ratio is the most important lever. A repeated query against the same `(store, country, appId, keywordSet)` tuple hits Redis and costs effectively zero on the data provider side. The OpenAI cost only drops if the *report* is also cached for that tuple, which is appropriate for short-lived reports but risks staleness; the report-version cache key in §10 handles this by invalidating reports when scoring/prompt logic changes.
@@ -1372,7 +1391,7 @@ The MIT license is explicitly a revenue-funnel investment. Closed source would f
 
 | Horizon | Milestone | Revenue posture |
 |---|---|---|
-| 2026-05 (hackathon) | Hoodi testnet flow proves end-to-end | $0 revenue; demo validation |
+| 2026-05 (hackathon) | Mainnet flow proves end-to-end | minimal revenue (demo); validation focus |
 | Q3 2026 | Mainnet cut, public pricing page, first non-judge paying agents | First paid dollars |
 | Q4 2026 | Card-funded credit-balance UX via Reown on-ramp | Indie-hacker conversion friction drops; ARPU rises |
 | 2027 | Agency/enterprise metered API-key tier; possible BSL/SSPL relicense of `scraper/` if cloud-hosting clones appear (option preserved per §23.1) | Second revenue product on top of the same API |

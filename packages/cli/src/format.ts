@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import type {
   DiagnosePaidResponse,
+  MetadataScore,
   Provenance,
   QuoteResponse,
   ReadyToPasteField,
@@ -102,6 +103,49 @@ function recommendations(items: DiagnosePaidResponse["recommendations"]): string
       return `  ${PRIMARY(`#${r.rank}`)} ${r.action}   ${MUTED(`(${tag})`)}\n    ${MUTED(r.rationale)}`;
     })
     .join("\n");
+}
+
+function bar(score: number, segments = 10): string {
+  const filled = Math.round((Math.max(0, Math.min(100, score)) / 100) * segments);
+  return "█".repeat(filled) + "░".repeat(segments - filled);
+}
+
+function scoreCardRow(
+  label: string,
+  weight: number,
+  score: number,
+  notes: string,
+): string {
+  const labelCol = `${label} (${weight}%)`.padEnd(26);
+  const scoreCol = `${String(score).padStart(2)}/100`.padEnd(7);
+  const barCol = bar(score);
+  const noteCol = notes.length > 0 ? `  ${MUTED(notes)}` : "";
+  return `  ${labelCol}${scoreCol}  ${ACCENT(barCol)}${noteCol}`;
+}
+
+function scoreCard(metadataScore: MetadataScore): string {
+  const w = metadataScore.weights;
+  const lines: string[] = [
+    PRIMARY(`\nASO Score Card${" ".repeat(24)}Overall: ${metadataScore.overall}/100`),
+    "",
+    scoreCardRow("Title", w.title, metadataScore.title.score, metadataScore.title.notes),
+    scoreCardRow("Subtitle", w.subtitle, metadataScore.subtitle.score, metadataScore.subtitle.notes),
+    scoreCardRow("Keyword Field", w.keywords, metadataScore.keywords.score, metadataScore.keywords.notes),
+    scoreCardRow("Screenshots", w.screenshots, metadataScore.screenshots.score, metadataScore.screenshots.notes),
+    scoreCardRow(
+      "Ratings & Reviews",
+      w.ratingsAndReviews,
+      metadataScore.ratingsAndReviews.score,
+      metadataScore.ratingsAndReviews.notes,
+    ),
+    scoreCardRow(
+      "Keyword Rankings",
+      w.keywordRankings,
+      metadataScore.keywordRankings.score,
+      metadataScore.keywordRankings.notes,
+    ),
+  ];
+  return lines.join("\n");
 }
 
 function receiptBlock(
@@ -229,12 +273,7 @@ export function formatPaid(r: DiagnosePaidResponse): string {
     }
   }
 
-  lines.push(header("Metadata score"));
-  lines.push(row("overall", String(r.metadataScore.overall)));
-  lines.push(row("title", `${r.metadataScore.title.score} — ${r.metadataScore.title.notes}`));
-  lines.push(row("subtitle", `${r.metadataScore.subtitle.score} — ${r.metadataScore.subtitle.notes}`));
-  lines.push(row("keywords", `${r.metadataScore.keywords.score} — ${r.metadataScore.keywords.notes}`));
-  lines.push(row("screenshots", `${r.metadataScore.screenshots.score} — ${r.metadataScore.screenshots.notes}`));
+  lines.push(scoreCard(r.metadataScore));
 
   lines.push(header("Recommendations"));
   lines.push(recommendations(r.recommendations));

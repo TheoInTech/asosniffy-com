@@ -208,6 +208,79 @@ describe("createSniffy — X-Sniffy-Client attestation", () => {
     const headers = init.headers as Record<string, string>;
     expect(headers["x-sniffy-client"]).toMatch(/^@sniffy\/sdk@/);
   });
+
+  it("default identity matches @sniffy/sdk@<pkg.version>", async () => {
+    const sdkPkg = JSON.parse(
+      readFileSync(join(__dirname, "..", "package.json"), "utf8"),
+    ) as { version: string };
+    fetchMock.mockResolvedValueOnce(jsonResponse(QUOTE_FIXTURE));
+    const sniffy = createSniffy({
+      baseUrl: "http://test",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+    await sniffy.quote({
+      store: "ios",
+      app: "https://apps.apple.com/us/app/example/id123456789",
+      country: "US",
+      keywords: ["habit tracker"],
+    });
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-sniffy-client"]).toBe(`@sniffy/sdk@${sdkPkg.version}`);
+  });
+
+  it("honors clientId override verbatim on quote", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(QUOTE_FIXTURE));
+    const sniffy = createSniffy({
+      baseUrl: "http://test",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      clientId: "@sniffy/mcp@9.9.9",
+    });
+    await sniffy.quote({
+      store: "ios",
+      app: "https://apps.apple.com/us/app/example/id123456789",
+      country: "US",
+      keywords: ["habit tracker"],
+    });
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-sniffy-client"]).toBe("@sniffy/mcp@9.9.9");
+  });
+
+  it("clientId override flows through diagnose manual path", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(FIXTURE));
+    const sniffy = createSniffy({
+      baseUrl: "http://test",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      clientId: "@sniffy/cli@1.2.3",
+    });
+    await sniffy.diagnose(
+      {
+        sniffId: "sniff_q1",
+        store: "ios",
+        app: "x",
+        country: "US",
+        keywords: ["habit tracker"],
+      },
+      { autoPay: false },
+    );
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-sniffy-client"]).toBe("@sniffy/cli@1.2.3");
+  });
+
+  it("clientId override flows through sample", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...FIXTURE, sample: true }));
+    const sniffy = createSniffy({
+      baseUrl: "http://test",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      clientId: "@sniffy/landing@0.5.0",
+    });
+    await sniffy.sample();
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-sniffy-client"]).toBe("@sniffy/landing@0.5.0");
+  });
 });
 
 describe("createSniffy — diagnose", () => {

@@ -110,6 +110,26 @@ describe("computeKeywordDifficulty", () => {
     expect(result.difficultyScore).toBeGreaterThanOrEqual(1);
   });
 
+  it("clamps minDifficultyScore to a minimum of 1 (matches the API contract)", () => {
+    // Regression: previously minDifficultyScore was clamped to [0, 100],
+    // but DiagnosePaidResponse.keywordDiagnosis[].minDifficulty is
+    // z.number().int().min(1).max(100). A weakest-top-app score of 0 would
+    // round to a 0 minDifficulty and fail the response Zod parse — a
+    // paying-user-facing 400 on a non-refundable payment. Floor at 1.
+    const allZero = computeKeywordDifficulty({
+      competitiveScores: [0, 0, 0, 0, 0],
+      appCount: 20,
+    });
+    expect(allZero.minDifficultyScore).toBeGreaterThanOrEqual(1);
+
+    // Even a single zero pulls Math.min(...scores) to 0 — guard that path too.
+    const oneZero = computeKeywordDifficulty({
+      competitiveScores: [0.9, 0.85, 0.8, 0.75, 0],
+      appCount: 200,
+    });
+    expect(oneZero.minDifficultyScore).toBeGreaterThanOrEqual(1);
+  });
+
   it("ramps normalizedAppCount linearly between 10 and 200 apps", () => {
     const scores = [0.5, 0.5, 0.5, 0.5, 0.5];
     const small = computeKeywordDifficulty({ competitiveScores: scores, appCount: 10 });

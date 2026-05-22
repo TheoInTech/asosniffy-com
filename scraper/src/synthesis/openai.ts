@@ -242,6 +242,12 @@ function mergeAiReadyToPaste(
       ai: ai.shortDescription,
       charLimit: SHORT_DESCRIPTION_CAP,
     }),
+    // Phase F: AI path doesn't generate the new platform-correct fields
+    // yet — the response schema (OpenAiResponseShape) doesn't include
+    // them. Set to null so the schema validator accepts the merged
+    // output; a future iteration extends the prompt + response shape.
+    promotionalText: null,
+    androidShortDescription: null,
     source: "ai",
   };
 }

@@ -8,6 +8,7 @@ import {
   type DataProvenance,
   type DiagnosePaidResponse,
   type KeywordDiagnosisItem,
+  METADATA_SCORE_WEIGHTS,
   type MetadataScore,
   type Provenance,
   type RegressionItem,
@@ -27,6 +28,7 @@ import {
 } from "../data/report-data.js";
 import {
   analyzeCompetitors,
+  computeKeywordDistribution,
   computeTrend,
   detectRegressions,
   diagnoseKeywords,
@@ -41,6 +43,7 @@ import {
 import { lookupLocalized } from "../providers/apple/multi-storefront.js";
 import {
   buildCompetitorNotes,
+  buildDescriptionDensityRecommendation,
   buildKeywordRecommendation,
   buildMetadataNotes,
   synthesizeReportOpenAi,
@@ -126,10 +129,14 @@ export async function generateReportWithMeta(
   });
 
   // ---------- Scoring (deterministic) ----------
+  // `data.keywordRanks` lands before diagnosis composition, so we can feed it
+  // straight into scoring for the keywordRankings subscore — no need to wait
+  // for the assembled `KeywordDiagnosisItem[]` to exist.
   const metadataScoring = scoreMetadataFull({
     app: data.detect.appRecord,
     detectedApp: data.detectedApp,
     keywords: input.keywords,
+    rankedKeywords: data.keywordRanks,
   });
 
   const keywordScoring = diagnoseKeywords({
@@ -259,11 +266,14 @@ export async function generateReportWithMeta(
   // fetched or the listing is region-locked without a releaseDate.
   const targetAppSignals = assembleTargetAppSignals(data.detect.appRecord);
 
-  // ---------- Phase C: localization recommendation card ----------
+  // ---------- Phase C + H: post-synthesis recommendation cards ----------
   // When translation was deferred (no OpenAI key, or call failed), surface
   // a single "translate your listing" recommendation so the report still
   // tells the buyer what to do. When translation succeeded, the copy
   // itself is the value and no extra card is needed.
+  // The description-density card (Phase H) fires when a user keyword is
+  // under-target in the description — points the buyer at a concrete
+  // copy edit grounded in the 2026 density rule.
   const recommendations = [...synthesis.recommendations];
   const localizationRec = buildLocalizationRecommendation(
     localizationAnalysis,
@@ -271,6 +281,14 @@ export async function generateReportWithMeta(
   );
   if (localizationRec && recommendations.length < 5) {
     recommendations.push(localizationRec);
+  }
+  const densityRec = buildDescriptionDensityRecommendation(
+    metadataScoring.descriptionDensity,
+    input.keywords,
+    recommendations.length + 1,
+  );
+  if (densityRec && recommendations.length < 5) {
+    recommendations.push(densityRec);
   }
 
   // ---------- Assembly ----------
@@ -289,6 +307,24 @@ export async function generateReportWithMeta(
         data.competitors,
       ),
       metadataScore: assembleMetadataScore(metadataScoring),
+      // Phase G — cross-field keyword distribution matrix. Receives the
+      // (post-Phase-F) readyToPaste recommended promo text / Android
+      // short desc so the matrix reflects what the user would have if
+      // they accepted Sniffy's paste-able copy.
+      keywordDistribution: computeKeywordDistribution({
+        keywords: input.keywords,
+        fields: {
+          title: data.detect.appRecord?.name ?? data.detectedApp.name,
+          subtitle: data.detect.appRecord?.subtitle ?? "",
+          keywordsField: input.keywords,
+          description: data.detect.appRecord?.description ?? "",
+          promotionalText:
+            synthesis.readyToPaste.promotionalText?.recommended ?? "",
+          androidShortDescription:
+            synthesis.readyToPaste.androidShortDescription?.recommended ?? "",
+        },
+        diagnosis: keywordScoring,
+      }),
       recommendations,
       readyToPaste: synthesis.readyToPaste,
       suggestedKeywords: buildSuggestedKeywords({
@@ -596,12 +632,23 @@ function assembleMetadataScore(
   const notes = buildMetadataNotes(scoring);
   return {
     overall: scoring.overall,
+    weights: METADATA_SCORE_WEIGHTS,
     title: { score: scoring.title.score, notes: notes.title },
     subtitle: { score: scoring.subtitle.score, notes: notes.subtitle },
     keywords: { score: scoring.keywordsField.score, notes: notes.keywordsField },
     // Schema field name preserved for SDK compatibility; populated with
-    // description-density score per Phase 04 decision.
+    // description-density score per Phase 04 decision. Sniffy doesn't extract
+    // screenshot caption text — note this honestly when the user asks.
     screenshots: { score: scoring.description.score, notes: notes.description },
+    ratingsAndReviews: {
+      score: scoring.ratingsAndReviews.score,
+      notes: scoring.ratingsAndReviews.reasons[0] ?? "",
+    },
+    keywordRankings: {
+      score: scoring.keywordRankings.score,
+      notes: scoring.keywordRankings.reasons[0] ?? "",
+    },
+    descriptionDensity: scoring.descriptionDensity,
   };
 }
 

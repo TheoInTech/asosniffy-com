@@ -117,6 +117,90 @@ describe("assembleReceipt", () => {
   });
 });
 
+describe("assembleReceipt — payer source", () => {
+  // Without these, the wallet-history index in diagnose.ts silently skips
+  // writes (the original Trail-empty bug). settleResponse.payer is the
+  // authoritative source when present, but Morph's /v2/settle marks payer
+  // optional and doesn't always echo it — so we fall back to the EIP-3009
+  // authorization.from that the diagnose route already parsed.
+  const TX = "0xdeadbeef".padEnd(66, "0");
+  const SETTLE_PAYER = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const FALLBACK_PAYER_MIXED = "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb";
+
+  function settleNoPayer(): SettleResponse {
+    return {
+      success: true,
+      errorReason: "",
+      transaction: TX,
+      network: "eip155:2910",
+    };
+  }
+
+  it("prefers settleResponse.payer over payerFallback when both are present", () => {
+    const pricing = computePricing({ keywords: ["a"] });
+    const receipt = assembleReceipt({
+      mode: "morph-official",
+      pricing,
+      sniffId: "sniff_payer_001",
+      settleResponse: settleSuccess,
+      payerFallback: FALLBACK_PAYER_MIXED,
+      env: TEST_ENV,
+    });
+    expect(receipt.payer).toBe(SETTLE_PAYER);
+  });
+
+  it("falls back to payerFallback when settleResponse omits payer", () => {
+    const pricing = computePricing({ keywords: ["a"] });
+    const receipt = assembleReceipt({
+      mode: "morph-official",
+      pricing,
+      sniffId: "sniff_payer_002",
+      settleResponse: settleNoPayer(),
+      payerFallback: FALLBACK_PAYER_MIXED,
+      env: TEST_ENV,
+    });
+    expect(receipt.payer).toBe(FALLBACK_PAYER_MIXED.toLowerCase());
+  });
+
+  it("lowercases a mixed-case payerFallback to match the wallet-history index", () => {
+    const pricing = computePricing({ keywords: ["a"] });
+    const receipt = assembleReceipt({
+      mode: "fixture-receipt",
+      pricing,
+      sniffId: "sniff_payer_003",
+      payerFallback: FALLBACK_PAYER_MIXED,
+      env: TEST_ENV,
+    });
+    expect(receipt.payer).toBe(FALLBACK_PAYER_MIXED.toLowerCase());
+  });
+
+  it("leaves payer undefined when neither settleResponse.payer nor payerFallback is provided", () => {
+    const pricing = computePricing({ keywords: ["a"] });
+    const receipt = assembleReceipt({
+      mode: "fixture-receipt",
+      pricing,
+      sniffId: "sniff_payer_004",
+      env: TEST_ENV,
+    });
+    expect(receipt.payer).toBeUndefined();
+  });
+
+  it("populates payer in morph-official mode from payerFallback even when facilitator omits payer", () => {
+    const pricing = computePricing({ keywords: ["a"] });
+    const receipt = assembleReceipt({
+      mode: "morph-official",
+      pricing,
+      sniffId: "sniff_payer_005",
+      settleResponse: settleNoPayer(),
+      payerFallback: SETTLE_PAYER,
+      env: TEST_ENV,
+    });
+    expect(receipt.payer).toBe(SETTLE_PAYER);
+    expect(receipt.facilitatorMode).toBe("morph-official");
+    expect(receipt.transactionHash).toBe(TX);
+  });
+});
+
 describe("formatExplorerLink", () => {
   it("returns the Hoodi explorer URL for eip155:2910", () => {
     expect(formatExplorerLink(TX_HASH, "eip155:2910")).toBe(

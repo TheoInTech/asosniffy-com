@@ -12,14 +12,16 @@ import {
 import type { LocalAccount } from "viem";
 import { PaymentRequiredError } from "./errors.js";
 import { createPayingFetch, type PayingFetch } from "./x402.js";
+import pkg from "../package.json" with { type: "json" };
 
 const DEFAULT_BASE_URL = "https://api.sniffy.io";
 
 // Identifies this surface to the scraper's soft attestation middleware so
-// the per-request audit log carries clientSurface=sdk. CLI and MCP route
-// through createSniffy() and inherit this value until v0.1 threads a
-// `clientId` option into CreateSniffyOptions.
-const SNIFFY_CLIENT_ID = "@sniffy/sdk@0.0.0";
+// the per-request audit log carries clientSurface=sdk. CLI, MCP, and
+// landing override this via `clientId` so their traffic attests as
+// @sniffy/cli, @sniffy/mcp, etc. Third-party callers can also pass an
+// arbitrary string; the server tags non-matching values as "unknown".
+const DEFAULT_CLIENT_ID = `@sniffy/sdk@${pkg.version}`;
 
 export interface SignerLike {
   signTypedData: (args: unknown) => Promise<`0x${string}`>;
@@ -30,6 +32,7 @@ export interface CreateSniffyOptions {
   baseUrl?: string;
   signer?: LocalAccount;
   fetchImpl?: typeof globalThis.fetch;
+  clientId?: string;
 }
 
 export interface DiagnoseOptions {
@@ -76,6 +79,7 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
   const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
   const baseFetch = options.fetchImpl ?? globalThis.fetch;
   const signer = options.signer;
+  const clientId = options.clientId ?? DEFAULT_CLIENT_ID;
 
   let payingFetch: PayingFetch | null = null;
   function getPayingFetch(): PayingFetch {
@@ -96,7 +100,7 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-sniffy-client": SNIFFY_CLIENT_ID,
+          "x-sniffy-client": clientId,
         },
         body: JSON.stringify(input),
       });
@@ -109,7 +113,7 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
     async sample() {
       const res = await baseFetch(joinUrl(baseUrl, "/api/v1/aso/sample"), {
         method: "GET",
-        headers: { "x-sniffy-client": SNIFFY_CLIENT_ID },
+        headers: { "x-sniffy-client": clientId },
       });
       if (res.status !== 200) {
         await throwApiError(res, "sample request failed");
@@ -126,7 +130,7 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-sniffy-client": SNIFFY_CLIENT_ID,
+          "x-sniffy-client": clientId,
         },
         body: JSON.stringify(input),
       };

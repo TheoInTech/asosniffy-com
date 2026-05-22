@@ -232,11 +232,19 @@ function scoreKeywordDifficulty(
   if (breakdown.isFallback) {
     return { difficulty: null, minDifficulty: null, isFallback: true };
   }
+  // Defensive clamp at the producer boundary. The computeKeywordDifficulty
+  // clamps both scores to [1, 100], but rounding to int could theoretically
+  // emit a 0 if the upstream clamp drifts; the schema (z.number().int().min(1)
+  // .max(100)) is the contract, so honor it here regardless.
   return {
-    difficulty: Math.round(breakdown.difficultyScore),
-    minDifficulty: Math.round(breakdown.minDifficultyScore),
+    difficulty: clampInt(Math.round(breakdown.difficultyScore), 1, 100),
+    minDifficulty: clampInt(Math.round(breakdown.minDifficultyScore), 1, 100),
     isFallback: false,
   };
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

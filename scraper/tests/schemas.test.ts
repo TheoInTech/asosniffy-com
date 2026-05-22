@@ -93,7 +93,7 @@ const exampleUnpaid = {
 
 describe("schema constants", () => {
   it("exports the expected SCHEMA_VERSION", () => {
-    expect(SCHEMA_VERSION).toBe("2026-05-mvp-3");
+    expect(SCHEMA_VERSION).toBe("2026-05-mvp-4");
   });
 });
 

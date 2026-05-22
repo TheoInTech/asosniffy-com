@@ -150,7 +150,7 @@ describe("MCP server — stdio harness", () => {
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual(["sniffy_diagnose", "sniffy_quote", "sniffy_sample"]);
     for (const tool of tools) {
-      expect(tool.description).toContain("Testnet only");
+      expect(tool.description).toContain("Morph Mainnet (eip155:2818)");
     }
   });
 
@@ -197,6 +197,6 @@ describe("MCP server — stdio harness", () => {
     };
     expect(result.isError).toBe(true);
     expect(result.structuredContent?.code).toBe("payment_required");
-    expect(result.structuredContent?.payment?.network).toBe("eip155:2910");
+    expect(result.structuredContent?.payment?.network).toBe("eip155:2818");
   });
 });

@@ -457,6 +457,67 @@ describe("POST /api/v1/aso/diagnose — paid happy paths", () => {
     expect(receipt.facilitatorMode).toBe("fixture-receipt");
     expect(receipt.transactionHash).toMatch(/^0xsample/);
   });
+
+  it("indexes the sniff against auth.from when morph-official settle succeeds but omits payer", async () => {
+    // Regression: the Trail page was permanently empty because Morph's
+    // /v2/settle treats payer as optional and doesn't always echo it back.
+    // The diagnose route used to gate the wallet-history write on
+    // receipt.payer (sourced solely from settleResponse.payer), so the
+    // recordSniff() call was silently skipped. The fix passes auth.from as
+    // payerFallback so the index is still populated.
+    verifyMock.mockResolvedValue({ isValid: true });
+    settleMock.mockResolvedValue({
+      success: true,
+      transaction: "0x1234567890abcdef1234567890abcdef12345678",
+      // NOTE: no `payer` field — mirrors the real Morph response shape.
+    });
+    getFacilitatorMock.mockReturnValue({
+      verify: verifyMock,
+      settle: settleMock,
+      baseUrl: "https://test.example.com/x402",
+      getSupported: vi.fn(),
+    });
+
+    const header = buildAuthHeader();
+    const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
+    expect(res.status).toBe(200);
+
+    // 1) Receipt carries the payer derived from auth.from, lowercased.
+    const parsed = DiagnosePaidResponse.parse(await res.json());
+    const expectedPayer = `0x${"11".repeat(20)}`; // buildAuthHeader uses 0x1111... for authorization.from
+    expect(parsed.receipt.payer).toBe(expectedPayer);
+
+    // 2) listSniffs() returns the sniff against that wallet — the actual
+    //    integration point the Trail page relies on.
+    const { listSniffs } = await import("../../src/wallet/history.js");
+    const { tryNormalizeAddress } = await import("../../src/lib/address.js");
+    const lower = tryNormalizeAddress(expectedPayer);
+    expect(lower).not.toBeNull();
+    const list = await listSniffs({ address: lower! });
+    expect(list.items.length).toBe(1);
+    expect(list.items[0]?.sniffId).toBe(VALID_BODY.sniffId);
+  });
+
+  it("indexes the sniff against auth.from in fixture-receipt mode", async () => {
+    // Fixture mode has no settleResponse at all, but the user still paid
+    // (signed an EIP-3009 authorization) — the trail must still record it
+    // so judges/agents using fixture mode see their history.
+    getFacilitatorMock.mockReturnValue(null);
+    const header = buildAuthHeader();
+    const fixtureBody = { ...VALID_BODY, sniffId: "sniff_test_fixture_trail" };
+    const res = await postDiagnose(fixtureBody, { "PAYMENT-SIGNATURE": header });
+    expect(res.status).toBe(200);
+
+    const parsed = DiagnosePaidResponse.parse(await res.json());
+    const expectedPayer = `0x${"11".repeat(20)}`;
+    expect(parsed.receipt.payer).toBe(expectedPayer);
+
+    const { listSniffs } = await import("../../src/wallet/history.js");
+    const { tryNormalizeAddress } = await import("../../src/lib/address.js");
+    const lower = tryNormalizeAddress(expectedPayer);
+    const list = await listSniffs({ address: lower! });
+    expect(list.items.some((i) => i.sniffId === fixtureBody.sniffId)).toBe(true);
+  });
 });
 
 describe("POST /api/v1/aso/diagnose — body validation", () => {

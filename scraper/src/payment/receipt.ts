@@ -37,6 +37,12 @@ export interface AssembleReceiptInput {
   env?: ReceiptEnv;
   // Test/seed hook: when not provided, fabricated tx hashes use crypto.randomBytes.
   random?: () => Buffer;
+  // EIP-3009 authorization.from from the parsed PAYMENT-SIGNATURE. Used as
+  // the payer when settleResponse omits one — Morph's /v2/settle treats payer
+  // as optional, but we need it for the wallet-history index in diagnose.ts.
+  // Cryptographically equivalent to settleResponse.payer because the
+  // facilitator recovers it from the same signature.
+  payerFallback?: string;
 }
 
 const DEFAULTS = {
@@ -121,10 +127,15 @@ export function assembleReceipt(input: AssembleReceiptInput): Receipt {
     }
   }
 
-  // Payer is only available from settleResponse (the facilitator's on-chain
-  // commitment). Lowercased to match the wallet-history index. fixture-receipt
-  // mode legitimately has none — Receipt.payer is optional.
-  const payer = input.settleResponse?.payer?.toLowerCase();
+  // Payer preference: settleResponse.payer (facilitator's on-chain commitment)
+  // wins when present. Fall back to payerFallback (EIP-3009 authorization.from
+  // we already validated) when the facilitator omits payer — Morph's
+  // /v2/settle treats payer as optional and doesn't always echo it back, but
+  // we still need a payer for the wallet-history index. Lowercased to match
+  // the index key format.
+  const payer =
+    input.settleResponse?.payer?.toLowerCase() ??
+    input.payerFallback?.toLowerCase();
 
   const receipt: Receipt = {
     network,

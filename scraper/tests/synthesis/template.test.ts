@@ -200,20 +200,21 @@ describe("synthesizeReportTemplate", () => {
     expect(result.readyToPaste.subtitle.recommended).toBeNull();
   });
 
-  it("unions competitor-unique terms into the keywordsField recommendation but strips title/subtitle tokens", () => {
+  it("unions competitor-unique terms into the keywordsField recommendation, stripping only what's in the CURRENT visible fields", () => {
     const result = synthesizeReportTemplate(buildInput());
     const recommended = result.readyToPaste.keywordsField.recommended;
     expect(recommended).not.toBeNull();
-    // Of the two competitor-unique terms ("mindful", "planner"), one ends
-    // up in the recommended subtitle (Apple's keyword indexer counts visible
-    // tokens, so we strip it from the keywords field). The other survives.
-    const consumedBySubtitle = result.readyToPaste.subtitle.recommended ?? "";
-    if (consumedBySubtitle.toLowerCase().includes("mindful")) {
-      expect(recommended).toContain("planner");
-      expect(recommended).not.toContain("mindful");
-    } else {
-      expect(recommended).toContain("mindful");
-    }
+    // Phase E5: keywords-field strips against the CURRENT title/subtitle,
+    // not the recommended rewrites. The Apple-dedup recommendation card
+    // separately surfaces "if you accept the title rewrite, also drop
+    // these" — keeping that coupling out of the keywords-field strip lets
+    // the recommendation stand on its own. With buildInput()'s fixture,
+    // the current subtitle is "Daily Routine & Streaks" — neither
+    // "mindful" nor "planner" appears there, so both stay in the
+    // recommended keywords list regardless of what the recommended
+    // subtitle does with them.
+    expect(recommended).toContain("planner");
+    expect(recommended).toContain("mindful");
   });
 
   it("produces a non-empty summary that mentions the app", () => {

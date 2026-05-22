@@ -1,5 +1,6 @@
 export {
   synthesizeReportTemplate,
+  buildDescriptionDensityRecommendation,
   type SynthesisInput,
   type SynthesisOutput,
 } from "./template.js";

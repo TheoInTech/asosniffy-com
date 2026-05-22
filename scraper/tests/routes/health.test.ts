@@ -8,7 +8,7 @@ describe("GET /health", () => {
     const body = await res.json();
     expect(body).toEqual({
       ok: true,
-      schemaVersion: "2026-05-mvp-3",
+      schemaVersion: "2026-05-mvp-4",
       network: "eip155:2910",
     });
   });

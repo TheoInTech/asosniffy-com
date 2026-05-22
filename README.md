@@ -25,7 +25,10 @@ asosniffy-com/
 │   ├── sdk/          @sniffy/sdk — typed TypeScript client
 │   ├── cli/          @sniffy/cli — `npx sniffy ...`
 │   └── mcp/          @sniffy/mcp — MCP server for Claude Desktop / Cursor
-├── SKILL.md          Vercel skills format — install into Claude Code / Cursor / Codex
+├── SKILL.md          Agent Skills format — canonical API reference for Claude Code / Cursor / Codex
+├── skills/           Specialist Agent Skills catalog: sniffy-router, sniffy-context,
+│                     sniffy-audit, sniffy-keywords, sniffy-metadata, sniffy-compete,
+│                     sniffy-localize, sniffy-momentum
 ├── PLAN.md           Product requirements doc (authoritative)
 └── CLAUDE.md         Working notes for AI contributors
 ```
@@ -78,7 +81,7 @@ const quote = await sniffy.quote({ store: "ios", app, country, keywords });
 const report = await sniffy.diagnose({ sniffId: quote.sniffId });
 ```
 
-See `SKILL.md` and `PLAN.md` §22 for the full agent-distribution surface.
+See `SKILL.md` (canonical API reference) and `skills/` (specialist catalog: router + 6 specialists + foundation context skill) for the agent-distribution surface, or `PLAN.md` §22 for the full design.
 
 ---
 

@@ -120,4 +120,53 @@ describe("diagnoseKeywords", () => {
     };
     expect(diagnoseKeywords(input)).toEqual(diagnoseKeywords(input));
   });
+
+  it("never emits minDifficulty < 1 even when every top-5 competitor scores zero", () => {
+    // Regression for the paid-path 400: 5 competitors with no signal at all
+    // (zero ratings, no release date, no keyword match) used to round to
+    // minDifficulty: 0 and fail DiagnosePaidResponse.parse on the paid retry,
+    // returning a 400 to a user who had already settled on Morph mainnet.
+    const deadCompetitor: AppRecord = {
+      id: "dead",
+      name: "Pre-Release",
+      developer: "Nobody",
+      primaryCategory: "Utilities",
+      subtitle: "",
+      description: "",
+      ratingsSummary: { average: 0, count: 0 },
+      screenshots: [],
+      currentVersion: "1.0",
+      provenance: "live",
+    };
+    const ranksWithZeroCompetitors: KeywordRankDatum[] = [
+      {
+        keyword: "niche term",
+        rankBucket: "not_found",
+        confidence: "medium",
+        provenance: "live",
+        topCompetitors: [
+          deadCompetitor,
+          { ...deadCompetitor, id: "dead2" },
+          { ...deadCompetitor, id: "dead3" },
+          { ...deadCompetitor, id: "dead4" },
+          { ...deadCompetitor, id: "dead5" },
+        ],
+        returnedCount: 50,
+      } as KeywordRankDatum,
+    ];
+    const result = diagnoseKeywords({
+      keywords: ["niche term"],
+      ranks: ranksWithZeroCompetitors,
+      app: makeApp(),
+    });
+    const row = result[0]!;
+    // When the difficulty formula runs (non-fallback path), both signals must
+    // honor the schema's [1, 100] floor.
+    if (row.minDifficulty !== null) {
+      expect(row.minDifficulty).toBeGreaterThanOrEqual(1);
+    }
+    if (row.difficulty !== null) {
+      expect(row.difficulty).toBeGreaterThanOrEqual(1);
+    }
+  });
 });

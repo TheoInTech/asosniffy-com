@@ -269,12 +269,92 @@ export const MetadataSubscore = z.object({
 });
 export type MetadataSubscore = z.infer<typeof MetadataSubscore>;
 
+// Phase G — per-keyword cross-field distribution. The matrix that answers
+// "where does this keyword appear across my listing?" for every user
+// keyword, plus actionable next-move suggestions per row.
+export const KeywordPresence = z.enum(["exact", "tokens", "duplicate", "absent"]);
+export type KeywordPresence = z.infer<typeof KeywordPresence>;
+
+export const KeywordDistributionLocations = z.object({
+  title: KeywordPresence,
+  subtitle: KeywordPresence,
+  keywordsField: KeywordPresence,
+  description: KeywordPresence,
+  promotionalText: KeywordPresence,
+  androidShortDescription: KeywordPresence,
+});
+export type KeywordDistributionLocations = z.infer<typeof KeywordDistributionLocations>;
+
+export const KeywordDistributionRow = z.object({
+  keyword: z.string().min(1),
+  locations: KeywordDistributionLocations,
+  moves: z.array(z.string()).default([]),
+});
+export type KeywordDistributionRow = z.infer<typeof KeywordDistributionRow>;
+
+// Phase H — per-keyword density of exact-phrase mentions in the description.
+// 1 mention per ~250 chars is the target (per 2026 ASO references).
+// `polarity === "under"` is the actionable case — surfaced as a "Lift
+// mentions of X in description from N to M" recommendation card.
+export const DescriptionDensityRow = z.object({
+  keyword: z.string().min(1),
+  count: z.number().int().nonnegative(),
+  charsPerMention: z.number().int().positive().nullable(),
+  target: z.number().int().nonnegative(),
+  polarity: z.enum(["under", "at", "over"]),
+});
+export type DescriptionDensityRow = z.infer<typeof DescriptionDensityRow>;
+
+// Weighted 6-factor Score Card. Weights sum to 100; `overall` is the
+// weighted sum of subscores. Each weight is a `z.literal()` so any future
+// reweighting is a deliberate schema bump that surfaces in every consumer.
+// Sniffy doesn't extract screenshot caption text — the `screenshots`
+// subscore is a description-density heuristic preserved under the original
+// name for SDK back-compat; the human-readable `notes` field calls that out.
+export const MetadataScoreWeights = z.object({
+  title: z.literal(20),
+  subtitle: z.literal(15),
+  keywords: z.literal(20),
+  screenshots: z.literal(10),
+  ratingsAndReviews: z.literal(15),
+  keywordRankings: z.literal(20),
+});
+export type MetadataScoreWeights = z.infer<typeof MetadataScoreWeights>;
+
+export const METADATA_SCORE_WEIGHTS: MetadataScoreWeights = {
+  title: 20,
+  subtitle: 15,
+  keywords: 20,
+  screenshots: 10,
+  ratingsAndReviews: 15,
+  keywordRankings: 20,
+};
+
 export const MetadataScore = z.object({
   overall: z.number().min(0).max(100),
+  weights: MetadataScoreWeights.default(METADATA_SCORE_WEIGHTS),
   title: MetadataSubscore,
   subtitle: MetadataSubscore,
   keywords: MetadataSubscore,
   screenshots: MetadataSubscore,
+  // Score derived from app.ratingsSummary (average × count tiers). Reflects
+  // social proof / rating health, which Apple's algorithm treats as a
+  // ranking signal alongside metadata. `score: 0, notes: ...` when ratings
+  // are unavailable — never fabricated.
+  ratingsAndReviews: MetadataSubscore.default({
+    score: 0,
+    notes: "Ratings data unavailable.",
+  }),
+  // Score derived from coverage of submitted keywords in top10/top50/top100
+  // rank buckets. Computed post-diagnose so the rubric reflects actual
+  // ranks. `score: 0, notes: ...` when diagnosis was unavailable.
+  keywordRankings: MetadataSubscore.default({
+    score: 0,
+    notes: "Keyword ranking data unavailable.",
+  }),
+  // Additive: populated for non-fixture diagnose runs. Empty array for
+  // legacy/fixture paths so old SDK consumers see a safe default.
+  descriptionDensity: z.array(DescriptionDensityRow).default([]),
 });
 export type MetadataScore = z.infer<typeof MetadataScore>;
 
@@ -315,6 +395,20 @@ export const ReadyToPaste = z.object({
   title: ReadyToPasteField,
   subtitle: ReadyToPasteField,
   keywordsField: ReadyToPasteField,
+  // Apple App Store promotional text — 170 chars, sits above the description
+  // on the iOS listing page, and (per Apple) can be refreshed without a new
+  // App Review submission. Modeled as a separate paste-able slot from
+  // `shortDescription` because the previous 240-char `shortDescription`
+  // doesn't map to any real Apple field. Defaults to null so older SDK
+  // consumers don't break.
+  promotionalText: ReadyToPasteField.nullable().default(null),
+  // Google Play short description — 80 chars, IS indexed for Play search,
+  // distinct from iOS promotional text. Defaults to null.
+  androidShortDescription: ReadyToPasteField.nullable().default(null),
+  // Legacy 240-char slot — kept for back-compat with existing SDK / CLI /
+  // MCP consumers. Deterministic synthesis still emits it. The two new
+  // sibling fields are the platform-correct replacements; downstream
+  // consumers should prefer those when present.
   shortDescription: ReadyToPasteField,
   source: ReadyToPasteSource,
 });
@@ -330,6 +424,11 @@ export const DiagnosePaidResponse = z.object({
   keywordDiagnosis: z.array(KeywordDiagnosisItem),
   competitorTrail: z.array(CompetitorTrailItem),
   metadataScore: MetadataScore,
+  // Phase G — cross-field keyword distribution matrix. One row per user
+  // keyword with its presence across all 6 metadata fields plus action-
+  // able "next move" prose. Default empty so older fixtures + clients
+  // not yet aware of the matrix surface still parse cleanly.
+  keywordDistribution: z.array(KeywordDistributionRow).default([]),
   recommendations: z.array(RecommendationItem),
   readyToPaste: ReadyToPaste,
   // Phase 3 — review-derived suggestions + competitor-derived overlap terms.
