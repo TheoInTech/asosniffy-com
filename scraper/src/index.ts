@@ -16,6 +16,7 @@ import { diagnoseRoute } from "./routes/diagnose.js";
 import { historyRoute } from "./routes/history.js";
 import { walletRoute } from "./routes/wallet.js";
 import { sniffPackRoute } from "./routes/sniff-pack.js";
+import { insightsRoute } from "./routes/insights.js";
 
 export function createApp() {
   const app = new Hono();
@@ -93,6 +94,17 @@ export function createApp() {
       perDay: 60 * 60 * 12,
     }),
   );
+  // Public insights showcase — read-only, no auth, CDN-cacheable. High per-IP
+  // cap because crawlers + organic readers refresh the index page often;
+  // each request is a fixed-size Redis read so abuse is bounded.
+  app.use(
+    "/api/v1/aso/insights/*",
+    rateLimitPerIp({
+      namespace: "insights",
+      perMinute: 120,
+      perDay: 120 * 60 * 12,
+    }),
+  );
 
   app.route("/health", healthRoute);
   app.route("/api/v1/aso/sample", sampleRoute);
@@ -101,6 +113,7 @@ export function createApp() {
   app.route("/api/v1/aso/history", historyRoute);
   app.route("/api/v1/aso/wallet", walletRoute);
   app.route("/api/v1/aso/sniff-pack", sniffPackRoute);
+  app.route("/api/v1/aso/insights", insightsRoute);
 
   return app;
 }

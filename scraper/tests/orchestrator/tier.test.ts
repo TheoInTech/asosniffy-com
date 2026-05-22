@@ -140,6 +140,57 @@ describe("orchestrator tier gating", () => {
     // Template synthesis sets source ∈ {"deterministic", "template-fallback"};
     // it must NEVER be "ai" for the Quick path.
     expect(report.readyToPaste.source).not.toBe("ai");
+    // Quick is below Expert tier — expertAnalysis MUST be absent.
+    expect(report.expertAnalysis).toBeUndefined();
+  });
+
+  it("Standard tier omits the expertAnalysis block (Expert-only feature)", async () => {
+    setupHappyAppleHandlers();
+    const createSpy = vi.fn().mockResolvedValue({
+      output_text: JSON.stringify({
+        summary: "test summary",
+        recommendations: [],
+        readyToPaste: null,
+      }),
+    });
+    setOpenAiClientForTests({
+      responses: { create: createSpy },
+      chat: { completions: { create: createSpy } },
+    } as unknown as Parameters<typeof setOpenAiClientForTests>[0]);
+
+    const report = await generateReport({ ...REPORT_INPUT, tier: "standard" });
+    expect(report.expertAnalysis).toBeUndefined();
+  });
+
+  it("Expert tier produces an expertAnalysis block with ASA coverage + sentiment slots", async () => {
+    setupHappyAppleHandlers();
+    // No OpenAI client — synthesizeReportOpenAi falls back to the template
+    // engine internally. The synthesis path doesn't affect expertAnalysis,
+    // which is computed entirely from the orchestrator's data + scoring.
+    resetOpenAiClientForTests();
+
+    const report = await generateReport({ ...REPORT_INPUT, tier: "expert" });
+
+    expect(report.expertAnalysis).toBeDefined();
+    expect(typeof report.expertAnalysis?.asaPopularityConfirmed).toBe(
+      "boolean",
+    );
+    // ASA coverage counts must be coherent — zero ≤ keywordsWithLiveAsa
+    // ≤ totalKeywords, and totalKeywords matches keywordDiagnosis.length.
+    const cov = report.expertAnalysis?.asaCoverage;
+    expect(cov?.keywordsWithLiveAsa).toBeGreaterThanOrEqual(0);
+    expect(cov?.keywordsWithLiveAsa).toBeLessThanOrEqual(
+      cov?.totalKeywords ?? 0,
+    );
+    expect(cov?.totalKeywords).toBe(report.keywordDiagnosis.length);
+    // asaPopularityConfirmed semantics: true iff every keyword has live ASA.
+    // In this test the ASA provider is disabled (no key), so coverage is 0
+    // and confirmed should be false.
+    expect(report.expertAnalysis?.asaPopularityConfirmed).toBe(false);
+    expect(cov?.keywordsWithLiveAsa).toBe(0);
+    // Review sentiment is null because mocked Apple endpoints don't return
+    // review bodies — fail-closed behavior is the test contract here.
+    expect(report.expertAnalysis?.reviewSentiment).toBeNull();
   });
 
   it("legacy callers (no tier) still attempt the OpenAI path", async () => {

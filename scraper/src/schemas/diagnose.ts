@@ -428,8 +428,12 @@ export const RecommendationItem = z.object({
   impact: z.enum(["high", "medium", "low"]),
   effort: z.enum(["high", "medium", "low"]),
   rationale: z.string().min(1),
-  // Optional, default null — back-compat with cached fixtures and pre-B SDK.
-  knowledge: KnowledgeCitation.nullable().default(null),
+  // Optional — attached by the orchestrator's knowledge-enrichment pass when
+  // the recommendation's action+rationale matches a curated topic. Omitted
+  // when no topic matches (better to drop the citation than fabricate one).
+  // Pre-Sprint-B SDK consumers see `knowledge: undefined`; cached fixtures
+  // parse unchanged.
+  knowledge: KnowledgeCitation.optional(),
 });
 export type RecommendationItem = z.infer<typeof RecommendationItem>;
 
@@ -479,6 +483,44 @@ export const ReadyToPaste = z.object({
   source: ReadyToPasteSource,
 });
 export type ReadyToPaste = z.infer<typeof ReadyToPaste>;
+
+// Sprint B — Expert tier review sentiment block. Heuristic-only (no LLM
+// call) so the analysis is fully deterministic + auditable; same review
+// bodies feed the existing suggestedKeywords[reason="review-frequency"]
+// pipeline. Returns null when review coverage is too thin to be meaningful
+// (current threshold: 5 reviews) — the route surfaces a null block rather
+// than fabricating sentiment over a handful of reviews.
+export const ReviewSentiment = z.object({
+  positivePercent: z.number().min(0).max(100),
+  neutralPercent: z.number().min(0).max(100),
+  negativePercent: z.number().min(0).max(100),
+  totalReviewsAnalyzed: z.number().int().nonnegative(),
+  topComplaintThemes: z
+    .array(
+      z.object({
+        theme: z.string().min(1),
+        sampleCount: z.number().int().positive(),
+      }),
+    )
+    .max(5),
+});
+export type ReviewSentiment = z.infer<typeof ReviewSentiment>;
+
+// Sprint B — Expert tier block. asaPopularityConfirmed is true when every
+// keyword in keywordDiagnosis got a non-null ASA popularityScore from the
+// live Apple Search Ads provider (not the heuristic fallback). When
+// asaPopularityConfirmed is false, asaCoverage breaks down how many
+// keywords actually had live ASA so consumers can show "5 of 7 keywords
+// covered" rather than a binary yes/no.
+export const ExpertAnalysis = z.object({
+  reviewSentiment: ReviewSentiment.nullable(),
+  asaPopularityConfirmed: z.boolean(),
+  asaCoverage: z.object({
+    keywordsWithLiveAsa: z.number().int().nonnegative(),
+    totalKeywords: z.number().int().nonnegative(),
+  }),
+});
+export type ExpertAnalysis = z.infer<typeof ExpertAnalysis>;
 
 export const DiagnosePaidResponse = z.object({
   requestId: RequestId,
@@ -532,5 +574,11 @@ export const DiagnosePaidResponse = z.object({
     })
     .nullable()
     .default(null),
+  // Sprint B — Expert-tier extras. Populated only when DiagnoseRequest.tier
+  // === "expert". The block adds review-sentiment mining over the same
+  // review bodies the suggestedKeywords path already consumes, plus an
+  // explicit confirmation that ASA popularity ran live for every keyword.
+  // Lower tiers (and pre-Expert SDK consumers) see expertAnalysis: undefined.
+  expertAnalysis: ExpertAnalysis.optional(),
 });
 export type DiagnosePaidResponse = z.infer<typeof DiagnosePaidResponse>;

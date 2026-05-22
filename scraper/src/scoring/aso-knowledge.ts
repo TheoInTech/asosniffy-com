@@ -191,16 +191,19 @@ const MATCHERS: ReadonlyArray<{ topic: string; pattern: RegExp }> = [
       /(keyword|keywords?)\s*field.*(app\b|free\b|category|brand|competitor|your\s*app|app\s*name|own)/i,
   },
 
-  // Description
+  // Description — android matcher checked first so a sentence that mentions
+  // both Android and iOS routes to the Android indexed path. Non-greedy
+  // `.{1,80}?` between the anchor words tolerates punctuation, articles, and
+  // brief intervening phrases without exploding the matcher into a regex
+  // sequence per joiner shape.
   {
     topic: "description-indexed-android",
     pattern:
-      /(android|play|google)\s*(\w+\s+){0,3}(description|short|density|mention)/i,
+      /(android|play|google)\b.{1,80}?\b(description|short[\s-]?desc|density|mention)/i,
   },
   {
     topic: "description-not-indexed-ios",
-    pattern:
-      /(description|ios|apple)\s*(\w+\s+){0,3}(conversion|not indexed|search)/i,
+    pattern: /(description|ios|apple)\b.{1,80}?\b(conversion|not\s*indexed)/i,
   },
 
   // Screenshots

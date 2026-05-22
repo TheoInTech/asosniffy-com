@@ -8,6 +8,7 @@ import {
   type DataProvenance,
   type DiagnosePaidResponse,
   type DiagnoseTier,
+  type ExpertAnalysis,
   type KeywordDiagnosisItem,
   METADATA_SCORE_WEIGHTS,
   type MetadataScore,
@@ -53,6 +54,7 @@ import {
   isRelevanceGateEnabled,
 } from "../scoring/embeddings.js";
 import { getKnowledgeForRecommendation } from "../scoring/aso-knowledge.js";
+import { analyzeReviewSentiment } from "../scoring/review-sentiment.js";
 import { lookupLocalized } from "../providers/apple/multi-storefront.js";
 import {
   buildCompetitorNotes,
@@ -396,7 +398,7 @@ export async function generateReportWithMeta(
       action: rec.action,
       rationale: rec.rationale,
     });
-    if (!entry) return { ...rec, knowledge: null };
+    if (!entry) return rec;
     return {
       ...rec,
       knowledge: {
@@ -411,17 +413,45 @@ export async function generateReportWithMeta(
     };
   });
 
+  // ---------- Sprint B Expert tier extras ----------
+  // Quick / Standard / legacy callers all see expertAnalysis: undefined.
+  // Expert adds review-sentiment mining + explicit ASA-coverage confirmation
+  // on top of the same keywordDiagnosis the lower tiers already return. We
+  // assemble keywordDiagnosis once here so the ASA-coverage count is
+  // computed against the exact array that ships in the response.
+  const keywordDiagnosisItems = assembleKeywordDiagnosis(
+    keywordScoring,
+    seriesByKeyword,
+    data.keywordRanks,
+  );
+  let expertAnalysis: ExpertAnalysis | undefined;
+  if (input.tier === "expert") {
+    const keywordsWithLiveAsa = keywordDiagnosisItems.filter(
+      (k) =>
+        k.popularitySource === "apple-search-ads" && k.popularityScore !== null,
+    ).length;
+    expertAnalysis = {
+      reviewSentiment: analyzeReviewSentiment({
+        reviewBodies: data.reviewBodies,
+        reviewCoverage: data.reviewCoverage,
+      }),
+      asaPopularityConfirmed:
+        keywordsWithLiveAsa > 0 &&
+        keywordsWithLiveAsa === keywordDiagnosisItems.length,
+      asaCoverage: {
+        keywordsWithLiveAsa,
+        totalKeywords: keywordDiagnosisItems.length,
+      },
+    };
+  }
+
   // ---------- Assembly ----------
   return {
     payload: {
       reportVersion: SCHEMA_VERSION,
       dataProvenance: assembleProvenance(data.dataProvenance, inputProvenance),
       summary: synthesis.summary,
-      keywordDiagnosis: assembleKeywordDiagnosis(
-        keywordScoring,
-        seriesByKeyword,
-        data.keywordRanks,
-      ),
+      keywordDiagnosis: keywordDiagnosisItems,
       competitorTrail: assembleCompetitorTrail(
         competitorScoring,
         data.competitors,
@@ -471,6 +501,7 @@ export async function generateReportWithMeta(
         : "",
       localizationAnalysis,
       targetAppSignals,
+      ...(expertAnalysis !== undefined ? { expertAnalysis } : {}),
     },
     providerErrors: data.providerErrors,
     detectedApp: {

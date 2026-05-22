@@ -32,6 +32,8 @@ import { tryDecrementBalance } from "../wallet/sniff-pack-balance.js";
 import { resolveSession } from "../wallet/session.js";
 import { tryNormalizeAddress } from "../lib/address.js";
 import { clampReportToContract } from "../lib/clamp-report.js";
+import { redactForShowcase } from "../lib/redact-for-showcase.js";
+import { saveShowcase } from "../insights/store.js";
 
 // Sprint B — pack-credit spend. One credit funds one paid /diagnose call,
 // regardless of tier. Users can choose between this path (Authorization
@@ -44,6 +46,16 @@ function extractBearerToken(authorizationHeader: string | undefined): string | n
   if (!authorizationHeader) return null;
   const match = /^Bearer\s+(\S+)$/i.exec(authorizationHeader);
   return match && match[1] ? match[1] : null;
+}
+
+// Sprint C — opt-out for the public showcase. Default behavior is to write
+// the redacted report; this header lets the caller skip the write per
+// request. Accepts "1", "true", or "yes" (case-insensitive). Anything else
+// (including absent, "0", "false") leaves the default write enabled.
+function shouldIndexInShowcase(noIndexHeader: string | undefined): boolean {
+  if (noIndexHeader === undefined) return true;
+  const normalized = noIndexHeader.trim().toLowerCase();
+  return !(normalized === "1" || normalized === "true" || normalized === "yes");
 }
 
 // Duck-type fallback for cross-realm Error identification: in tests, vitest
@@ -220,9 +232,26 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
       }
     }
 
-    return c.json(
-      DiagnosePaidResponse.parse(clampReportToContract(packPaid, { requestId })),
+    const packResponse = DiagnosePaidResponse.parse(
+      clampReportToContract(packPaid, { requestId }),
     );
+
+    // Sprint C — public showcase write (pack-credit path). Fire-and-forget;
+    // honors the per-request opt-out header. Default behavior is to index.
+    if (shouldIndexInShowcase(c.req.header("x-sniffy-no-index"))) {
+      const { entry, report: showcaseReport } = redactForShowcase({
+        report: packResponse,
+        store: body.store,
+        country: body.country,
+        appId: packDetectedApp.id,
+        appName: packDetectedApp.name,
+        appDeveloper: packDetectedApp.developer,
+        iconUrl: packDetectedApp.iconUrl ?? null,
+      });
+      void saveShowcase({ entry, report: showcaseReport });
+    }
+
+    return c.json(packResponse);
   }
 
   // 2) Read header. Hono normalizes header names to lower-case lookup keys.
@@ -539,5 +568,24 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
   // and emits a structured warn-log per clamp so any drift is observable.
   // See scraper/src/lib/clamp-report.ts.
   const sanitized = clampReportToContract(paid, { requestId });
-  return c.json(DiagnosePaidResponse.parse(sanitized));
+  const parsedPaid = DiagnosePaidResponse.parse(sanitized);
+
+  // Sprint C — public showcase write (x402 path). Fire-and-forget; honors
+  // X-Sniffy-No-Index for per-request opt-out. The redaction strips wallet,
+  // tx hash, request/sniff IDs, and the HMAC signature before the report
+  // touches the showcase store.
+  if (shouldIndexInShowcase(c.req.header("x-sniffy-no-index"))) {
+    const { entry, report: showcaseReport } = redactForShowcase({
+      report: parsedPaid,
+      store: body.store,
+      country: body.country,
+      appId: detectedApp.id,
+      appName: detectedApp.name,
+      appDeveloper: detectedApp.developer,
+      iconUrl: detectedApp.iconUrl ?? null,
+    });
+    void saveShowcase({ entry, report: showcaseReport });
+  }
+
+  return c.json(parsedPaid);
 });

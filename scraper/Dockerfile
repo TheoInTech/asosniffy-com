@@ -33,8 +33,7 @@ COPY packages/aso-knowledge/package.json ./packages/aso-knowledge/
 # Install only scraper's dependency closure. `...` (three dots) tells pnpm
 # to also pull anything scraper depends on transitively across workspaces;
 # scraper has zero @sniffy/* deps today but the suffix is forward-compatible.
-RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @sniffy/scraper...
+RUN pnpm install --frozen-lockfile --filter @sniffy/scraper...
 
 # Copy source + tsconfig + scripts. .dockerignore keeps tests, fixtures
 # beyond what's imported, and the local .env out of the image.
