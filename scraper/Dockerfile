@@ -45,9 +45,11 @@ COPY scraper/scripts ./scraper/scripts
 RUN pnpm --filter @sniffy/scraper build
 
 # pnpm deploy produces a flat, no-workspace-link, prod-only directory at
-# /out — exactly what we want to drop into the runtime stage. This is the
-# canonical pnpm 10 way to package a workspace member for deployment.
-RUN pnpm --filter @sniffy/scraper deploy --prod /out
+# /out — exactly what we want to drop into the runtime stage. pnpm 10
+# requires --legacy for workspaces that haven't opted into
+# inject-workspace-packages; scraper has zero @sniffy/* deps so legacy
+# behavior is correct.
+RUN pnpm --filter @sniffy/scraper deploy --prod --legacy /out
 
 # Fixtures are read at runtime by data/fixtures.ts but live OUTSIDE the
 # package.json `files` list, so pnpm deploy doesn't carry them over. Copy
