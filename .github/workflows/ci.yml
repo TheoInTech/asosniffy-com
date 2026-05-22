@@ -36,6 +36,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # landing/ imports `@sniffy/scraper/schemas` in 20+ files; that subpath
+      # resolves to `scraper/dist/schemas/index.js` via the package's exports
+      # map. Build scraper here so landing's typecheck + tests + Next build
+      # can resolve the import on a fresh CI checkout. Mirrors the same
+      # `pnpm --filter` chain baked into landing/package.json's `build`.
+      - name: Build @sniffy/scraper (landing import resolution)
+        run: pnpm --filter @sniffy/scraper run build
+
       - name: Typecheck workspace
         run: pnpm -r typecheck
 
