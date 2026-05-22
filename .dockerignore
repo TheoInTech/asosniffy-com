@@ -15,11 +15,13 @@
 # Deny everything by default
 *
 
-# Root workspace metadata (needed for `pnpm install --frozen-lockfile`)
+# Root workspace metadata (needed for `pnpm install --frozen-lockfile` and
+# for scraper/tsconfig.json's `extends: "../tsconfig.json"` reference).
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
 !.npmrc
+!tsconfig.json
 
 # Scraper service — full source + fixtures (this is what ships)
 !scraper

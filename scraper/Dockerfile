@@ -22,7 +22,7 @@ RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 # source changes. Every workspace package.json must be present or pnpm errors
 # out with "lockfile contains workspace entries that don't match installed
 # packages."
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc tsconfig.json ./
 COPY scraper/package.json ./scraper/
 COPY landing/package.json ./landing/
 COPY packages/sdk/package.json ./packages/sdk/
