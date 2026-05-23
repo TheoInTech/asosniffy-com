@@ -22,6 +22,12 @@ export function Footer() {
             Sample report
           </Link>
           <Link
+            href="/guides"
+            className="hover:text-sniffy-ink focus:outline-none focus-visible:underline"
+          >
+            Guides
+          </Link>
+          <Link
             href="/privacy"
             className="hover:text-sniffy-ink focus:outline-none focus-visible:underline"
           >
