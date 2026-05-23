@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { listInsights } from "@/lib/api/client";
+import { GUIDES } from "@/data/guides";
 
 // Sprint C — auto-generated sitemap. Next.js serves this at /sitemap.xml.
 // Three blocks of URLs:
@@ -25,6 +26,8 @@ const SHOWCASE_LIMIT = 200;
 export const revalidate = 300;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const now = new Date();
+
   const staticEntries: MetadataRoute.Sitemap = [
     {
       url: `${SITE_URL}/`,
@@ -41,7 +44,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "hourly",
       priority: 0.9,
     },
+    {
+      url: `${SITE_URL}/guides`,
+      changeFrequency: "weekly",
+      priority: 0.8,
+      lastModified: now,
+    },
+    {
+      url: `${SITE_URL}/privacy`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/terms`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
   ];
+
+  const guideEntries: MetadataRoute.Sitemap = GUIDES.map((guide) => ({
+    url: `${SITE_URL}/guides/${guide.slug}`,
+    lastModified: new Date(guide.publishedAt),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
 
   // Showcase entries. A scraper outage or empty index just returns the
   // static block — better to serve a smaller sitemap than to 5xx the
@@ -57,5 +83,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     })) ?? [];
 
-  return [...staticEntries, ...dynamicEntries];
+  return [...staticEntries, ...guideEntries, ...dynamicEntries];
 }

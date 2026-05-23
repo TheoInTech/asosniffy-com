@@ -17,6 +17,8 @@ const baseCompetitor = {
   overlapKeywords: ["pickleball"],
   notes: "Overlaps on \"pickleball\".",
   provenance: "live" as const,
+  tier: null,
+  searchPosition: null,
 };
 
 describe("CompetitorTrail", () => {

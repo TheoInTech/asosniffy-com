@@ -21,6 +21,18 @@ export function Footer() {
           >
             Sample report
           </Link>
+          <Link
+            href="/privacy"
+            className="hover:text-sniffy-ink focus:outline-none focus-visible:underline"
+          >
+            Privacy
+          </Link>
+          <Link
+            href="/terms"
+            className="hover:text-sniffy-ink focus:outline-none focus-visible:underline"
+          >
+            Terms
+          </Link>
           <a
             href="https://morph.network"
             target="_blank"
