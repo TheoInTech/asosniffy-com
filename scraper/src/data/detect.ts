@@ -11,6 +11,7 @@ import {
 import { normalizeAppIdentifier } from "../lib/app-identifier.js";
 import { sampleQuote } from "./fixtures.js";
 import { lookupApp, searchApps } from "../providers/apple/itunes.js";
+import { searchAdsApps } from "../providers/apple/search-ads-apps.js";
 import {
   fetchStorefrontPage,
   type StorefrontPageError,
@@ -145,7 +146,75 @@ export async function getDetectedApp(input: DetectInput): Promise<DetectResult> 
   if (input.store === "android") {
     return resolveAndroid(input);
   }
-  return resolveIos(input);
+  return applyAppleAdsVerification(await resolveIos(input), input);
+}
+
+// Apple Ads catalog verification (Surface 1). Best-effort enrichment layered
+// on top of the iTunes-based detection: when ASA is enabled, cross-check the
+// detected app against Apple's authoritative ad catalog. A confirmed adamId
+// match raises identityConfidence one notch (fewer false "ambiguous app"
+// panels) and stamps `catalogVerified` on the detected app. Entirely gated by
+// APPLE_SEARCH_ADS_ENABLED — default-off means zero extra calls and an
+// unchanged DetectResult. Verification failures are silent (absent flag =
+// "not checked"), never a surfaced provider error — this only ever adds trust.
+async function applyAppleAdsVerification(
+  result: DetectResult,
+  input: DetectInput,
+): Promise<DetectResult> {
+  if (!env.APPLE_SEARCH_ADS_ENABLED) return result;
+  const { detectedApp } = result;
+  // Only iOS apps with a numeric adamId can be matched against the ad catalog.
+  if (!/^\d+$/.test(detectedApp.id)) return result;
+
+  const outcome = await searchAdsApps({
+    query: detectedApp.name,
+    country: input.country,
+  });
+  if (outcome.kind !== "success") return result;
+
+  const adamId = Number(detectedApp.id);
+  const match = outcome.apps.find((a) => a.adamId === adamId);
+  if (!match) return result;
+
+  const catalogDeveloperMatch = developerMatches(
+    detectedApp.developer,
+    match.developerName,
+  );
+  const identityConfidence = bumpConfidence(result.identityConfidence);
+  return {
+    ...result,
+    detectedApp: {
+      ...detectedApp,
+      catalogVerified: true,
+      catalogDeveloperMatch,
+    },
+    identityConfidence,
+    // A catalog-confirmed identity is unambiguous — drop the candidate panel
+    // once verification lifts us to high confidence.
+    candidates: identityConfidence === "high" ? [] : result.candidates,
+  };
+}
+
+function bumpConfidence(c: Confidence): Confidence {
+  return c === "low" ? "medium" : "high";
+}
+
+// Case/punctuation-insensitive developer-name comparison with a contains
+// fallback ("Calm" vs "Calm.com", "Duolingo" vs "Duolingo, Inc.").
+function developerMatches(a: string, b: string): boolean {
+  const na = normalizeDeveloper(a);
+  const nb = normalizeDeveloper(b);
+  if (na.length === 0 || nb.length === 0) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+function normalizeDeveloper(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}\s]/gu, " ")
+    .replace(/\b(inc|llc|ltd|co|corp|gmbh|bv|company)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 async function resolveIos(input: DetectInput): Promise<DetectResult> {
