@@ -25,6 +25,17 @@ import {
 
 const PROVIDER = "apple-search-ads";
 
+// Apple's public Campaign Management API (v5) exposes NO campaign-free keyword
+// popularity / recommendations endpoint: POST /keywords/recommendations →
+// 404 RESOURCE_NOT_FOUND (confirmed against the live account 2026-06-03 and the
+// documented v5 endpoint inventory; that data only exists inside a paid
+// campaign + ad group). The provider code + parsers below are retained for the
+// day Apple ships one, but the doomed HTTP call is short-circuited so enabling
+// APPLE_SEARCH_ADS_ENABLED — now load-bearing for the working /search/apps
+// catalog provider (providers/apple/search-ads-apps.ts) — does not spray 404s
+// on every paid /diagnose. Flip to true if/when a real endpoint lands.
+const ASA_KEYWORD_RECS_AVAILABLE: boolean = false;
+
 export interface PopularityScore {
   keyword: string;
   // 5 (rare/no demand) to 100 (most popular). 0 used when Apple returns
@@ -53,6 +64,12 @@ export async function getKeywordPopularity(
 ): Promise<PopularityOutcome> {
   if (!env.APPLE_SEARCH_ADS_ENABLED) {
     return { error: "disabled" };
+  }
+  // No public popularity endpoint exists — skip the doomed call, fall back to
+  // the heuristic intent score (popularitySource: "heuristic"). See the
+  // ASA_KEYWORD_RECS_AVAILABLE note above.
+  if (!ASA_KEYWORD_RECS_AVAILABLE) {
+    return { error: "not_found" };
   }
   if (!env.APPLE_SEARCH_ADS_ORG_ID) {
     return { error: "auth_failed", reason: "APPLE_SEARCH_ADS_ORG_ID not set" };
@@ -310,6 +327,9 @@ export async function fetchAsaRecommendedKeywords(
   input: AsaRecommendationsInput,
 ): Promise<AsaRecommendationsOutcome> {
   if (!env.APPLE_SEARCH_ADS_ENABLED) return { kind: "disabled" };
+  // No public keyword-recommendations endpoint exists (see
+  // ASA_KEYWORD_RECS_AVAILABLE) — short-circuit before the doomed 404.
+  if (!ASA_KEYWORD_RECS_AVAILABLE) return { kind: "not_found" };
   if (!env.APPLE_SEARCH_ADS_ORG_ID) {
     return { kind: "auth_failed", reason: "APPLE_SEARCH_ADS_ORG_ID not set" };
   }

@@ -42,6 +42,13 @@ export const DetectedApp = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   developer: z.string().min(1),
+  // Apple Ads catalog verification (optional; only set when
+  // APPLE_SEARCH_ADS_ENABLED and the detected adamId is confirmed present in
+  // Apple's authoritative ad catalog via GET /api/v5/search/apps). Absent =
+  // "not checked", not "failed". See providers/apple/search-ads-apps.ts.
+  catalogVerified: z.boolean().optional(),
+  // True when the catalog's developerName also matched the detected developer.
+  catalogDeveloperMatch: z.boolean().optional(),
 });
 export type DetectedApp = z.infer<typeof DetectedApp>;
 
