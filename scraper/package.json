@@ -22,7 +22,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo 'lint: configured in Phase 02'",
-    "baseline:shapes": "tsx scripts/baseline-shapes.ts"
+    "baseline:shapes": "tsx scripts/baseline-shapes.ts",
+    "funnel:report": "tsx scripts/funnel-report.ts"
   },
   "dependencies": {
     "@browserbasehq/sdk": "^2.12.0",
@@ -36,7 +37,8 @@
     "openai": "^4.104.0",
     "playwright-core": "^1.60.0",
     "viem": "^2.21.55",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

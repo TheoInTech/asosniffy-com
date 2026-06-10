@@ -24,6 +24,15 @@ export interface AppRecord {
     average: number;
     count: number;
   };
+  // Wave 1 — per-version rating summary from iTunes lookup. Absent when
+  // iTunes omits the fields (region-locked listings, schema drift). When a
+  // developer reset the summary rating in App Store Connect, this diverges
+  // from the lifetime ratingsSummary — the divergence is what the
+  // rating-reset advisor reads.
+  currentVersionRatingsSummary?: {
+    average: number;
+    count: number;
+  };
   screenshots: string[];
   currentVersion: string;
   iconUrl?: string;

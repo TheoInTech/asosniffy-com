@@ -1,0 +1,4109 @@
+{
+  "model": "gpt-5.4-mini",
+  "replicates": 10,
+  "ranAt": "2026-06-10T15:55:30.000Z",
+  "usage": {
+    "in": 12430,
+    "out": 32841
+  },
+  "costUsd": 0.15710700000000002,
+  "summary": [
+    {
+      "app": "Headspace",
+      "sovMean": 0.8,
+      "sovSd": 0.0447213595499958,
+      "perPromptMentionRate": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0.2,
+        0,
+        1,
+        0.8,
+        1
+      ],
+      "stablePrompts": 8,
+      "calls": 100
+    },
+    {
+      "app": "Duolingo",
+      "sovMean": 0.99,
+      "sovSd": 0.029999999999999985,
+      "perPromptMentionRate": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0.9,
+        1
+      ],
+      "stablePrompts": 9,
+      "calls": 100
+    },
+    {
+      "app": "Strava",
+      "sovMean": 0.9500000000000002,
+      "sovSd": 0.04999999999999999,
+      "perPromptMentionRate": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0.5,
+        1,
+        1
+      ],
+      "stablePrompts": 9,
+      "calls": 100
+    },
+    {
+      "app": "Todoist",
+      "sovMean": 0.9600000000000002,
+      "sovSd": 0.04898979485566354,
+      "perPromptMentionRate": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0.6,
+        1,
+        1
+      ],
+      "stablePrompts": 9,
+      "calls": 100
+    },
+    {
+      "app": "Flighty",
+      "sovMean": 0.51,
+      "sovSd": 0.11357816691600545,
+      "perPromptMentionRate": [
+        1,
+        0.2,
+        0.6,
+        0.6,
+        0.6,
+        0.3,
+        0.3,
+        0.9,
+        0.6,
+        0
+      ],
+      "stablePrompts": 2,
+      "calls": 100
+    }
+  ],
+  "results": [
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around choice is **Headspace** if you want guided meditation that’s beginner-friendly, polished, and easy to"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A top choice is **Headspace** because it’s very beginner-friendly, has polished guided meditations, and offers programs "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A popular top choice for iPhone meditation is **Headspace** because it’s very beginner-friendly, has polished guided ses"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A popular best overall choice is **Headspace** because it’s very beginner-friendly, has high-quality guided meditations,"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A top choice is **Headspace** — it’s very polished, beginner-friendly, and has a great mix of guided meditations, sleep "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the most well-rounded iPhone meditation app, **Headspace** is often the best pick because it’s easy to use, "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around choice is **Headspace** if you want guided meditations that are beginner-friendly, polished, and easy"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Headspace**: it’s beginner-friendly, well-designed, and offers guided meditations, sleep"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "One of the most popular and well-rounded iPhone meditation apps is **Calm**, because it offers guided meditations, sleep"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 0,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around pick is **Headspace** because it’s polished, beginner-friendly, and has excellent guided meditations"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Headspace**. It’s beginner-friendly, has guided meditations for stress, sleep, and focus"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around choice is **Headspace**: it’s beginner-friendly, well-designed, and offers guided meditations, sleep "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Headspace** if you want guided meditations, stress relief, and sleep support in a very b"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around option is **Headspace** because it’s very beginner-friendly, has short guided meditations, and offers"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Headspace** because it’s beginner-friendly, has short guided meditations, and includes c"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A solid choice is **Headspace** if you want guided meditations that are beginner-friendly, polished, and easy to stick w"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong choice is **Headspace** because it’s beginner-friendly, offers guided meditations, sleep support, and short ses"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great option is **Headspace** — it’s beginner-friendly, has guided meditations for stress, sleep, and focus, and offer"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great option is **Headspace** if you want a very beginner-friendly meditation app with guided sessions, sleep sounds, "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 1,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A solid choice is **Headspace** if you want a beginner-friendly meditation app with clear guided sessions, sleep exercis"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Headspace** — Great for guided meditation, sleep, and stress relief with a very beginner-friendly interface.  \n2. *"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Headspace** — Great for beginners, with guided meditations, sleep content, and a very polished, easy-to-use experie"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Here are 3 popular meditation apps, one line each:\n\n1. **Headspace** — Beginner-friendly guided meditations, sleep suppo"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Headspace** — Great for beginners, with guided meditations, sleep sounds, and simple daily mindfulness routines.  \n"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Headspace** — Great for beginners, with guided meditations, sleep tools, and a very polished experience.  \n2. **Cal"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Headspace** — Best known for beginner-friendly guided meditations, sleep content, and simple mindfulness courses.  "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Headspace** — Great for beginners, with guided meditations, sleep content, and a very easy-to-use design.  \n2. **Ca"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Here are 3 popular meditation apps, one line each:\n\n1. **Headspace** — Great for beginners, with guided meditations, sle"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Headspace** — Great for beginners, with guided meditations, sleep support, and simple daily mindfulness exercises. "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 2,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Headspace** — Great for guided meditations, sleep support, and beginner-friendly mindfulness routines.  \n2. **Calm*"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you’re a complete beginner, I’d start with **Headspace** or **Calm**.\n\n- **Headspace**: best for simple, beginner-fri"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the easiest start, download **Headspace** or **Calm**.\n\n- **Headspace**: best for complete beginners, very g"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you’re a complete beginner, **Headspace** is a great first choice because it’s very beginner-friendly and easy to fol"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, I’d start with **Headspace** or **Calm**.\n\n- **Headspace**: very beginner-friendly, structured "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the easiest beginner-friendly start, download **Headspace**. It’s simple, guided, and great for building a d"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Headspace** is a great first pick: it’s very beginner-friendly, easy to follow, and has short"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, I’d recommend **Headspace** or **Calm**.\n\n- **Headspace**: best for structured beginner courses"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the **simplest beginner-friendly app**, download **Headspace**.\n\nWhy: it’s very easy to use, has short guide"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the simplest beginner-friendly pick, download **Headspace**.\n\nWhy:\n- very easy to use\n- great guided meditat"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 3,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Headspace** is a very good first choice.\n\nWhy:\n- very beginner-friendly\n- short guided medita"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Most people who start meditating daily tend to use **Calm** or **Headspace** first, with **Headspace** often being the m"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "There isn’t one single app that “most people” use universally, but **Headspace** and **Calm** are the two most commonly "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "The most widely used meditation app is usually **Headspace** or **Calm**, depending on the audience and region. If you m"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "There isn’t one single app that “most people” use universally, but **Headspace** and **Calm** are the two most commonly "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "There isn’t one single app that “most people” use universally, but the most commonly recommended and widely used beginne"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Many people start with **Headspace** or **Calm**, but **Headspace** is often the more common “first meditation app” beca"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Most people who start a daily meditation habit tend to use **Headspace** or **Calm**, with **Headspace** often being the"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "There isn’t a single app that “most people” use globally, but **Headspace** and **Calm** are the two most commonly recog"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "There isn’t one single app that “most people” use overall, but **Headspace** and **Calm** are the two most widely recogn"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 4,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A lot of people start with **Headspace** or **Calm**, since they’re the most widely recognized and beginner-friendly med"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer** — it has a large free library of guided meditations, sleep tracks, and min"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer**: it has a large free library of guided meditations, sleep sessions, and ta"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 2,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer** — it has a huge free library of guided meditations, sleep tracks, and cour"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer** — it has a huge free library of guided meditations, sleep tracks, and calm"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer** — it has a huge free library of guided meditations, sleep sessions, and ta"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 5,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer** — it has a huge free library of guided meditations, music, and sleep sessi"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 6,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer** — it has a large free library of guided meditations, music, and sleep cont"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 7,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer** — it has a large free library of guided meditations, music, and timers, wi"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 8,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer**—it has a huge free library of guided meditations, music, and sleep session"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 5,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Insight Timer** — it has a huge free library of meditations, sleep tracks, and talks, with"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "If you want the **best free meditation app in 2026**, I’d pick **Insight Timer**.\n\nWhy:\n- Huge free library\n- Lots of gu"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A strong free choice in 2026 is **Insight Timer** — it has a huge free library of guided meditations, sleep tracks, and "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 2,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A strong free choice in 2026 is **Insight Timer** — it has a huge free library of guided meditations, courses, and music"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "If you want the **best free meditation app in 2026**, I’d pick **Insight Timer**.\n\nWhy:\n- **Huge free library** of medit"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 4,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "**Best free pick for 2026:** **Insight Timer**\n\n- Huge free library of meditations, sleep tracks, and talks\n- Good for b"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 5,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "If you want a **best overall free meditation app in 2026**, I’d pick **Insight Timer**.\n\nWhy:\n- Huge free library\n- Guid"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 6,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A strong free option in 2026 is **Insight Timer** — it has a huge free library of guided meditations, sleep sessions, an"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 7,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A strong pick is **Insight Timer** — it has one of the largest free meditation libraries, including guided meditations, "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 8,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "**Insight Timer** is usually the best free meditation app in 2026 — it has a huge free library, guided meditations, slee"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 6,
+      "replicate": 9,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "If you want **one best free option**, I’d pick **Insight Timer**.\n\nWhy:\n- **Huge free library** of meditations, music, a"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them to start with **5 minutes a day**, same time each day, and use a **simple guided meditation app** like **Heads"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Headspace** or **Calm** — both are easy for beginners and good for building a daily habit.\n\nIf they w"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Headspace**, **Calm**, or **Insight Timer**.\n\nIf they want the simplest start:\n- **5 minutes a day**\n"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Headspace** or **Calm** if they want a polished, beginner-friendly app. If they want something free a"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Headspace**, **Calm**, or **Insight Timer**.\n\nIf they want the simplest start:  \n- **5 minutes a day*"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Insight Timer** or **Headspace**.\n\n- **Insight Timer**: free, lots of guided meditations\n- **Headspac"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them to start with **2–5 minutes a day** and use a simple app like **Headspace, Calm, or Insight Timer**. Best advi"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them to start with **just 5 minutes a day** and use a simple app like **Headspace**, **Calm**, or **Insight Timer**"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them to start with a **simple, beginner-friendly app** like **Headspace**, **Calm**, or **Insight Timer**.\n\nIf they"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 7,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them to start with **the simplest app they’ll actually use**.\n\nGood beginner options:\n- **Headspace** — very beginn"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If I could pick just one, I’d choose **Headspace** because it’s the most beginner-friendly and consistently makes medita"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Headspace** because it’s very beginner-friendly, well-structured, and easy to stick with daily. Its short gui"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Headspace** because it’s the easiest to stick with: the lessons are clear, the interface is simple, and it’s "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "I’d pick **Waking Up** because it combines strong guided meditations with deep, practical teachings that help you unders"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 4,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "I’d pick **Waking Up** because it combines high-quality guided meditation with clear explanations of mindfulness, which "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If I could pick just one meditation app, it would be **Headspace** because it’s the most beginner-friendly and does a gr"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If I could pick just one, I’d choose **Headspace** because it’s very beginner-friendly, easy to use, and does a great jo"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Headspace** because it’s beginner-friendly, easy to use, and does a great job of guiding you through meditati"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If I had to pick just one meditation app, I’d choose **Headspace** because it’s especially beginner-friendly, with clear"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 8,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Headspace** because it’s beginner-friendly, easy to stick with, and has a lot of guided meditations that work"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** and **Calm** usually have the strongest reputations, with **Headspace** often praised for its"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** generally has one of the strongest reputations for its polished design, beginner-friendly gui"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** and **Calm** generally have the strongest reputations, with **Headspace** often praised for i"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among meditation apps, **Headspace** and **Calm** tend to have the strongest reputations with users, with **Headspace** "
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** and **Calm** usually have the strongest reputations, with **Headspace** often praised for its"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** and **Calm** are usually the most highly regarded meditation apps, with **Headspace** often p"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** and **Calm** usually have the strongest reputations, with **Headspace** often praised for beg"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** and **Calm** are usually regarded as the two most reputable meditation apps, with **Headspace"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** and **Calm** are usually the two meditation apps with the strongest reputations, with **Heads"
+    },
+    {
+      "app": "Headspace",
+      "promptIdx": 9,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Headspace** and **Calm** usually have the strongest reputations, with **Headspace** often praised for its"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Duolingo** if you want a free, gamified way to build daily Spanish habits quickly. If yo"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is the most popular all-around iPhone app for learning Spanish because it’s easy to use, gamified, and great fo"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is often the best all-around iPhone app for learning Spanish because it’s free, easy to use, and great for buil"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Duolingo** if you want a free, game-like way to build daily Spanish habits quickly. If y"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is usually the best all-around iPhone app for learning Spanish if you want a free, gamified way to build daily "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Duolingo** if you want a fun, easy-to-stick-with app for building daily Spanish habits, "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Duolingo** is the best all-around iPhone app for learning Spanish because it’s easy to use, free to s"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Duolingo** if you want a fun, easy daily practice app that’s great for beginners and sta"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "The best iPhone app for learning Spanish is often **Duolingo** if you want a fun, gamified way to build a daily habit, b"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 0,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Duolingo** is the best iPhone app for learning Spanish because it’s free, easy to use, and great for "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is a strong choice for learning Spanish on mobile because it’s easy to use, gamified, and good for building dai"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is a popular mobile app for learning Spanish, especially if you want short, game-like lessons and daily practic"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for learning Spanish is **Duolingo** because it’s easy to use, gamified, and good for building daily "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great option is **Duolingo** if you want a fun, gamified way to build vocabulary and basic grammar in short daily less"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for learning Spanish is **Duolingo** because it’s beginner-friendly, gamified, and easy to use daily."
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is a popular choice for learning Spanish because it’s easy to use, gamified, and great for building daily vocab"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for learning Spanish is **Duolingo** if you want a fun, gamified way to build vocabulary and practice"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for learning Spanish is **Duolingo** because it’s easy to use, gamified, and good for building daily "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is a great mobile app for learning Spanish because it’s beginner-friendly, gamified, and easy to use daily. If "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 1,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for learning Spanish is **Duolingo** because it’s beginner-friendly, gamified, and easy to use daily."
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Best for gamified daily practice and beginners building vocabulary and habits.  \n2. **Babbel** — Best "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Best for gamified daily practice and beginners building vocabulary and habits.  \n2. **Babbel** — Best "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Best for gamified daily practice and building basic vocabulary and habits.  \n2. **Babbel** — Best for "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Best for gamified daily practice and beginner-friendly vocabulary building.  \n2. **Babbel** — Best for"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Best for gamified daily practice and beginner-friendly vocabulary/building habits.  \n2. **Babbel** — B"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Best for gamified daily practice and beginners building vocabulary and habits.  \n2. **Babbel** — Best "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Best for gamified daily practice and building beginner vocabulary.  \n2. **Babbel** — Best for structur"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Great for gamified daily practice and beginner-friendly vocabulary and grammar.\n2. **Babbel** — Best f"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "- **Duolingo** — Best for gamified daily practice and building a habit with short lessons.  \n- **Babbel** — Best for str"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 2,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Duolingo** — Best for gamified daily practice and beginners building vocabulary.  \n2. **Babbel** — Best for structu"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, I’d recommend **Duolingo** for a free, easy start.\n\nIf you want something more structured and e"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Duolingo** is the easiest app to start with.\n\nIf you want a slightly more structured option, "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Duolingo** is the easiest app to start with.\n\nIf you want a slightly more structured option, "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, I’d recommend **Duolingo** to start. It’s easy, gamified, and good for building basic vocabular"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, I’d recommend **Duolingo** for a simple start. It’s easy to use, free to begin, and good for bu"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Duolingo** is the easiest app to start with.\n\nIf you want a more structured course, **Babbel*"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Duolingo** is the easiest app to start with.\n\nIf you want a slightly more structured option, "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Duolingo** is the easiest first app to start with.\n\nIf you want a slightly more structured op"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Duolingo** is the easiest app to start with.\n\nIf you want a bit more structured learning, **B"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 3,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Duolingo** is the easiest app to start with.\n\nIf you want something a bit more structured, tr"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people who want to learn Spanish use **Duolingo** because it’s the most popular and widely downloaded language app."
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people who start learning Spanish tend to use **Duolingo** because it’s the most widely known and easiest to get st"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is probably the most widely used app for learning Spanish, especially for beginners. That said, the “best” app "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people who try to learn Spanish tend to use **Duolingo** the most, mainly because it’s free, very popular, and easy"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is probably the app most people actually use to start learning Spanish, mainly because it’s very popular and ea"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people tend to use **Duolingo** to learn Spanish, mainly because it’s the most well-known and widely downloaded lan"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people who want to learn Spanish tend to use **Duolingo** because it’s the most widely known and easiest to start w"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is probably the app most people actually use to learn Spanish, mainly because it’s very popular, free to start,"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people who want to learn Spanish tend to use **Duolingo** because it’s the most widely known and has the biggest ma"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 4,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people tend to use **Duolingo** to learn Spanish, mainly because it’s the most popular and widely downloaded langua"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Duolingo** — it’s free to use and great for building daily vocabulary and basic grammar th"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is one of the best affordable options for learning Spanish because it’s free to start, easy to use, and good fo"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Duolingo**, since it has a free version and low-cost premium plans, making it easy to star"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is a popular affordable option for learning Spanish because it’s free to start and offers short, gamified lesso"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Duolingo**, since it’s free to use and gives you daily practice in a gamified way. If you "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Duolingo** because it has a free version, is easy to use, and is great for building daily "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Duolingo** because it’s free to use, easy to stick with, and great for building a daily ha"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Duolingo**, since it’s free to start and great for building daily vocabulary and basic gra"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Duolingo is a popular affordable option for learning Spanish because it’s free to start and has short, gamified lessons "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 5,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Duolingo**: it’s free to start, easy to use, and great for building daily vocabulary and b"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Best free app overall:** **Duolingo** — easiest to start with, very beginner-friendly, and still the most polished fre"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Best free app:** **Duolingo** — it’s still the easiest free option for beginners and daily practice.\n\n**Good free alte"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Duolingo** is still the best free app for learning Spanish in 2026—easy to start, good for daily prac"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Duolingo** is still the best free all-around app for learning Spanish in 2026 if you want the easiest start and daily "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the **best free all-around app**, I’d pick **Duolingo** for 2026.\n\nWhy:\n- Free and easy to use\n- Good for da"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Duolingo** is the safest free pick for most beginners in 2026.\n\nIf you want a slightly more **practical/immersive** op"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Duolingo** is probably the best free app for learning Spanish in 2026 for most beginners.\n\nIf you want a slightly more"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Duolingo** is still the best free, beginner-friendly app for learning Spanish in 2026.\n\nIf you want a better free **al"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Duolingo** is still the best free all-around app for learning Spanish in 2026 for most beginners.\n\nIf you want alterna"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 6,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Duolingo** is still the best **free** all-around app for learning Spanish in 2026 for most beginners.\n\nIf you want the"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them **Duolingo** if they want something easy and gamified.  \nIf they want more serious learning, suggest **Babbel*"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** for a quick, gamified start, or **Babbel** if they want more structured lessons. If they w"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** for a quick, gamified start. If they want something more serious, **Babbel** or **Busuu** "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** for a free, easy start, or **Babbel** if they want a more structured course. If they’re se"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** for a free, easy start.  \nIf they want something more serious, suggest **Babbel** or **Bus"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** if they want a simple, gamified start, or **Babbel** if they want more structured lessons."
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** if they want something easy and gamified, or **Babbel** if they want more structured lesso"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** for a quick start, **Babbel** for more structured lessons, or **Busuu** if they want pract"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** for a fun, easy start. If they want something more serious, **Babbel** or **Busuu** are be"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 7,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Duolingo** if they want a fun, easy starting point.\n\nIf they want something more practical:\n- **Babbe"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Duolingo** because it’s the easiest app to stick with consistently, and consistency matters most when learnin"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If I could pick just one app for learning Spanish, I’d choose **Duolingo** because it makes daily practice easy, fun, an"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If I could pick just one app for learning Spanish, I’d choose **Duolingo** because it makes daily practice easy, fun, an"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "If I could only pick one app for learning Spanish, I’d choose **Babbel** because it teaches practical, real-life Spanish"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Duolingo** because it’s the easiest app to stick with every day, and consistency matters most when learning a"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Duolingo** because it’s the easiest way to build a daily Spanish habit with short, consistent lessons. It’s n"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Duolingo** because it’s the easiest app to stick with daily, and consistency matters most when learning a lan"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Duolingo** because it’s the easiest app to stick with daily, and consistency matters more than almost anythin"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Duolingo** because it’s the easiest app to stick with daily, and consistency matters most when you’re learnin"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 8,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Duolingo** because it’s the easiest app to use consistently, and consistency matters more than anything when "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** generally has the strongest reputation because it’s widely used, easy to start with, and effec"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** tends to have the strongest overall reputation for learning Spanish, mainly because it’s easy "
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** has the strongest overall reputation thanks to its popularity, ease of use, and gamified lesso"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** generally has the strongest reputation for being fun, accessible, and easy to stick with, espe"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** generally has the strongest overall reputation because it’s widely known, easy to use, and eff"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** generally has the strongest overall reputation because it’s widely used, easy to start with, a"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** generally has the strongest overall reputation because it’s widely used, easy to start with, a"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular Spanish-learning apps, **Duolingo** generally has the best reputation with the broadest user base, especia"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** generally has the strongest reputation because it’s widely used, easy to start with, and prais"
+    },
+    {
+      "app": "Duolingo",
+      "promptIdx": 9,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Duolingo** generally has the strongest reputation because it’s widely used, easy to start with, and good "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the best all-around iPhone app for tracking runs, **Strava** is a top pick because it’s polished, accurate, "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the best all-around iPhone app for tracking runs, **Strava** is usually the top pick because it’s accurate, "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the best all-around iPhone app for tracking runs, **Strava** is usually the top pick because it’s easy to us"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most iPhone users, **Strava** is the best all-around running app because it has solid GPS tracking, easy-to-read sta"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Strava** is the best all-around iPhone app for run tracking because it’s easy to use, has strong GPS "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Strava**: it’s easy to use, tracks runs reliably, and has great route, pace, and communi"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the best all-around iPhone app for run tracking, **Strava** is usually the top pick because it’s accurate, e"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the best all-around iPhone app for tracking runs, **Strava** is usually the top pick because it has accurate"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most runners, **Strava** is the best all-around iPhone app because it’s easy to use, tracks runs reliably, and has s"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 0,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the best all-around iPhone app for running, **Strava** is usually the top pick because it tracks runs well, "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around choice is **Strava** — it’s easy to use, tracks runs accurately, and gives you pace, distance, route "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around choice is **Strava**: it’s easy to use, tracks runs accurately with GPS, and gives you useful stats l"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want a solid all-around running tracker, **Strava** is a great choice: it tracks pace, distance, routes, and elev"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A solid choice is **Strava**—it’s easy to use for run tracking, gives you pace, distance, and route maps, and has a larg"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great option is **Strava**. It’s easy to use for tracking runs, gives you pace, distance, elevation, and route maps, a"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great option is **Strava** if you want detailed run tracking, route mapping, pace stats, and a strong community aspect"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around option is **Strava**. It’s easy to use for run tracking, gives you pace, distance, route maps, and sp"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great option is **Strava**: it’s easy to use, accurately tracks runs with GPS, and gives you pace, distance, and route"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want a solid all-around option, **Strava** is a great choice for tracking runs. It’s easy to use, gives detailed "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 1,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around option is **Strava**: it’s easy to use, tracks pace, distance, routes, and elevation, and has a stron"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "- **Strava** — Best overall for run tracking, social features, route sharing, and detailed stats.\n- **Nike Run Club** — "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Strava** — Best overall for detailed run tracking, routes, social features, and training analysis.  \n2. **Nike Run "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Strava** — Best overall for social motivation, route tracking, and detailed run stats.  \n2. **Nike Run Club** — Gre"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Strava** — Best overall for social features, route tracking, and detailed run stats.  \n2. **Nike Run Club** — Great"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Strava** — Best all-around for run tracking, route mapping, and social motivation.  \n2. **Nike Run Club** — Great f"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "- **Strava** — Best all-around for tracking runs, social motivation, and route sharing.  \n- **Nike Run Club** — Great fr"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Strava** — Best all-around for GPS tracking, social features, and route sharing.  \n2. **Nike Run Club** — Great fre"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Strava** — Best all-around for run tracking, route sharing, and a strong social/community aspect.  \n2. **Nike Run C"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Strava** — Best for social motivation, segment tracking, and a large running community.  \n2. **Nike Run Club** — Gr"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 2,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Strava** — Best overall for run tracking, social features, and route sharing.  \n2. **Nike Run Club** — Great free a"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the easiest all-around beginner option, download **Strava**.\n\nIt’s simple to use, tracks runs well, and make"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Strava** is the easiest all-around choice to start with. It’s simple to use, tracks runs well"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the simplest option, download **Strava**. It’s beginner-friendly, easy to use, and great for tracking runs o"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, **Strava** is a great choice.\n\n- Easy to use\n- Tracks runs with GPS\n- Shows distance, pace, and"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the simplest all-around choice, download **Strava**.\n\nIt’s easy for beginners, tracks runs well, and shows y"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the easiest all-around option, download **Strava**.\n\nIt’s beginner-friendly, tracks runs well, shows your pa"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the easiest all-around choice, download **Strava**. It’s beginner-friendly, tracks runs well, and makes it s"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the simplest beginner-friendly option, **Strava** is a great pick.\n\nWhy:\n- Easy to use\n- Tracks runs with GP"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, I’d recommend **Strava**.\n\nWhy:\n- Easy to use\n- Tracks runs with GPS, pace, distance, and time\n"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 3,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the simplest start, **Strava** is a great choice for beginners.\n\nWhy:\n- Easy to use\n- Tracks runs with GPS\n-"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **Strava** to track running progress, especially if they want a mix of GPS tracking, workout hi"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **Strava** to track running progress, especially if they want GPS tracking, pace stats, and soc"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **Strava** to track running progress, especially if they want easy logging, pace stats, and social featu"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **Strava** to track running progress, especially if they want GPS tracking, pace, distance, and"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **Strava** to track running progress, especially if they want stats, route tracking, and a social/commun"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **Strava** to track running progress, especially if they want a mix of tracking, stats, and social featu"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people tend to use **Strava** to track running progress, especially if they want social features, route tracking, a"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **Strava** to track running progress, especially if they want easy GPS tracking, pace stats, and a socia"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **Strava** to track running progress, especially if they want a mix of GPS tracking, stats, and a social"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 4,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **Strava** to track running progress, especially if they want GPS tracking, pace stats, and a s"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great affordable option is **Strava**—it has a free version that’s solid for run tracking, pace, distance, and routes."
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Strava**—the free version gives you solid run tracking, pace, distance, maps, and basic so"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Nike Run Club** — it’s free, easy to use, and includes GPS tracking, guided runs, and basi"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Strava** — it has a solid free tier for tracking runs, pace, distance, and routes, and it "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Nike Run Club** — it’s free, easy to use, and includes GPS tracking, guided runs, and trai"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Strava** — it has a solid free version for tracking runs with GPS, pace, distance, and rou"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Strava**—it has a solid free version for tracking runs, viewing pace and distance, and com"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Nike Run Club** — it’s free, easy to use, and includes GPS tracking, guided runs, and basi"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Strava**—its free version is solid for tracking runs with GPS, pace, distance, and basic h"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 5,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A solid affordable option is **Strava** — it has a free tier that’s great for tracking runs with GPS, pace, distance, an"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Best overall free pick: **Strava** — great run tracking, routes, stats, and a huge community.\n\nIf you want a simpler alt"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the **best free all-around option**, I’d pick **Strava** — it’s easy to use, has great GPS tracking, and a s"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong free pick is **Strava** — it’s the most popular, easy to use, and great for run tracking.\n\nIf you want more pri"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Best overall free pick:** **Strava** — easiest to use, great GPS tracking, and the free version is solid for most runn"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Best free pick: Strava** — it’s the most popular, has solid run tracking, GPS maps, pace stats, and a big community.\n\n"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Strava** is still the best free all-around app for tracking runs in 2026.\n\n- Easy GPS tracking and clean stats\n- Good "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Strava** is usually the best free pick for run tracking in 2026 — easy to use, reliable GPS, and great community featu"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the **best free option overall**, I’d pick **Strava** — it’s easy to use, tracks runs well, and has the bigg"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the **best free all-around option**, I’d pick **Strava** — it’s still the easiest for tracking runs, has a s"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 6,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Strava** is probably the best free all-around app for tracking runs in 2026.\n\nWhy:\n- Easy GPS tracking\n- Good run hist"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them: “I’m looking for a simple running app that tracks distance, pace, time, and weekly progress, with clean stats"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them you want a **running app that tracks distance, pace, routes, and weekly progress**, with **simple stats, goal "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "You could say:\n\n“Try **Strava** if you want a popular running tracker with routes, pace, and progress stats. If you want"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them you want an app that tracks runs, distance, pace, routes, and weekly progress, ideally with simple stats and G"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them: “Use Strava, Nike Run Club, or Garmin Connect — they’re great for tracking runs, pace, distance, and progress"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 5,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "You can say: **“I’m looking for a simple running app that tracks distance, pace, time, and progress over time, and ideal"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 6,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them you’d like an app that lets you log runs, track pace/distance, see progress over time, and optionally sync wit"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them you want a **running tracker app** that can:\n\n- log runs automatically with **GPS**\n- track **distance, pace, "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them: **“Use Strava or Nike Run Club — both are great for tracking runs, pace, distance, and progress.”**"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 7,
+      "replicate": 9,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them you want a **running tracker app** that can log your runs, show **distance, pace, time, and route**, and track"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the best all-around run tracker: reliable GPS, clean stats, route tracking, and it work"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the best all-around run tracker: reliable GPS, clean stats, and strong support for rout"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the best all-around app for run tracking, with clean GPS tracking, great workout histor"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the most well-rounded for run tracking: accurate GPS, easy workout history, and strong "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the best all-around run tracker: accurate GPS, clean stats, easy route/history review, "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the best all-around mix of accurate run tracking, simple stats, and motivation from the"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the best all-around option for tracking runs, reviewing pace and routes, and staying mo"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If I could pick one, I’d choose **Strava** because it’s the best all-around app for tracking runs, comparing progress ov"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the best all-around running app: reliable GPS tracking, clear stats, and an easy way to"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 8,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Strava** because it’s the most polished all-around running app: easy tracking, clear stats, and strong route/"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Strava** generally has the strongest reputation for run tracking, especially for its social features, rou"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among run-tracking apps, **Strava** generally has the strongest reputation with users, especially for its community feat"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular run-tracking apps, **Strava** generally has the strongest reputation among users, especially for its socia"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular run-tracking apps, **Strava** generally has the strongest reputation with users for its social features, p"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Strava** generally has the strongest reputation for run tracking, especially for its large community, rel"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular running apps, **Strava** generally has the strongest reputation among users, especially for its community "
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among users, **Strava** generally has the strongest reputation for run tracking, especially for its large community, rel"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular run-tracking apps, **Strava** generally has the strongest reputation with users, especially for its commun"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among major running-tracker apps, **Strava** generally has the strongest reputation among users, especially for its soci"
+    },
+    {
+      "app": "Strava",
+      "promptIdx": 9,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among running-tracking apps, **Strava** generally has the strongest reputation among users, especially for its large com"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around iPhone to-do app is **Todoist** because it’s easy to use, syncs well across devices, and has strong f"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A strong all-around choice is **Things 3** if you want a polished, fast, and easy-to-use to-do app on iPhone. If you nee"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A top choice for iPhone to-do lists is **Todoist** because it’s clean, fast, and works well for both simple task lists a"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Todoist**: it’s clean, fast, works well on iPhone, and syncs across devices. If you want"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Todoist** is the best all-around iPhone to-do app because it’s simple, fast, and works well across de"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "There isn’t one single “best” app for everyone, but **Todoist** is often the best all-around choice for iPhone because i"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around choice is **Todoist** because it’s fast, polished, and works well for both simple lists and more adva"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "One of the best iPhone to-do apps is **Todoist** because it’s clean, fast, and works well for both simple task lists and"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around choice is **Todoist**: it’s clean, fast, and works well for both simple lists and more advanced task "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 0,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great all-around choice is **Todoist** because it’s easy to use, syncs well across Apple devices, and has strong featu"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great option is **Todoist**. It’s simple to use, works well on both iPhone and Android, and lets you organize tasks wi"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for managing a to-do list is **Todoist**. It’s easy to use, works on both iPhone and Android, and off"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for managing a to-do list is **Todoist**. It’s easy to use, works on both iPhone and Android, and off"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for managing a to-do list is **Todoist**. It’s easy to use, works across iOS and Android, and offers "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong all-around choice is **Todoist**. It’s easy to use, works on both iPhone and Android, and offers helpful featur"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d recommend **Todoist** for mobile to-do list management—it’s clean, easy to use, and works well for both simple tasks"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for managing a to-do list is **Todoist**. It’s easy to use, works on both iPhone and Android, and off"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for managing a to-do list is **Todoist**. It’s simple to use, works on both iPhone and Android, and o"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Todoist is a great mobile app for managing a to-do list because it’s simple, reliable, and available on both iOS and And"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 1,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great mobile app for managing a to-do list is **Todoist**. It’s easy to use, works across iPhone and Android, and incl"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Here are 3 popular to-do list apps, one line each:\n\n1. **Todoist** — Clean, powerful task manager with recurring tasks, "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "- **Todoist** — Clean, fast, and great for simple task management with strong cross-device syncing.  \n- **Microsoft To D"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Todoist** — Clean, fast, and great for organizing tasks with priorities, labels, and recurring due dates.  \n2. **Mi"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Top 3 to-do list apps:\n\n1. **Todoist** — Clean, powerful, and great for both simple task lists and more advanced project"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Here are 3 popular to-do list apps, one line each:\n\n- **Todoist** — Great for simple task capture, recurring tasks, and "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Todoist** — Clean, powerful, and great for both simple task lists and more advanced project organization.  \n2. **Mi"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "1. **Todoist** — Best all-around for simple, powerful task management with excellent cross-platform syncing.  \n2. **Micr"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Here are 3 popular to-do list apps:\n\n1. **Todoist** — Clean, flexible task manager with strong cross-platform syncing an"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Top 3 to-do list apps:\n\n1. **Todoist** — Simple, powerful task management with natural-language input and cross-platform"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 2,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "- **Todoist** — Clean, fast, and great for recurring tasks, priorities, and cross-platform syncing.  \n- **Microsoft To D"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the simplest beginner-friendly option, **Todoist** is a great choice.\n\nIt’s easy to use, lets you make quick"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the easiest beginner-friendly option, download **Todoist**.\n\nIt’s simple, clean, and great for daily task li"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Try **Todoist** — it’s beginner-friendly, simple to use, and great for daily task lists."
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the simplest beginner-friendly option, download **Todoist**.\n\nIt’s easy to use, works on most devices, and h"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the easiest beginner-friendly option, download **Todoist**. It’s simple, clean, and great for daily task lis"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the simplest beginner-friendly option, download **Todoist**.\n\nIt’s easy to use, clean, and great for daily t"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the simplest beginner-friendly choice, download **Todoist**.\n\nIt’s easy to use, clean, and great for daily t"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, I’d recommend **Todoist** — it’s simple, clean, and easy to start using right away.\n\nIf you wan"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a complete beginner, I’d suggest **Todoist** — it’s simple, clean, and great for daily task lists.\n\nIf you want, I c"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 3,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want the easiest start, download **Todoist**.\n\nIt’s simple, beginner-friendly, and works well for daily tasks wit"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **Todoist** or **Microsoft To Do** for organizing daily tasks, with **Todoist** often being the"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **Todoist** or **Microsoft To Do** to organize daily tasks, with **Todoist** often being the more popula"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "There isn’t one single app that “most people” use, but the most commonly used options for daily task organization are **"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **Todoist** or **Microsoft To Do** for organizing daily tasks, with **Todoist** being especially popular"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "For most people, the most commonly used app for daily task organization is **Todoist** or **Microsoft To Do**, depending"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **Todoist**, **Microsoft To Do**, or **Google Tasks** to organize daily tasks. If you want the "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **Todoist** or **Microsoft To Do** for daily task organization, with **Todoist** often being the most po"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Many people use **Todoist** or **Microsoft To Do** to organize daily tasks, with **Todoist** being especially popular fo"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **Todoist**, **Microsoft To Do**, or **Google Tasks** to organize daily tasks, with **Todoist**"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 4,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "There isn’t one single app that “most people” use for daily tasks, but the most commonly used ones are probably **Google"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Todoist**—it has a solid free tier, works on most devices, and is easy to use for simple d"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Todoist**: it has a solid free plan and reasonably priced paid tiers, plus apps for phone,"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Todoist is a solid affordable option for managing a to-do list, with a clean interface, useful reminders, and cross-devi"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Microsoft To Do** — it’s free, simple, and works well across phones, tablets, and computer"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Todoist is a solid affordable option for managing a to-do list because it’s easy to use, works across devices, and has a"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Todoist**: it has a solid free plan, works on most devices, and is simple for daily task m"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Todoist**: it has a free plan that’s solid for everyday to-do lists, plus paid upgrades if"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Todoist is a strong affordable option for managing a to-do list, with a free plan and reasonably priced premium features"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Todoist** — it has a generous free plan, works on most devices, and is easy to use for sim"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 5,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Todoist**—it has a free tier that’s great for basic to-do lists and simple organization, a"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the **best free all-around to-do app in 2026**, I’d pick **TickTick** — it has the strongest mix of simplici"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Best free pick:** **Todoist** — it’s the easiest all-around to-do app, with a clean interface, good cross-device sync,"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Todoist** is still the best free option in 2026: clean, reliable, and easy to use.\n\nIf you want alter"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Todoist** is still one of the best free options for most people in 2026: clean, fast, and easy to use.\n\nIf you want **"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Todoist** is the best free to-do app in 2026 — it’s clean, fast, and works on almost everything.\n\nIf "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong free pick for 2026 is **Todoist** — it’s simple, polished, and works well across phone, web, and desktop.\n\nIf y"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "If you want the **best free all-around to-do app in 2026**, I’d pick **Todoist**.\n\n**Why:** clean design, easy recurring"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Todoist** is the best free to-do app in 2026: clean, reliable, and easy to use.\n\nIf you want a more “"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Todoist** is the best free to-do app in 2026: clean, fast, easy to use, and available on all major pl"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 6,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A strong free pick is **Microsoft To Do** — simple, reliable, syncs across devices, and has solid reminders and list sha"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them: **“I’m looking for a simple task app that helps me organize daily to-dos, set reminders, and prioritize tasks"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them you want a simple to-do app that lets you add, edit, and check off daily tasks, set priorities or due times, a"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 2,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them: **“I use a simple task app to track daily to-dos, set reminders, and stay organized.”**\n\nIf you want, I can m"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them: **“Use a simple to-do app like Todoist, Microsoft To Do, or Google Tasks — they’re easy for daily task organi"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 4,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them: **“I use a simple task app that lets me make to-do lists, set priorities, and get reminders. I’m happy to rec"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "You could say: “I use a simple to-do app for daily tasks — something like Todoist, Microsoft To Do, or Google Tasks work"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them: “I’d recommend a simple task app like Todoist, Microsoft To Do, or TickTick — easy to use, works across devic"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them you want a **simple to-do app** that lets you:\n- add tasks quickly\n- set due dates/reminders\n- organize tasks "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Tell them: **“Use a simple to-do app with reminders, priorities, and recurring tasks — like Todoist, Microsoft To Do, or"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 7,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them: **“Use a simple to-do app like Todoist, Microsoft To Do, or Things. It helps you list tasks, set priorities, "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple enough to use every day, but powerful enough for recurring tasks, labels, filte"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple, fast, and works well across almost every device. It’s flexible enough for both"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple, fast, and works well across basically every platform. It strikes the best bala"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple, fast, and works well across phone, desktop, and browser. It’s also flexible en"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Todoist, because it’s simple enough to use every day without friction, but powerful enough to handle recurring tasks, pr"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple, fast, and works well across almost every device and platform. It’s the best mi"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple, fast, and works well across all devices. It has just enough power for serious "
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple enough to use every day but still powerful, with great cross-platform sync, nat"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple to use, works across nearly every device, and strikes a great balance between q"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 8,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Todoist** because it’s simple enough for everyday use but still powerful with labels, filters, recurring task"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular to-do list apps, **Todoist** generally has the strongest reputation with users for its balance of simplici"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among mainstream to-do list apps, **Todoist** generally has the strongest reputation among users for being reliable, eas"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular to-do list apps, **Todoist** generally has one of the strongest reputations with users for its clean inter"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among to-do list apps, **Todoist** generally has the strongest reputation among users for its balance of simplicity, rel"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular to-do list apps, **Todoist** generally has one of the best reputations with users for its balance of simpl"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among major to-do list apps, **Todoist** generally has the strongest reputation with users for its clean design, reliabi"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among to-do list apps, **Todoist** generally has one of the strongest reputations with users for its clean design, relia"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among widely used to-do list apps, **Todoist** generally has one of the strongest reputations among users for being reli"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among to-do list apps, **Todoist** is often seen as having the strongest reputation among users for balancing simplicity"
+    },
+    {
+      "app": "Todoist",
+      "promptIdx": 9,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Among popular to-do list apps, **Todoist** generally has one of the best reputations among users for its clean design, r"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "One of the best iPhone apps for tracking flights is **Flighty** because it’s fast, polished, and gives excellent real-ti"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great choice is **Flighty** — it’s widely considered one of the best iPhone flight-tracking apps because it offers fas"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A popular choice is **Flighty** — it’s widely considered one of the best iPhone flight-tracking apps because of its clea"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A strong choice is **Flighty** — it’s widely regarded as one of the best iPhone flight-tracking apps because of its poli"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A popular top pick is **Flighty**—it’s polished, fast, and great for real-time flight tracking, delay alerts, and clean "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For most people, **Flighty** is the best iPhone app for tracking flights because it’s fast, polished, and gives very str"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A popular choice is **Flighty**—it’s widely regarded as one of the best iPhone flight-tracking apps thanks to its sleek "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A top choice is **Flighty** for iPhone: it’s fast, polished, and gives excellent real-time flight tracking with delays, "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A great iPhone app for tracking flights is **Flighty**—it’s widely praised for its clean design, real-time updates, dela"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 0,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A very popular choice is **Flighty** for iPhone—it’s fast, polished, and offers excellent live flight tracking, delay pr"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A great mobile app for tracking flights is **FlightAware**. It provides real-time flight status, airport delays, gate ch"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A solid choice is **FlightAware**. It’s easy to use, gives real-time flight tracking, gate and delay updates, and works "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 2,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good choice is **FlightAware**, which gives real-time flight tracking, gate updates, delays, and airport status in a c"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A great mobile app for tracking flights is **FlightAware**. It gives real-time flight status, live maps, gate and delay "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 4,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A great mobile app for tracking flights is **FlightAware**. It gives real-time flight status, maps, delays, gate changes"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 5,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A solid mobile app for tracking flights is **Flightradar24**. It gives live flight tracking, airport information, delay "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A great option is **FlightAware**—it’s reliable for live flight tracking, gate changes, delays, and airport alerts. If y"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 7,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good mobile app for tracking flights is **FlightAware**. It provides real-time flight status, gate changes, delays, an"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 8,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A solid choice is **Flightradar24**, which gives real-time flight tracking, airport info, delays, and detailed aircraft "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 1,
+      "replicate": 9,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A great mobile app for tracking flights is **FlightAware**. It provides real-time flight status, live maps, delays, and "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "1. **FlightAware** — Excellent for real-time flight tracking, delays, airport activity, and detailed aircraft info.  \n2."
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "1. **FlightAware** — Best all-around for real-time flight tracking, alerts, and detailed airport/airline data.  \n2. **Fl"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "1. **Flightradar24** — Best all-around flight tracker with real-time maps, detailed aircraft data, and strong global cov"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "1. **Flightradar24** — Best overall for live aircraft tracking, airport info, and detailed flight status worldwide.  \n2."
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "1. **FlightAware** — Best for detailed real-time flight tracking, alerts, and airport/airline status.  \n2. **Flightradar"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "1. **FlightAware** — Best for real-time flight tracking, detailed status updates, and live maps.  \n2. **Flightradar24** "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 6,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "1. **FlightAware** — Best all-around for real-time flight tracking, alerts, and detailed status updates.  \n2. **Flightra"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "1. **FlightAware** — Best all-around for real-time flight tracking, delays, and detailed airport/aircraft info.  \n2. **F"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "1. **FlightAware** — Excellent for real-time flight tracking, live maps, airport delays, and detailed flight status.  \n2"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 2,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "1. **FlightAware** — Best for real-time flight tracking, alerts, and detailed airport/airline info.  \n2. **Flightradar24"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "If you want something simple and beginner-friendly, try **Flighty** on iPhone, or **FlightAware** if you want a free, cr"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "For a beginner, **FlightAware** is a great choice — it’s easy to use and good for tracking flights, delays, and gate cha"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 2,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "If you want a simple, beginner-friendly flight tracker, **FlightAware** is a great pick.\n\n**Why:**  \n- Easy to use  \n- S"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "If you want a simple, popular option, download **FlightAware** — it’s easy to use for tracking flights and delays.\n\nIf y"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a beginner, I’d recommend **FlightAware** or **Flighty**:\n\n- **FlightAware**: free, simple, and reliable for basic f"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 5,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good beginner-friendly choice is **FlightAware** — it’s easy to use and shows live flight tracking, delays, gates, and"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "For a beginner, **FlightAware** is a great choice — it’s easy to use, reliable for tracking flights, and shows delays cl"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a beginner, I’d recommend **FlightAware** or **Flighty**:\n\n- **Flighty**: best if you want a super clean, easy-to-us"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "For a beginner, **FlightAware** is a solid choice—it’s easy to use and tracks flights, delays, and gate changes well.\n\nI"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 3,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "For a beginner, **Flighty** is the easiest and best-looking option if you want to track flights and get delay alerts.\n\nI"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Most people use **Flightradar24** to track flights and delays in real time. It’s popular because it shows live aircraft "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **FlightAware** or **Flighty** to track flights and get delay alerts; **FlightAware** is especi"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 2,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Most people use **FlightAware** or **FlightRadar24** to track flights and check delays in real time. If you want the mos"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **FlightAware** or **Flighty** to track flights and delays. If you want the most widely used and broadly"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 4,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Most people commonly use **FlightAware** and **FlightRadar24** to track flights and delays in real time. If you want the"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **FlightAware** or **Flighty** to track flights and delays, with **FlightAware** being the more widely u"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Most people use **FlightAware** or **FlightRadar24** to track flights and see delays in real time. If you want something"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people commonly use **FlightAware** or **Flighty** to track flights and delays, with **FlightAware** being the more"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Most people use **FlightAware** or **Flighty** to track flights and see delay updates. If you want the most widely used "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 4,
+      "replicate": 9,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Most people use **FlightAware** or **FlightRadar24** to track flights and delays in real time. If you want the simplest "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Flightradar24**—it has a free version that’s useful for basic flight tracking and live map"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **FlightAware**, which has a solid free version for tracking flights in real time, checking "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 2,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **FlightAware**, which offers solid real-time tracking, alerts, and airport info for free, w"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **Flightradar24**—it has a free version that’s solid for basic flight tracking and live stat"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A good affordable option is **FlightAware**—it’s free to use for basic flight tracking and gives reliable live status up"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "A good affordable option is **FlightAware** or **Flightradar24**—both have solid free versions that show live flight sta"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 6,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **FlightAware**, which has a solid free app for real-time flight tracking, delays, and airpo"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 7,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **FlightAware** — it has a solid free version for tracking flights in real time, checking de"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 8,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A good affordable option is **FlightAware**—it has a solid free version with real-time flight tracking, delays, and airp"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 5,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "A good affordable option is **Flighty** if you’re on iPhone—it’s polished and great for real-time tracking, though some "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "**Flightradar24** is usually the best free flight-tracking app in 2026. It’s accurate, easy to use, and has the biggest "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "**Flightradar24** is still the best free all-around flight tracking app for most people in 2026.\n\n**Why:**  \n- Live map "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Best free pick for most people: **Flightradar24** — it’s the easiest to use and has the largest live flight-tracking cov"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "For a free flight-tracking app in 2026, **Flightradar24** is usually the best overall choice.\n\n**Good free alternatives:"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": false,
+      "textHead": "Best free pick: **FlightAware**.\n\nWhy: it’s reliable, easy to use, and gives real-time tracking, alerts, and airport/fli"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 5,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A strong free option is **Flightradar24** — it’s the most popular, easy to use, and great for live flight tracking.\n\nIf "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Flighty** is often the best overall, but it’s **not fully free**.  \n\nIf you want the **best free option**, use **Fligh"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 7,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "For most people, **Flightradar24** is the best free flight-tracking app in 2026.\n\n- **Best overall:** Flightradar24\n- **"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 8,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "A strong free pick is **Flightradar24** — it’s the most popular and reliable for live flight tracking, with a solid free"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 6,
+      "replicate": 9,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "For most people, **Flightradar24** is the best free flight-tracking app in 2026.\n\n- **Why:** very accurate live tracking"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 0,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to try **Flighty** for iPhone or **FlightAware** / **FlightStats** for broader tracking.\n\nIf you want the simp"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 1,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to use **Flighty** if they’re on iPhone, or **FlightAware** if they want a solid cross-platform option. Both t"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to use **Flighty** if they’re on iPhone, or **FlightAware** if they want a solid cross-platform option. Both t"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Try **Flighty** if they want the best live flight tracking and delay alerts. If they want a free/simple option, **Flight"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 4,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to use **Flighty** if they’re on iPhone: it’s great for tracking flights, delays, gates, and notifications in "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to use **Flighty** if they’re on iPhone, or **FlightAware** / **Flightradar24** if they want a solid cross-pla"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to use **Flighty** if they want the best flight tracking and delay alerts.  \nIf they want a free/simple option"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 7,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to use **Flighty** or **TripIt**.\n\n- **Flighty**: best for real-time flight tracking and delay alerts  \n- **Tr"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "Tell them to use **FlightAware** or **Flighty**.\n\n- **FlightAware**: great for tracking flights and delays in real time."
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 7,
+      "replicate": 9,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Tell them to use **FlightAware** or **Flightradar24** — both are solid for tracking flights, delays, and gate changes.\n\n"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "I’d pick **FlightRadar24** because it’s the most reliable all-around app for live flight tracking, with excellent real-t"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "I’d pick **FlightRadar24** because it has the most reliable real-time flight tracking, excellent global coverage, and a "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 2,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "**Flighty** — it’s the best mix of fast alerts, clean design, and highly accurate real-time tracking, so you usually kno"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 3,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Flighty** because it’s the most polished, fast, and reliable app for real-time flight tracking with excellent"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 4,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "I’d pick **Flightradar24** because it’s the most reliable all-around app for live flight tracking, with excellent real-t"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 5,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Flighty** because it’s the fastest and most polished app for live flight tracking, with excellent delay, gate"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 6,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Flighty** because it’s the fastest, most polished flight tracker and gives excellent real-time alerts, delay "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 7,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "I’d pick **FlightAware** because it’s consistently reliable for live flight tracking, delays, and detailed aircraft info"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 8,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Flighty** because it’s the most polished and reliable for real-time flight tracking, with fast alerts, a grea"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 8,
+      "replicate": 9,
+      "mentioned": true,
+      "firstMention": true,
+      "textHead": "I’d pick **Flighty** because it’s the most polished, fastest, and most reliable for real-time flight tracking. It also g"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 0,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among user reviews and broad public reputation, **Flightradar24** is often considered the best-known and most trusted fl"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 1,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among flight-tracking apps, **FlightAware** generally has one of the strongest reputations with users for accuracy, reli"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 2,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among flight-tracking apps, **Flightradar24** generally has the strongest reputation among users. It’s widely praised fo"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 3,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among flight-tracking apps, **Flightradar24** generally has the best reputation with users. It’s widely praised for its "
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 4,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among users, **FlightAware** generally has one of the strongest reputations for flight tracking, thanks to its broad cov"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 5,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among flight tracking apps, **FlightAware** and **Flightradar24** generally have the strongest reputations with users. *"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 6,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among users, **Flightradar24** generally has the strongest reputation as a flight tracking app, thanks to its broad cove"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 7,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among flight-tracking apps, **Flightradar24** generally has the strongest reputation with users for its reliability, bro"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 8,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among mainstream flight-tracking apps, **FlightAware** and **Flightradar24** tend to have the strongest reputations with"
+    },
+    {
+      "app": "Flighty",
+      "promptIdx": 9,
+      "replicate": 9,
+      "mentioned": false,
+      "firstMention": false,
+      "textHead": "Among users, **FlightAware** generally has the strongest reputation for flight tracking because it’s widely used, reliab"
+    }
+  ]
+}

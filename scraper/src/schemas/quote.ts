@@ -138,6 +138,37 @@ export const ShallowScan = z.object({
   // optional; populated by a follow-up wiring change that wraps the existing
   // competitor / keyword providers.
   metadataLengths: z.array(MetadataLength).default([]),
+  // Wave 1 (roadmap 1.5) — one-bit teasers, one per funnel edge, zero paid
+  // leakage (PLAN.md §22):
+  //   ratingBandVerdict — the detected rating positioned against the
+  //     3.5/4.0/4.5 conversion bands (community-tested thresholds; full
+  //     rating economics stay paid-only in conversionAudit).
+  //   aiMention — did one AI assistant name this app for the top keyword?
+  //     Single probe, single model, cached weekly; the multi-prompt
+  //     multi-model share-of-voice section is paid-only (Wave 2). Absent
+  //     when AI_MENTION_TEASER_ENABLED is off or the probe degraded.
+  ratingBandVerdict: z
+    .object({
+      band: z.enum([
+        "below-suppression",
+        "below-credibility",
+        "credible",
+        "top-cluster",
+      ]),
+      note: z.string().min(1),
+    })
+    .nullable()
+    .optional(),
+  aiMention: z
+    .object({
+      mentioned: z.boolean(),
+      model: z.string().min(1),
+      intent: z.string().min(1),
+      checkedAt: z.string().datetime(),
+      provenance: Provenance,
+    })
+    .nullable()
+    .optional(),
   competitorPreview: CompetitorPreview.optional(),
   suggestedKeywordCountBand: z
     .object({

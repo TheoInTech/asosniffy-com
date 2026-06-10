@@ -124,6 +124,13 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
       keywords: body.keywords,
       allowFixtureFallback: false,
       ...(body.tier !== undefined ? { tier: body.tier } : {}),
+      // Wave 1 — paste-in calibration passthrough (see DiagnoseRequest).
+      ...(body.currentKeywordsField !== undefined
+        ? { currentKeywordsField: body.currentKeywordsField }
+        : {}),
+      ...(body.ascDailyImpressions !== undefined
+        ? { ascDailyImpressions: body.ascDailyImpressions }
+        : {}),
     });
 
     // SLO S1: pack-credit paid runs still count toward the live-data SLO,
@@ -261,6 +268,13 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
       keywords: body.keywords,
       allowFixtureFallback: false,
       ...(body.tier !== undefined ? { tier: body.tier } : {}),
+      // Wave 1 — paste-in calibration passthrough (see DiagnoseRequest).
+      ...(body.currentKeywordsField !== undefined
+        ? { currentKeywordsField: body.currentKeywordsField }
+        : {}),
+      ...(body.ascDailyImpressions !== undefined
+        ? { ascDailyImpressions: body.ascDailyImpressions }
+        : {}),
     });
 
   // SLO S1: iOS US/UK/CA /diagnose should have appMetadata=='live'|'cached'

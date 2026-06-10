@@ -16,6 +16,10 @@ interface Props {
 
 const SOURCE_LABEL: Record<Props["source"], string> = {
   "apple-search-ads": "Apple Search Ads",
+  // Wave 1 — documented public-signal blend (obs-1): result depth, leader
+  // strength, title-match density, market depth, specificity, exact-phrase.
+  // Sniffy's own estimate, provenance inferred — NOT Apple's number.
+  "observable-signals": "Observable signals (obs-1)",
   heuristic: "Heuristic",
 };
 
@@ -36,7 +40,7 @@ export function PopularityBar({ score, source, asOf, className }: Props) {
           —
         </span>
         <span className="font-mono text-[10px] uppercase tracking-[0.14em]">
-          {source === "heuristic" ? "heuristic" : "no data"}
+          {source === "apple-search-ads" ? "no data" : SOURCE_LABEL[source] === "Heuristic" ? "heuristic" : "obs"}
         </span>
       </span>
     );
@@ -47,7 +51,9 @@ export function PopularityBar({ score, source, asOf, className }: Props) {
   const tint =
     source === "apple-search-ads"
       ? "bg-sniffy-teal"
-      : "bg-sniffy-paper-2 border border-sniffy-rule";
+      : source === "observable-signals"
+        ? "bg-sniffy-rule"
+        : "bg-sniffy-paper-2 border border-sniffy-rule";
   const titleParts = [
     `${score}/100 ${SOURCE_LABEL[source]}`,
     asOf ? `as of ${new Date(asOf).toLocaleDateString()}` : null,
@@ -68,12 +74,12 @@ export function PopularityBar({ score, source, asOf, className }: Props) {
       <span className="font-mono text-[10px] tabular-nums text-sniffy-ink">
         {score}
       </span>
-      {source === "heuristic" ? (
+      {source !== "apple-search-ads" ? (
         <span
           className="font-mono text-[9px] uppercase tracking-[0.12em] text-sniffy-ink-mute"
           aria-hidden
         >
-          heur
+          {source === "observable-signals" ? "obs" : "heur"}
         </span>
       ) : null}
       <span className="sr-only">

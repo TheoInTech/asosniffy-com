@@ -75,6 +75,9 @@ export function clampReportToContract(
         ctx,
         log,
       ),
+      // Wave 1 — chance/kei share the difficulty contract range (1..100 int).
+      chance: clampNullableInt(row.chance, DIFFICULTY_RANGE, `${base}.chance`, ctx, log),
+      kei: clampNullableInt(row.kei, DIFFICULTY_RANGE, `${base}.kei`, ctx, log),
     };
   });
 

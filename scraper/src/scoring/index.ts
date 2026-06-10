@@ -79,3 +79,30 @@ export {
   type ScoreCandidatesInput,
   type ScoredCandidate,
 } from "./relevance.js";
+// Wave 1 — deterministic conversion-audit + mechanics modules.
+export {
+  lintMetadataMechanics,
+  lintReviewSafety,
+  type MetadataFieldsInput,
+  type MechanicsReport,
+  type MechanicsFinding,
+  type ReviewRiskFlag,
+} from "./metadata-mechanics.js";
+export {
+  computeConversionIndex,
+  type ConversionIndexInput,
+  type ConversionIndexResult,
+} from "./conversion-index.js";
+export {
+  planZeroBudgetExperiment,
+  adviseRatingReset,
+  type ExperimentPlan as ExperimentPlanResult,
+  type RatingResetAdvice as RatingResetAdviceResult,
+} from "./experiment-planner.js";
+export {
+  computeObservablePopularity,
+  estimateMaxDailyImpressions,
+  computeChance,
+  computeKei,
+  type ObservablePopularity,
+} from "./keyword-popularity.js";

@@ -235,6 +235,9 @@ const EnvSchema = z.object({
 
   // Phase 5 — Localization gap analysis + anti-abuse + cost circuit.
   LOCALIZATION_ENABLED: BooleanFromString.default(true),
+  // Wave 1 — free-quote AI-mention teaser bit (one cheap OpenAI call,
+  // cached 7 days). Default off until flipped in Railway post-COGS-check.
+  AI_MENTION_TEASER_ENABLED: BooleanFromString.default(false),
   // Default storefront set per PLAN.md §5. Configurable per request via
   // the localization input; this env is the global default when no
   // request-level override is provided.
