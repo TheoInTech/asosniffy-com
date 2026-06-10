@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  BenchmarkRange,
   CAIP2,
   Confidence,
   CountryCode,
@@ -41,6 +42,17 @@ export const DiagnoseRequest = z.object({
   country: CountryCode,
   keywords: z.array(z.string().min(1)).min(1).max(5),
   tier: DiagnoseTier.optional(),
+  // Wave 1 — paste-in calibration (optional, additive). Neither value is
+  // publicly observable; both unlock report sections that otherwise return
+  // honest nulls:
+  //   currentKeywordsField — the app's ASC keyword field (max 100 chars,
+  //     ASC-only). Lets the metadata-mechanics linter audit the full
+  //     indexed token set instead of title+subtitle only.
+  //   ascDailyImpressions — App Store Connect impressions/day (e.g.
+  //     30-day impressions ÷ 30). Converts the zero-budget experiment
+  //     planner from "missing data" to a real feasibility verdict.
+  currentKeywordsField: z.string().max(100).optional(),
+  ascDailyImpressions: z.number().positive().optional(),
 });
 export type DiagnoseRequest = z.infer<typeof DiagnoseRequest>;
 
@@ -165,10 +177,25 @@ export const KeywordDiagnosisItem = z.object({
   // not-found for this keyword. Source tells the consumer whether the
   // value came from Apple's canonical signal or our heuristic fallback.
   popularityScore: z.number().int().min(0).max(100).nullable().default(null),
+  // Wave 1 — "observable-signals" is the documented headline methodology
+  // (obs-1): a deterministic blend of public iTunes signals (result depth,
+  // leader strength, title-match density, market depth, specificity,
+  // exact-phrase, autocomplete). It replaces the unlabeled "heuristic"
+  // fallback whenever enough inputs exist; "heuristic" remains for the
+  // legacy intent-only estimate; "apple-search-ads" stays a labeled overlay
+  // when the flag-gated ASA provider returns live data.
   popularitySource: z
-    .enum(["apple-search-ads", "heuristic"])
+    .enum(["apple-search-ads", "observable-signals", "heuristic"])
     .default("heuristic"),
   popularityAsOf: z.string().datetime().nullable().default(null),
+  // Wave 1 — app-relative opportunity signals (roadmap 1.3). All nullable
+  // with honest gates: chance needs the target app's own competitive score
+  // plus >=3 scored competitors; kei needs both popularity and chance;
+  // impressions needs a popularity score (SplitMetrics/Phiture 2019
+  // exponential, shipped as a labeled range with staleness caveat).
+  chance: z.number().int().min(1).max(100).nullable().default(null),
+  kei: z.number().int().min(1).max(100).nullable().default(null),
+  estMaxDailyImpressions: BenchmarkRange.nullable().default(null),
   // Related terms — gplay.suggest() autocompletions for the keyword.
   // Capped at 5 to keep response weight bounded.
   relatedTerms: z.array(z.string().min(1)).max(5).default([]),
@@ -530,6 +557,101 @@ export const ExpertAnalysis = z.object({
 });
 export type ExpertAnalysis = z.infer<typeof ExpertAnalysis>;
 
+// Wave 1 (roadmap 1.4) — deterministic iOS metadata mechanics lint.
+// Simulation of documented indexing rules over public metadata (title,
+// subtitle) plus the optional paste-in keyword field; NOT a live
+// measurement, hence provenance "inferred". Every finding distinguishes
+// apple-documented rules from community-tested lore (verification-verdicts
+// framing). reviewSafety flags generated/paste-in metadata that risks App
+// Review or Play policy enforcement — run on readyToPaste output before it
+// ships to the user.
+export const MechanicsFinding = z.object({
+  kind: z.enum([
+    "cross-field-duplicate",
+    "plural-duplicate",
+    "camelcase-hidden-split",
+    "auto-indexed-word",
+    "keyword-field-format",
+  ]),
+  field: z.enum(["title", "subtitle", "keywordsField"]),
+  token: z.string().min(1),
+  detail: z.string().min(1),
+  charsWasted: z.number().int().min(0),
+  ruleProvenance: z.enum(["apple-documented", "community-tested"]),
+});
+export type MechanicsFinding = z.infer<typeof MechanicsFinding>;
+
+export const ReviewRiskFlag = z.object({
+  field: z.string().min(1),
+  term: z.string().min(1),
+  rule: z.string().min(1),
+  severity: z.enum(["warning", "likely-violation"]),
+  store: Store,
+});
+export type ReviewRiskFlag = z.infer<typeof ReviewRiskFlag>;
+
+export const MetadataMechanics = z.object({
+  totalCharsWasted: z.number().int().min(0),
+  findings: z.array(MechanicsFinding),
+  distinctIndexedTokens: z.number().int().min(0),
+  phrasePermutations: z.number().int().min(0),
+  phrasePermutationsIfFixed: z.number().int().min(0),
+  notes: z.array(z.string()),
+  // True when the linter saw the real ASC keyword field (paste-in
+  // calibration); false means title+subtitle only.
+  keywordsFieldProvided: z.boolean(),
+  reviewSafety: z.array(ReviewRiskFlag),
+  provenance: z.literal("inferred"),
+});
+export type MetadataMechanics = z.infer<typeof MetadataMechanics>;
+
+// Wave 1 (roadmap 1.2) — deterministic core of the conversion audit. The
+// multiplicative gate on every discovery surface: rating economics
+// (third-party curve, shipped as attributed ranges), the per-territory iOS
+// rating-reset lever, and the zero-budget experiment feasibility plan.
+// The creative/vision pass (captions, screenshot stack vs top-10) lands
+// behind VISION_CREATIVE_ENABLED in a later wave — this block is the
+// always-on deterministic floor. Provenance "inferred" throughout: these
+// are estimates from public signals + vendor benchmarks, not measurements.
+export const ConversionRatingEconomics = z.object({
+  ratingMultiplier: BenchmarkRange.nullable(),
+  ratingBand: z
+    .enum(["below-suppression", "below-credibility", "credible", "top-cluster"])
+    .nullable(),
+  bandNote: z.string().nullable(),
+  categoryCvrBaseline: BenchmarkRange.nullable(),
+  estimatedConversionIndex: BenchmarkRange.nullable(),
+  thinVolume: z.boolean(),
+});
+export type ConversionRatingEconomics = z.infer<typeof ConversionRatingEconomics>;
+
+export const RatingResetAdvice = z.object({
+  stance: z.enum(["consider", "avoid", "insufficient-data"]),
+  rationale: z.string().min(1),
+  mechanics: z.string().min(1),
+});
+export type RatingResetAdvice = z.infer<typeof RatingResetAdvice>;
+
+export const ExperimentPlan = z.object({
+  feasible: z.boolean().nullable(),
+  daysToSignificance: z
+    .object({ low: z.number(), high: z.number() })
+    .nullable(),
+  assumptions: z.array(z.string()),
+  recommendation: z.string().min(1),
+  suggestedFirstTest: z.enum(["screenshots", "icon", "video"]).nullable(),
+  platformPath: z.string().min(1),
+});
+export type ExperimentPlan = z.infer<typeof ExperimentPlan>;
+
+export const ConversionAudit = z.object({
+  ratingEconomics: ConversionRatingEconomics,
+  ratingReset: RatingResetAdvice.nullable(),
+  experimentPlan: ExperimentPlan,
+  provenance: z.literal("inferred"),
+});
+export type ConversionAudit = z.infer<typeof ConversionAudit>;
+
 export const DiagnosePaidResponse = z.object({
   requestId: RequestId,
   sniffId: SniffId,
@@ -569,6 +691,14 @@ export const DiagnosePaidResponse = z.object({
   // `null` for region-locked listings without releaseDate or when AppRecord
   // couldn't be fetched. Default null keeps every existing fixture parsing.
   targetAppSignals: TargetAppSignals.nullable().default(null),
+  // Wave 1 — deterministic iOS metadata mechanics lint (roadmap 1.4).
+  // `null` for android-store runs (the simulated rules are iOS indexing
+  // mechanics) and when no AppRecord was fetched. Default null keeps every
+  // existing fixture + cached report parsing.
+  metadataMechanics: MetadataMechanics.nullable().default(null),
+  // Wave 1 — deterministic conversion audit (roadmap 1.2). `null` when no
+  // ratings data could be fetched. Default null preserves fixture compat.
+  conversionAudit: ConversionAudit.nullable().default(null),
   // Sprint B — Sniff Pack credit spend block. Populated when /diagnose ran
   // against an authenticated SIWE wallet with a positive Pack balance. The
   // associated Receipt has facilitatorMode="pack-credit" and amount="0.00"

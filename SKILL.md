@@ -59,6 +59,14 @@ Returns: `requestId`, `sniffId`, `detectedApp` (id/name/developer), `pricing` (c
 }
 ```
 
+Optional **paste-in calibration fields** (additive, 2026-06): `currentKeywordsField` (string ≤100 — your App Store Connect keyword field, which is not publicly visible; providing it upgrades the `metadataMechanics` lint from title+subtitle-only to the full indexed token set) and `ascDailyImpressions` (number — ASC impressions/day, e.g. 30-day impressions ÷ 30; providing it converts `conversionAudit.experimentPlan.feasible` from `null` to a real verdict on whether a product-page A/B test can reach significance in Apple's 90-day window). Omit both and the report still works — the dependent fields return honest nulls with notes explaining what's missing.
+
+**Wave 1 report sections (reportVersion ≥ 2026-06-mvp-5, all additive):**
+
+- `keywordDiagnosis[].chance` (1-100 — your app's competitive placement vs that keyword's top results), `.kei` (popularity × chance, geometric mean), `.estMaxDailyImpressions` (`{low, high, source, year}` range; 2019-vintage translation, treat as an illustrative ceiling). `popularitySource: "observable-signals"` marks Sniffy's documented obs-1 public-signal estimate — it is Sniffy's own number with `inferred` provenance, NOT Apple's Search Ads popularity.
+- `metadataMechanics` (iOS only, nullable): deterministic indexing-mechanics lint — wasted characters from cross-field duplicates/plurals/format, phrase-permutation counts, and `reviewSafety[]` flags on the generated ready-to-paste copy (App Review 2.3.7 / Play metadata policy risks). Each finding labels whether the rule is `apple-documented` or `community-tested`.
+- `conversionAudit` (nullable): `ratingEconomics` (rating→conversion multiplier curve and category baselines as source-attributed ranges, with band verdicts at 3.5/4.0/4.5), `ratingReset` (whether the iOS per-version reset-summary-rating lever helps or hurts), `experimentPlan` (zero-budget A/B feasibility math). Everything here is `inferred` — estimates from public signals plus attributed third-party benchmarks, never measurements.
+
 #### Pricing tiers
 
 The `tier` field is **optional**. Omitting it preserves the legacy hackathon base ($0.03) for back-compat with pre-tier SDK / CLI / MCP consumers. When set, base price changes per tier (per-keyword, per-additional-country, and competitor add-ons layer on top of the tier base unchanged):

@@ -16,6 +16,12 @@ interface ItunesRawResult {
   ipadScreenshotUrls?: string[];
   averageUserRating?: number;
   userRatingCount?: number;
+  // Wave 1 — per-version rating fields. iTunes returns these alongside the
+  // lifetime summary; when a developer used the App Store Connect
+  // reset-summary-rating lever, current-version diverges from lifetime.
+  // Feeds scoring/experiment-planner adviseRatingReset.
+  averageUserRatingForCurrentVersion?: number;
+  userRatingCountForCurrentVersion?: number;
   version?: string;
   artworkUrl100?: string;
   bundleId?: string;
@@ -209,6 +215,18 @@ function toAppRecord(raw: ItunesRawResult): AppRecord {
       average: raw.averageUserRating ?? 0,
       count: raw.userRatingCount ?? 0,
     },
+    // Wave 1 — absent (not zero) when iTunes omits the per-version fields,
+    // so the rating-reset advisor can distinguish "no data" from "0 ratings
+    // since the last reset".
+    ...(raw.averageUserRatingForCurrentVersion !== undefined &&
+    raw.userRatingCountForCurrentVersion !== undefined
+      ? {
+          currentVersionRatingsSummary: {
+            average: raw.averageUserRatingForCurrentVersion,
+            count: raw.userRatingCountForCurrentVersion,
+          },
+        }
+      : {}),
     screenshots: raw.screenshotUrls ?? raw.ipadScreenshotUrls ?? [],
     currentVersion: raw.version ?? "",
     iconUrl: raw.artworkUrl100,

@@ -81,7 +81,7 @@ export const sampleQuote: QuoteResponse = {
 export const sampleReport: DiagnosePaidResponse = {
   requestId: "req_sample_2026_05_mvp",
   sniffId: "sniff_sample_001",
-  reportVersion: "2026-05-mvp-4",
+  reportVersion: "2026-06-mvp-5",
   receipt: {
     network: "eip155:2910",
     facilitator: "fixture-receipt",

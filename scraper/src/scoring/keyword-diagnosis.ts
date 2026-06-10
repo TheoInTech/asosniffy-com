@@ -14,6 +14,13 @@ import {
   competitorScore,
   computeKeywordDifficulty,
 } from "./keyword-difficulty.js";
+import {
+  computeChance,
+  computeKei,
+  computeObservablePopularity,
+  estimateMaxDailyImpressions,
+} from "./keyword-popularity.js";
+import type { BenchmarkRange } from "../schemas/index.js";
 
 // Phase 3 — popularity + related-terms input per keyword. Optional so
 // pre-Phase-3 callers (or callers with ASA disabled) get heuristic intent
@@ -21,7 +28,7 @@ import {
 export interface KeywordPopularityInfo {
   keyword: string;
   popularityScore: number | null;
-  popularitySource: "apple-search-ads" | "heuristic";
+  popularitySource: "apple-search-ads" | "observable-signals" | "heuristic";
   popularityAsOf: string | null;
   relatedTerms: string[];
 }
@@ -48,9 +55,17 @@ export interface KeywordDiagnosis {
   action: KeywordAction;
   // Phase 3 — surfaced through to KeywordDiagnosisItem in the API response.
   popularityScore: number | null;
-  popularitySource: "apple-search-ads" | "heuristic";
+  popularitySource: "apple-search-ads" | "observable-signals" | "heuristic";
   popularityAsOf: string | null;
   relatedTerms: string[];
+  // Wave 1 (roadmap 1.3) — app-relative opportunity signals. chance = where
+  // the TARGET app's competitive score sits vs the top-N for this keyword
+  // (1-100, higher = better chance to rank); kei = geometric mean of
+  // popularity x chance; estMaxDailyImpressions = SplitMetrics/Phiture 2019
+  // exponential as a labeled range. All null-gated honestly.
+  chance: number | null;
+  kei: number | null;
+  estMaxDailyImpressions: BenchmarkRange | null;
   // Phase 6 (this PR) — keyword-difficulty signals derived from the top-N
   // competitors in the same iTunes search response. `difficulty` is null
   // and `difficultyIsFallback: true` when the top-five gate trips
@@ -117,10 +132,17 @@ export function diagnoseKeywords(
       subtitle: subtitleRaw,
     });
 
+    // Intent weighting deliberately treats observable-signal popularity like
+    // the legacy heuristic: the 0.45/0.7 action thresholds were tuned against
+    // heuristic intent, and obs-1 is unvalidated until the V4 study lands —
+    // only live ASA data earns the stronger weighting.
     const intent = popularityWeightedIntent({
       keyword,
       popularityScore: popularity?.popularityScore ?? null,
-      popularitySource: popularity?.popularitySource ?? "heuristic",
+      popularitySource:
+        popularity?.popularitySource === "apple-search-ads"
+          ? "apple-search-ads"
+          : "heuristic",
     });
     const action = decideAction({
       rankBucket: rank?.rankBucket ?? "not_found",
@@ -137,6 +159,51 @@ export function diagnoseKeywords(
       now,
     });
 
+    // Wave 1 — observable-signal popularity (obs-1). Live ASA data, when the
+    // flag-gated provider returned it, stays the labeled overlay; otherwise
+    // the documented public-signal blend replaces the unlabeled heuristic
+    // whenever the keyword's search results give it something to estimate
+    // from. autocompleteRank is wired null for now: the autocomplete
+    // provider fetches suggestions FOR a term, not the term's position
+    // under its own prefix (follow-up in the keyword-intel endpoint work).
+    const asaIsLive =
+      popularity?.popularitySource === "apple-search-ads" &&
+      popularity.popularityScore !== null;
+    const observable = asaIsLive
+      ? null
+      : computeObservablePopularity({
+          keyword,
+          appCount: rank?.returnedCount ?? null,
+          topApps: (rank?.topCompetitors ?? []).map((c) => ({
+            name: c.name,
+            averageUserRating: c.ratingsSummary.average,
+            userRatingCount: c.ratingsSummary.count,
+          })),
+          autocompleteRank: null,
+        });
+    const popularityScore = asaIsLive
+      ? popularity!.popularityScore
+      : (observable?.score ?? popularity?.popularityScore ?? null);
+    const popularitySource: KeywordDiagnosis["popularitySource"] = asaIsLive
+      ? "apple-search-ads"
+      : observable !== null
+        ? "observable-signals"
+        : (popularity?.popularitySource ?? "heuristic");
+
+    // Wave 1 — chance/KEI/impressions. The target app is scored with the
+    // SAME competitorScore formula its competitors were scored with, using
+    // the matchKind already classified against its own title/subtitle.
+    const targetScore = scoreTargetApp(input.app, matchKind, now);
+    const chance = computeChance({
+      targetCompetitiveScore: targetScore,
+      topCompetitiveScores: difficultyOutcome.competitiveScores,
+    });
+    const kei = computeKei(popularityScore, chance);
+    const estMaxDailyImpressions =
+      popularityScore !== null
+        ? estimateMaxDailyImpressions(popularityScore)
+        : null;
+
     return {
       keyword,
       rankBucket: rank?.rankBucket ?? "not_found",
@@ -147,10 +214,13 @@ export function diagnoseKeywords(
       coverageInSubtitle,
       coverageInDescription,
       action,
-      popularityScore: popularity?.popularityScore ?? null,
-      popularitySource: popularity?.popularitySource ?? "heuristic",
+      popularityScore,
+      popularitySource,
       popularityAsOf: popularity?.popularityAsOf ?? null,
       relatedTerms: popularity?.relatedTerms ?? [],
+      chance,
+      kei,
+      estMaxDailyImpressions,
       difficulty: difficultyOutcome.difficulty,
       minDifficulty: difficultyOutcome.minDifficulty,
       difficultyIsFallback: difficultyOutcome.isFallback,
@@ -189,6 +259,10 @@ interface ScoreKeywordDifficultyResult {
   difficulty: number | null;
   minDifficulty: number | null;
   isFallback: boolean;
+  // Wave 1 — the per-competitor scores (0..1) the difficulty aggregate was
+  // built from, surfaced so computeChance can place the target app among
+  // them without re-scoring. Empty when no competitors were fetched.
+  competitiveScores: readonly number[];
 }
 
 // Score each competitor against the target keyword, then ask the difficulty
@@ -199,7 +273,12 @@ function scoreKeywordDifficulty(
   input: ScoreKeywordDifficultyInput,
 ): ScoreKeywordDifficultyResult {
   if (!input.competitors || input.competitors.length === 0) {
-    return { difficulty: null, minDifficulty: null, isFallback: true };
+    return {
+      difficulty: null,
+      minDifficulty: null,
+      isFallback: true,
+      competitiveScores: [],
+    };
   }
 
   const scores = input.competitors.map((competitor) => {
@@ -230,7 +309,14 @@ function scoreKeywordDifficulty(
     appCount: input.totalReturned ?? input.competitors.length,
   });
   if (breakdown.isFallback) {
-    return { difficulty: null, minDifficulty: null, isFallback: true };
+    // Difficulty honors the top-five gate, but the raw competitor scores are
+    // still honest inputs for chance placement — surface them regardless.
+    return {
+      difficulty: null,
+      minDifficulty: null,
+      isFallback: true,
+      competitiveScores: scores,
+    };
   }
   // Defensive clamp at the producer boundary. The computeKeywordDifficulty
   // clamps both scores to [1, 100], but rounding to int could theoretically
@@ -240,7 +326,32 @@ function scoreKeywordDifficulty(
     difficulty: clampInt(Math.round(breakdown.difficultyScore), 1, 100),
     minDifficulty: clampInt(Math.round(breakdown.minDifficultyScore), 1, 100),
     isFallback: false,
+    competitiveScores: scores,
   };
+}
+
+// Wave 1 — score the TARGET app with the same formula used for its
+// competitors so chance placement is apples-to-apples. Null when no
+// AppRecord (android-only detection, region-locked) — computeChance then
+// returns null per its honesty gate.
+function scoreTargetApp(
+  app: AppRecord | null,
+  matchKind: KeywordMatchKind,
+  now: number,
+): number | null {
+  if (!app) return null;
+  const daysSinceFirstRelease = daysBetween(app.releaseDate, now);
+  const daysSinceLastRelease = daysBetween(
+    app.currentVersionReleaseDate ?? app.releaseDate,
+    now,
+  );
+  return competitorScore({
+    averageUserRating: app.ratingsSummary.average,
+    userRatingCount: app.ratingsSummary.count,
+    daysSinceFirstRelease,
+    daysSinceLastRelease,
+    keywordMatch: matchKind,
+  }).score;
 }
 
 function clampInt(value: number, min: number, max: number): number {
