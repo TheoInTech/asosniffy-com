@@ -45,6 +45,8 @@ No body. Always returns a complete `DiagnosePaidResponse` shape with `sample: tr
 
 Returns: `requestId`, `sniffId`, `detectedApp` (id/name/developer), `pricing` (currency, network, `estimatedTotal`, `breakdown[]`), `coverage`, and **`shallowScan`** — a free preview with one detected keyword rank. The `sniffId` is the handle you pass to `/diagnose`.
 
+Wave 1 teaser fields on `shallowScan` (additive, one bit per funnel edge): `ratingBandVerdict` (the rating positioned against the 3.5/4.0/4.5 conversion bands — one line; the economics stay paid) and `aiMention` (did one AI assistant name this app for your top keyword? Single probe, single model, cached weekly, provenance-labeled; absent when the server flag is off. The multi-prompt multi-model share-of-voice section is paid-only).
+
 ### `POST /api/v1/aso/diagnose` — paid (x402)
 
 ```json
