@@ -69,6 +69,12 @@ Optional **paste-in calibration fields** (additive, 2026-06): `currentKeywordsFi
 - `metadataMechanics` (iOS only, nullable): deterministic indexing-mechanics lint — wasted characters from cross-field duplicates/plurals/format, phrase-permutation counts, and `reviewSafety[]` flags on the generated ready-to-paste copy (App Review 2.3.7 / Play metadata policy risks). Each finding labels whether the rule is `apple-documented` or `community-tested`.
 - `conversionAudit` (nullable): `ratingEconomics` (rating→conversion multiplier curve and category baselines as source-attributed ranges, with band verdicts at 3.5/4.0/4.5), `ratingReset` (whether the iOS per-version reset-summary-rating lever helps or hurts), `experimentPlan` (zero-budget A/B feasibility math). Everything here is `inferred` — estimates from public signals plus attributed third-party benchmarks, never measurements.
 
+**Wave 2 report sections (reportVersion ≥ 2026-06-mvp-6, server-flag-gated — `null` when off):**
+
+- `aiVisibility` (standard/expert): share-of-voice across AI-assistant answers for your top keywords — `targetSov` with an explicit `±pp` band (pilot-calibrated, not a per-run CI), ranked `shareOfVoice` vs your competitor trail, the per-prompt table, and `deterministicMisses` (prompts where you were *never* named — e.g. "best free app for X" — the most actionable list in the section). One model family today, tools-off; this is the per-request, agent-buyable alternative to enterprise demo-gated or subscription AI-visibility dashboards.
+- `webDiscoverability` (all tiers): deterministic hygiene audit of your marketing site — Smart App Banner (+app-argument), SoftwareApplication JSON-LD missing-required-fields, universal links (AASA) / Android App Links validity and whether YOUR app is listed, AI-crawler robots access (GPTBot/Perplexity/Google-Extended), OpenGraph, and schema-vs-store rating drift. Facts only; missing files are findings, not errors.
+- Free `/quote` gains `shallowScan.webPlumbing` — three booleans (smartAppBanner / appSchema / deepLinking) from the same weekly cache.
+
 #### Pricing tiers
 
 The `tier` field is **optional**. Omitting it preserves the legacy hackathon base ($0.03) for back-compat with pre-tier SDK / CLI / MCP consumers. When set, base price changes per tier (per-keyword, per-additional-country, and competitor add-ons layer on top of the tier base unchanged):

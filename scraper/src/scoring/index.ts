@@ -106,3 +106,21 @@ export {
   computeKei,
   type ObservablePopularity,
 } from "./keyword-popularity.js";
+// Wave 2 — off-store discovery modules.
+export {
+  aggregateAiVisibility,
+  renderProbePrompt,
+  PROBE_PROMPT_TEMPLATES,
+  PROMPT_SET_VERSION,
+  type AiVisibility as AiVisibilityResult,
+  type LlmProbeRawRow,
+} from "./ai-visibility.js";
+export {
+  parseSmartAppBanner,
+  parseAppSchema,
+  parseAasa,
+  parseAssetlinks,
+  parseRobotsForAiCrawlers,
+  parseOg,
+  type WebDiscoverability as WebDiscoverabilityResult,
+} from "./web-discoverability.js";

@@ -652,6 +652,110 @@ export const ConversionAudit = z.object({
 });
 export type ConversionAudit = z.infer<typeof ConversionAudit>;
 
+// Wave 2.1 (roadmap) — LLM share-of-voice probe. V5-calibrated methodology
+// (docs/research/2026-06-discoverability/v5-probe-pilot.md): the exact
+// 10-template "v5-10" prompt set, 2 replicates per intent, mention detection
+// only (no answer text retained). sovBand is a CALIBRATION borrowed from the
+// pilot (±11.4pp single-replicate at mid-SOV ÷ √replicates), not a per-run
+// confidence interval. SOV measures one model family's tools-off
+// recommendation recall — store rank is NOT an input to it. Positioning per
+// A2 verdict: the per-request/agent-buyable probe (AppTweak's is enterprise
+// demo-gated, LLM Pulse is a subscription) — never "the only LLM tool".
+export const ShareOfVoiceEntry = z.object({
+  name: z.string().min(1),
+  isTarget: z.boolean(),
+  mentions: z.number().int().min(0),
+  mentionRate: z.number().min(0).max(1),
+});
+export type ShareOfVoiceEntry = z.infer<typeof ShareOfVoiceEntry>;
+
+export const AiVisibility = z.object({
+  targetSov: z.number().min(0).max(1),
+  sovBand: z.object({
+    plusMinusPp: z.number().min(0).max(50),
+    basis: z.literal("v5-pilot-2026-06"),
+  }),
+  shareOfVoice: z.array(ShareOfVoiceEntry).min(1),
+  promptTable: z.array(
+    z.object({
+      templateIdx: z.number().int().min(0).max(9),
+      intent: z.string().min(1),
+      prompt: z.string().min(1),
+      mentionRate: z.number().min(0).max(1),
+    }),
+  ).min(1),
+  deterministicMisses: z.array(
+    z.object({
+      templateIdx: z.number().int().min(0).max(9),
+      intent: z.string().min(1),
+      prompt: z.string().min(1),
+    }),
+  ),
+  modelsUsed: z.array(z.string().min(1)).min(1),
+  promptSetVersion: z.literal("v5-10"),
+  totalCalls: z.number().int().min(10).max(60),
+  failedCalls: z.number().int().min(0),
+  provenance: Provenance,
+});
+export type AiVisibility = z.infer<typeof AiVisibility>;
+
+// Wave 2.2 (roadmap) — web discoverability audit. Deterministic hygiene
+// FACTS from four bounded fetches of the detected marketing domain (page
+// HTML, AASA, assetlinks.json, robots.txt). Editorial stance per the
+// [V-corrected] roadmap note: plumbing hygiene only — no web-checkout or
+// install-diversion advice (web-to-app can cannibalize store rank signal).
+export const WebDiscoverability = z.object({
+  url: z.string().url(),
+  smartAppBanner: z.object({
+    present: z.boolean(),
+    appId: z.string().nullable(),
+    hasAppArgument: z.boolean(),
+  }),
+  appSchema: z.object({
+    present: z.boolean(),
+    type: z.string().nullable(),
+    missingRequiredFields: z.array(z.string()),
+    aggregateRatingValue: z.number().nullable(),
+  }),
+  universalLinks: z.discriminatedUnion("present", [
+    z.object({ present: z.literal(false) }),
+    z.object({
+      present: z.literal(true),
+      valid: z.boolean(),
+      bundleIdListed: z.boolean().nullable(),
+    }),
+  ]),
+  androidAppLinks: z.discriminatedUnion("present", [
+    z.object({ present: z.literal(false) }),
+    z.object({
+      present: z.literal(true),
+      valid: z.boolean(),
+      packageListed: z.boolean().nullable(),
+    }),
+  ]),
+  aiCrawlerAccess: z.object({
+    robotsTxtPresent: z.boolean(),
+    gptBot: z.enum(["allowed", "blocked"]),
+    perplexityBot: z.enum(["allowed", "blocked"]),
+    googleExtended: z.enum(["allowed", "blocked"]),
+  }),
+  openGraph: z.object({
+    title: z.boolean(),
+    description: z.boolean(),
+    image: z.boolean(),
+  }),
+  ratingDrift: z
+    .object({
+      schemaValue: z.number(),
+      storeValue: z.number(),
+      drift: z.number(),
+    })
+    .nullable(),
+  checkedAt: z.string().datetime(),
+  provenance: Provenance,
+});
+export type WebDiscoverability = z.infer<typeof WebDiscoverability>;
+
 export const DiagnosePaidResponse = z.object({
   requestId: RequestId,
   sniffId: SniffId,
@@ -699,6 +803,15 @@ export const DiagnosePaidResponse = z.object({
   // Wave 1 — deterministic conversion audit (roadmap 1.2). `null` when no
   // ratings data could be fetched. Default null preserves fixture compat.
   conversionAudit: ConversionAudit.nullable().default(null),
+  // Wave 2.1 — LLM share-of-voice (standard/expert tiers, LLM_PROBE_ENABLED).
+  // `null` = flag off, no OpenAI key, quick tier, insufficient input, or a
+  // degraded run (>30% call failures never ship partial SOV).
+  aiVisibility: AiVisibility.nullable().default(null),
+  // Wave 2.2 — web discoverability audit (all tiers, WEB_AUDIT_ENABLED).
+  // `null` = flag off, no marketing URL on the listing, SSRF-rejected URL,
+  // or the page fetch failed (missing well-known files are findings, not
+  // failures).
+  webDiscoverability: WebDiscoverability.nullable().default(null),
   // Sprint B — Sniff Pack credit spend block. Populated when /diagnose ran
   // against an authenticated SIWE wallet with a positive Pack balance. The
   // associated Receipt has facilitatorMode="pack-credit" and amount="0.00"
