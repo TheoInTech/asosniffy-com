@@ -3,9 +3,11 @@ import {
   type AppIdentifier,
   type CompetitorTrailItem,
   type Confidence,
+  type ConversionAudit,
   type CountryCode,
   type CoverageProviderError,
   type DataProvenance,
+  type MetadataMechanics,
   type DiagnosePaidResponse,
   type DiagnoseTier,
   type ExpertAnalysis,
@@ -29,12 +31,17 @@ import {
   type ReportData,
 } from "../data/report-data.js";
 import {
+  adviseRatingReset,
   analyzeCompetitors,
   buildCandidatesFromCompetitors,
+  computeConversionIndex,
   computeKeywordDistribution,
   computeTrend,
   detectRegressions,
   diagnoseKeywords,
+  lintMetadataMechanics,
+  lintReviewSafety,
+  planZeroBudgetExperiment,
   reviewKeywordFrequency,
   scoreCandidates,
   scoreLocalization,
@@ -114,6 +121,10 @@ export interface GenerateReportInput {
   // fields. `standard` and `expert` (and omitted/legacy) run the full AI
   // path. Expert-specific feature gating lands in a follow-up.
   tier?: DiagnoseTier;
+  // Wave 1 — paste-in calibration (see DiagnoseRequest). Both optional;
+  // absence degrades the dependent sections to honest nulls/notes.
+  currentKeywordsField?: string;
+  ascDailyImpressions?: number;
 }
 
 // Lean handle to the detected app's listing identity, surfaced for
@@ -402,6 +413,32 @@ export async function generateReportWithMeta(
   // fetched or the listing is region-locked without a releaseDate.
   const targetAppSignals = assembleTargetAppSignals(data.detect.appRecord);
 
+  // ---------- Wave 1: metadata mechanics + conversion audit ----------
+  // Both deterministic, both provenance "inferred". Mechanics simulates iOS
+  // indexing rules, so android runs get null; the conversion audit's rating
+  // economics work on either store's ratings (the index itself is
+  // iOS-curve-derived and widened/nulled for android inside the module).
+  const metadataMechanics = assembleMetadataMechanics({
+    appRecord: data.detect.appRecord,
+    store: input.store,
+    currentKeywordsField: input.currentKeywordsField ?? null,
+    readyToPaste: synthesis.readyToPaste,
+  });
+  const conversionAudit = assembleConversionAudit({
+    ratings:
+      data.detect.appRecord?.ratingsSummary ??
+      data.detect.androidRecord?.ratingsSummary ??
+      null,
+    currentVersionRatings:
+      data.detect.appRecord?.currentVersionRatingsSummary ?? null,
+    primaryCategory:
+      data.detect.appRecord?.primaryCategory ??
+      data.detect.androidRecord?.primaryCategory ??
+      null,
+    store: input.store,
+    ascDailyImpressions: input.ascDailyImpressions ?? null,
+  });
+
   // ---------- Phase C + H: post-synthesis recommendation cards ----------
   // When translation was deferred (no OpenAI key, or call failed), surface
   // a single "translate your listing" recommendation so the report still
@@ -425,6 +462,41 @@ export async function generateReportWithMeta(
   );
   if (densityRec && recommendations.length < 5) {
     recommendations.push(densityRec);
+  }
+  // Wave 1 cards: wasted-mechanics bytes and the per-version rating-reset
+  // lever. Same cap-at-5 discipline as the Phase C/H cards above; both are
+  // deterministic and cite their numbers from the sections they summarize.
+  if (
+    metadataMechanics !== null &&
+    metadataMechanics.totalCharsWasted >= 8 &&
+    recommendations.length < 5
+  ) {
+    recommendations.push({
+      rank: recommendations.length + 1,
+      action: `Reclaim ${metadataMechanics.totalCharsWasted} wasted metadata characters`,
+      impact: "medium",
+      effort: "low",
+      rationale:
+        `The mechanics lint found ${metadataMechanics.findings.length} issues (duplicate tokens across fields, auto-indexed words, format waste) ` +
+        `worth ${metadataMechanics.totalCharsWasted} characters of indexed keyword space — roughly ${Math.max(
+          0,
+          metadataMechanics.phrasePermutationsIfFixed -
+            metadataMechanics.phrasePermutations,
+        )} additional searchable phrase combinations if replaced with new terms. See metadataMechanics for the per-token list.`,
+    });
+  }
+  if (
+    conversionAudit !== null &&
+    conversionAudit.ratingReset?.stance === "consider" &&
+    recommendations.length < 5
+  ) {
+    recommendations.push({
+      rank: recommendations.length + 1,
+      action: "Consider resetting your summary rating on the next release",
+      impact: "high",
+      effort: "low",
+      rationale: conversionAudit.ratingReset.rationale,
+    });
   }
 
   // ---------- Sprint B knowledge enrichment ----------
@@ -541,6 +613,8 @@ export async function generateReportWithMeta(
         : "",
       localizationAnalysis,
       targetAppSignals,
+      metadataMechanics,
+      conversionAudit,
       ...(expertAnalysis !== undefined ? { expertAnalysis } : {}),
     },
     providerErrors: data.providerErrors,
@@ -647,6 +721,9 @@ function assembleKeywordDiagnosis(
       popularitySource: d.popularitySource,
       popularityAsOf: d.popularityAsOf,
       relatedTerms: d.relatedTerms,
+      chance: d.chance,
+      kei: d.kei,
+      estMaxDailyImpressions: d.estMaxDailyImpressions,
       trend,
       difficulty: d.difficulty,
       minDifficulty: d.minDifficulty,
@@ -654,6 +731,102 @@ function assembleKeywordDiagnosis(
       matchKind: d.matchKind,
     };
   });
+}
+
+// Wave 1 (roadmap 1.4) — metadata mechanics lint + App Review safety pass.
+// iOS-only: the simulated rules are Apple indexing mechanics. The safety
+// pass runs over the GENERATED ready-to-paste copy (recommended ?? current)
+// so a rewrite that would trip App Review / Play policy is flagged before
+// the user ships it.
+function assembleMetadataMechanics(opts: {
+  appRecord: AppRecord | null;
+  store: Store;
+  currentKeywordsField: string | null;
+  readyToPaste: SynthesisOutput["readyToPaste"];
+}): MetadataMechanics | null {
+  if (opts.store !== "ios" || !opts.appRecord) return null;
+  const lint = lintMetadataMechanics({
+    title: opts.appRecord.name,
+    subtitle: opts.appRecord.subtitle ?? null,
+    keywordsField: opts.currentKeywordsField,
+  });
+  const rtp = opts.readyToPaste;
+  const reviewSafety = lintReviewSafety(
+    {
+      title: rtp.title.recommended ?? rtp.title.current,
+      subtitle: rtp.subtitle.recommended ?? rtp.subtitle.current,
+      keywordsField: rtp.keywordsField.recommended ?? rtp.keywordsField.current,
+      shortDescription:
+        rtp.shortDescription.recommended ?? rtp.shortDescription.current,
+      androidShortDescription:
+        rtp.androidShortDescription?.recommended ??
+        rtp.androidShortDescription?.current ??
+        null,
+    },
+    opts.store,
+  );
+  return {
+    totalCharsWasted: lint.totalCharsWasted,
+    findings: lint.findings,
+    distinctIndexedTokens: lint.distinctIndexedTokens,
+    phrasePermutations: lint.phrasePermutations,
+    phrasePermutationsIfFixed: lint.phrasePermutationsIfFixed,
+    notes: lint.notes,
+    keywordsFieldProvided: opts.currentKeywordsField !== null,
+    reviewSafety,
+    provenance: "inferred",
+  };
+}
+
+// Wave 1 (roadmap 1.2) — deterministic conversion audit. Null only when no
+// ratings could be fetched at all; partial inputs degrade per-field inside
+// the modules (honest nulls + notes), never the whole block.
+function assembleConversionAudit(opts: {
+  ratings: { average: number; count: number } | null;
+  currentVersionRatings: { average: number; count: number } | null;
+  primaryCategory: string | null;
+  store: Store;
+  ascDailyImpressions: number | null;
+}): ConversionAudit | null {
+  if (!opts.ratings) return null;
+  const ratingEconomics = computeConversionIndex({
+    averageUserRating: opts.ratings.average > 0 ? opts.ratings.average : null,
+    userRatingCount: opts.ratings.count > 0 ? opts.ratings.count : null,
+    primaryCategory: opts.primaryCategory,
+    store: opts.store,
+  });
+  // Reset advice is an iOS-only lever and needs the per-version fields.
+  const ratingReset =
+    opts.store === "ios" && opts.currentVersionRatings
+      ? adviseRatingReset({
+          lifetimeAverage: opts.ratings.average > 0 ? opts.ratings.average : null,
+          lifetimeCount: opts.ratings.count > 0 ? opts.ratings.count : null,
+          currentVersionAverage: opts.currentVersionRatings.average,
+          currentVersionCount: opts.currentVersionRatings.count,
+        })
+      : null;
+  // UNIT BOUNDARY: the benchmark corpus ships category CVR baselines as
+  // percentages (40 = 40%); the planner validates fractions in (0,1).
+  // Normalize here — this is the one place the two units meet.
+  const baselineCvr = ratingEconomics.categoryCvrBaseline
+    ? {
+        low: ratingEconomics.categoryCvrBaseline.low / 100,
+        high: ratingEconomics.categoryCvrBaseline.high / 100,
+        source: ratingEconomics.categoryCvrBaseline.source,
+        year: ratingEconomics.categoryCvrBaseline.year,
+      }
+    : null;
+  const experimentPlan = planZeroBudgetExperiment({
+    store: opts.store,
+    estDailyImpressions: opts.ascDailyImpressions,
+    baselineCvr,
+  });
+  return {
+    ratingEconomics,
+    ratingReset,
+    experimentPlan,
+    provenance: "inferred",
+  };
 }
 
 // Compute the target-app momentum block. Returns null when the detected

@@ -31,7 +31,7 @@ Vision token math: Claude ≈ (w×h)/750 tokens per image, ~1,600 tokens for a f
 | **Creative vision pass — app only** (own 10 screenshots: captions, first-3 message, layout) | ~10 imgs × 1.6k tok + ~1k out, Haiku 4.5 | **~$0.02** | Cache by screenshot-URL hash — screenshots change rarely, so repeat buys ≈ $0 |
 | **Creative vision pass — competitor stack** (top-5 × first 3 screenshots) | ~15 imgs + output | **~$0.03** | Competitor screenshots overlap heavily across customers in a category → cache compounds (commercial-host moat) |
 | **LLM share-of-voice probe — single model** (10 prompts × 1 cheap model, no tools) | ~10 × (150 in + 250 out) | **~$0.01** | Cache by (appId, promptSet, week) |
-| **LLM probe — full** (20 prompts × 3 models + memory-vs-retrieval split) | ~120 calls | **~$0.06–0.08** | Gated on V5 variance pilot for prompt count; retrieval-on calls cost more (search tool fees) — measure in pilot |
+| **LLM probe — full** (V5-calibrated: 10 prompts × 2 replicates × 2–3 models) | ~40–60 calls | **~$0.02 measured** (pilot: $0.157/500 calls on gpt-5.4-mini) | V5 RESOLVED 2026-06-10: phrasing-dominated variance → prompts beat replicates; mid-SOV apps need the ±pp band shipped with the number. Retrieval-on calls still unmeasured |
 | shallowScan AI-mention bit (free quote) | 1 prompt × 1 model, cached weekly | **~$0.001 uncached, ≈$0.0001 amortized** | Safe for free tier |
 | Review theme clustering (own app) | ~200 reviews ≈ 15k in + 1k out, mini | **~$0.016** | |
 | Competitor negative-review miner (3 competitors) | ~3 × 10k in + 1k out | **~$0.035** | Play/iOS review fetches are free HTTP |

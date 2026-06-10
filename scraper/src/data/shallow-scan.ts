@@ -14,6 +14,8 @@ import { CACHE_TTL } from "../cache/ttl.js";
 import { getDetectedApp, type DetectResult } from "./detect.js";
 import { toProviderError } from "../providers/_lib/errors.js";
 import { buildKeywordRefinement } from "./report-data.js";
+import { computeConversionIndex } from "../scoring/conversion-index.js";
+import { probeAiMention } from "../providers/llm-mention.js";
 
 // Sprint A — character-usage caps for the free-tier metadata-length report.
 // iOS title/subtitle are indexed and capped at 30 chars each. Android title
@@ -130,6 +132,27 @@ export async function getShallowScan(
     subtitle: baseSubtitle,
   });
 
+  // Wave 1 teasers (roadmap 1.5) — computed once, included on every return
+  // path below. The rating verdict is the band + one-line note only; the
+  // economics behind it stay in the paid conversionAudit. The AI-mention
+  // probe is flag-gated, cache-backed (7d), and never blocks the quote —
+  // start it now so it overlaps the rank fetch on the happy path.
+  const ratingBandVerdict = buildRatingBandVerdict({
+    average: baseRatings.average,
+    count: baseRatings.count,
+    store: input.store,
+  });
+  const aiMentionPromise: Promise<ShallowScan["aiMention"]> =
+    firstKeyword && detect.appRecord
+      ? probeAiMention({
+          appId: detect.appRecord.id,
+          appName: detect.appRecord.name,
+          keyword: firstKeyword,
+          store: input.store,
+          country: input.country,
+        })
+      : Promise.resolve(null);
+
   // Preview keyword only makes sense for iOS with a real appId we can search
   // for. Other paths: emit a degraded preview row (or fixture if allowed)
   // with the caller's keyword overlaid so the UI doesn't show stale data.
@@ -150,6 +173,8 @@ export async function getShallowScan(
         candidates: detect.candidates,
         localizationAvailable: true,
         metadataLengths,
+        ratingBandVerdict,
+        aiMention: await aiMentionPromise,
       },
       providerErrors,
     };
@@ -210,6 +235,8 @@ export async function getShallowScan(
         candidates: detect.candidates,
         localizationAvailable: true,
         metadataLengths,
+        ratingBandVerdict,
+        aiMention: await aiMentionPromise,
       },
       providerErrors,
     };
@@ -231,7 +258,29 @@ export async function getShallowScan(
       candidates: detect.candidates,
       localizationAvailable: true,
       metadataLengths,
+      ratingBandVerdict,
+      aiMention: await aiMentionPromise,
     },
     providerErrors,
   };
+}
+
+// Wave 1 (roadmap 1.5) — rating-band teaser. Reuses the conversion-index
+// band logic (community-tested 3.5/4.0/4.5 thresholds) but surfaces ONLY
+// band + note: the multiplier curve, category baselines, and estimated
+// index stay paid-only in conversionAudit. Null when the listing is
+// unrated (iTunes returns 0 for unrated apps).
+function buildRatingBandVerdict(input: {
+  average: number;
+  count: number;
+  store: Store;
+}): ShallowScan["ratingBandVerdict"] {
+  const result = computeConversionIndex({
+    averageUserRating: input.average > 0 ? input.average : null,
+    userRatingCount: input.count > 0 ? input.count : null,
+    primaryCategory: null,
+    store: input.store,
+  });
+  if (result.ratingBand === null || result.bandNote === null) return null;
+  return { band: result.ratingBand, note: result.bandNote };
 }

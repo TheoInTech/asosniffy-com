@@ -101,3 +101,17 @@ export type FacilitatorMode = z.infer<typeof FacilitatorMode>;
 
 export const PaymentScheme = z.enum(["exact"]);
 export type PaymentScheme = z.infer<typeof PaymentScheme>;
+
+// Wave 1 — third-party benchmark range. Every numeric benchmark sourced from
+// vendor research (rating-CVR curves, category baselines, impressions
+// translations) ships as a range with explicit attribution, never a bare
+// point — the roadmap's response to cross-source conflicts (see
+// docs/research/2026-06-discoverability/roadmap.md Part 5). Values built
+// from these carry `inferred` provenance.
+export const BenchmarkRange = z.object({
+  low: z.number(),
+  high: z.number(),
+  source: z.string().min(1),
+  year: z.number().int().min(2000).max(2100),
+});
+export type BenchmarkRange = z.infer<typeof BenchmarkRange>;

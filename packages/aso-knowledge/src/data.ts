@@ -28,7 +28,7 @@ export interface KnowledgeEntry {
 // Bumped manually any time the corpus changes so SDK consumers and the
 // public showcase can branch on "is this report's citation block still
 // current?". MUST match the value in scraper/src/scoring/aso-knowledge.ts.
-export const ASO_KNOWLEDGE_VERSION = "2026-06-1";
+export const ASO_KNOWLEDGE_VERSION = "2026-06-2";
 
 export const ASO_KNOWLEDGE_BASE: readonly KnowledgeEntry[] = [
   // ---------- Title ----------
@@ -134,6 +134,18 @@ export const ASO_KNOWLEDGE_BASE: readonly KnowledgeEntry[] = [
       url: "https://searchads.apple.com/learn",
     },
   },
+  {
+    // Apple-documented (developer.apple.com, confirmed in
+    // docs/research/2026-06-discoverability/research-ratings-reviews-lever.md,
+    // 2026). Feeds the Wave-1 conversionAudit rating-reset advisor.
+    topic: "ios-rating-reset-per-version",
+    summary:
+      "The iOS summary rating is specific to each App Store territory and can be reset when releasing a new version; written reviews are never reset and keep displaying. A reset erases the accumulated rating volume — Apple advises using it sparingly because few ratings discourage downloads — so it only pays off when the current version's rating trends materially better than the lifetime average.",
+    source: {
+      name: "Apple Developer — Ratings, reviews, and responses",
+      url: "https://developer.apple.com/app-store/ratings-and-reviews/",
+    },
+  },
 
   // ---------- Promotional text ----------
   {
@@ -156,11 +168,56 @@ export const ASO_KNOWLEDGE_BASE: readonly KnowledgeEntry[] = [
       url: "https://searchads.apple.com/learn",
     },
   },
+
+  // ---------- Play quality gates ----------
+  {
+    // Google-published policy thresholds (V2 verdict, verification-verdicts.md
+    // 2026-06: CONFIRMED on two official Google properties). The summary keeps
+    // the three caveats V2 requires: enforcement is discretionary ("may"),
+    // some treatments are staged, and the bars apply only above a minimum
+    // user volume. It does NOT claim a measured ranking penalty size.
+    topic: "play-core-value-gates",
+    summary:
+      "Google Play publishes quality bars for its Core Value metrics: DAU/MAU below 8% or a user-loss rate above 5% may trigger a warning on the store listing and make the app ineligible to appear on some Play surfaces, and user-perceived crash rates above 1.09% or ANR rates above 0.47% reduce discoverability. Enforcement is discretionary ('may'), some treatments are staged, and the bars apply only above a minimum user volume.",
+    source: {
+      name: "Google Play Console Help — Core Value quality thresholds",
+      url: "https://support.google.com/googleplay/android-developer/answer/9844486",
+    },
+  },
+
+  // ---------- Native listing experiments ----------
+  {
+    // Apple-documented constraints (developer.apple.com PPO page, cited in
+    // research-store-conversion.md 2026). Feeds the Wave-1 zero-budget
+    // experiment planner. Deliberately does NOT promise a conversion lift —
+    // PPO is the measurement instrument, not the lever.
+    topic: "ios-ppo-product-page-optimization",
+    summary:
+      "Apple's Product Page Optimization (PPO) is the free native A/B test for the default App Store page: up to 3 treatments against the original, a 90-day maximum duration, and results reported at 90% confidence in App Analytics. Whether 90% confidence is reachable depends on existing traffic, so low-traffic apps should run a single treatment changing only the highest-impact element first.",
+    source: {
+      name: "Apple Developer — Product Page Optimization",
+      url: "https://developer.apple.com/app-store/product-page-optimization/",
+    },
+  },
+  {
+    // Google-published feature page with first-party case studies
+    // (research-store-conversion.md 2026). Case-study lifts are
+    // Google-published but promotional — the summary stays qualitative
+    // ("double-digit") rather than quoting a point-estimate lift as a norm.
+    topic: "play-store-listing-experiments",
+    summary:
+      "Google Play Console store listing experiments are free native A/B tests that can be localized per country; Google's own published case studies report double-digit install lifts from icon and screenshot tests. Test one element at a time and run for at least a week to absorb weekday/weekend traffic patterns.",
+    source: {
+      name: "Google Play Console — Store listing experiments",
+      url: "https://play.google.com/console/about/store-listing-experiments/",
+    },
+  },
 ];
 
 // Matchers in priority order — first match wins. Mirror of the matchers in
 // scraper/src/scoring/aso-knowledge.ts. Both copies MUST agree.
 const MATCHERS: ReadonlyArray<{ topic: string; pattern: RegExp }> = [
+  // Title — most specific first so generic "title" doesn't swallow these.
   {
     topic: "title-30-char-cap",
     pattern: /\btitle\b.*(length|cap|over|under|chars?|30)/i,
@@ -169,11 +226,15 @@ const MATCHERS: ReadonlyArray<{ topic: string; pattern: RegExp }> = [
     topic: "title-keyword-weight",
     pattern: /\btitle\b.*(keyword|missing|exact|phrase|primary)/i,
   },
+
+  // Subtitle
   {
     topic: "subtitle-distinct-keywords",
     pattern:
       /\bsubtitle\b.*(duplicate|repeat|overlap|distinct|wast|same|share)/i,
   },
+
+  // Keyword field — comma/space rule first, then redundant-terms rule.
   {
     topic: "keyword-field-no-spaces",
     pattern: /(keyword|keywords?)\s*field.*(space|comma|byte|format)/i,
@@ -183,6 +244,12 @@ const MATCHERS: ReadonlyArray<{ topic: string; pattern: RegExp }> = [
     pattern:
       /(keyword|keywords?)\s*field.*(app\b|free\b|category|brand|competitor|your\s*app|app\s*name|own)/i,
   },
+
+  // Description — android matcher checked first so a sentence that mentions
+  // both Android and iOS routes to the Android indexed path. Non-greedy
+  // `.{1,80}?` between the anchor words tolerates punctuation, articles, and
+  // brief intervening phrases without exploding the matcher into a regex
+  // sequence per joiner shape.
   {
     topic: "description-indexed-android",
     pattern:
@@ -192,26 +259,65 @@ const MATCHERS: ReadonlyArray<{ topic: string; pattern: RegExp }> = [
     topic: "description-not-indexed-ios",
     pattern: /(description|ios|apple)\b.{1,80}?\b(conversion|not\s*indexed)/i,
   },
+
+  // Screenshots
   {
     topic: "screenshot-captions-indexed",
     pattern: /screenshot.*(caption|text|frame|visual|first\s*three)/i,
   },
+
+  // Localization
   {
     topic: "localization-per-storefront",
     pattern:
       /(localiz|locale|storefront|translate|language|german|japan|korea|brazil)/i,
   },
+
+  // Ratings — the reset matcher MUST precede the generic ratings signal:
+  // reset advice also mentions averages/counts and would otherwise be
+  // swallowed by the ratings-as-ranking-signal pattern.
+  {
+    topic: "ios-rating-reset-per-version",
+    pattern: /\brating\b.{0,80}?\breset|\breset\b.{0,80}?\brating/i,
+  },
   {
     topic: "ratings-as-ranking-signal",
     pattern: /(rating|review)s?.*(rank|signal|weight|score|count|average)/i,
   },
+
+  // Promotional text
   {
     topic: "promotional-text-refreshable",
     pattern: /promotional\s*text|promo\s*text/i,
   },
+
+  // Match granularity
   {
     topic: "match-granularity-phrase-exact",
     pattern: /(exact|phrase)\s*match|match\s*granularity|all\s*words/i,
+  },
+
+  // Play quality gates — threshold vocabulary (DAU/MAU, user-loss, crash
+  // rate, ANR) is unique to this topic, so the pattern can be appended last
+  // without shadowing anything above.
+  {
+    topic: "play-core-value-gates",
+    pattern:
+      /\bdau\b\s*\/?\s*\bmau\b|user[\s-]?loss|core\s+value|crash\s*rate|\banr\b/i,
+  },
+
+  // Native listing experiments — PPO requires the explicit feature name or
+  // acronym (generic "product page" copy advice must NOT route here); the
+  // Play matcher anchors on "listing experiment" or a Play/Android qualifier
+  // near "experiment" so iOS PPO text never routes to the Android topic.
+  {
+    topic: "ios-ppo-product-page-optimization",
+    pattern: /\bppo\b|product[\s-]?page\s+optimi[sz]ation/i,
+  },
+  {
+    topic: "play-store-listing-experiments",
+    pattern:
+      /(store[\s-]?listing|listing)\s+experiments?\b|\b(play|android)\b.{1,80}?\bexperiments?\b/i,
   },
 ];
 
