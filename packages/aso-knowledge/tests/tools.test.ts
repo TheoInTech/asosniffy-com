@@ -126,6 +126,46 @@ describe("aso_knowledge_lookup", () => {
     };
     expect(sc.match?.topic).toBe("description-indexed-android");
   });
+
+  // ---- Wave 1 corpus additions (2026-06-2) ----
+
+  it("routes rating-reset text to the per-version reset topic, not the generic ratings signal", async () => {
+    const result = await callTool("aso_knowledge_lookup", {
+      text: "Reset the summary rating on your next release — the current version trends above the lifetime average.",
+    });
+    const sc = result.structuredContent as {
+      match: { topic: string } | null;
+    };
+    expect(sc.match?.topic).toBe("ios-rating-reset-per-version");
+  });
+
+  it("routes Play quality-gate text to play-core-value-gates", async () => {
+    const result = await callTool("aso_knowledge_lookup", {
+      text: "DAU/MAU sits below the 8% Core Value bar — Play may warn on your store listing.",
+    });
+    const sc = result.structuredContent as {
+      match: { topic: string } | null;
+    };
+    expect(sc.match?.topic).toBe("play-core-value-gates");
+  });
+
+  it("keeps PPO and Play listing experiments distinct", async () => {
+    const ppo = await callTool("aso_knowledge_lookup", {
+      text: "Run a product page optimization test with one treatment — your traffic can reach 90% confidence inside 90 days.",
+    });
+    expect(
+      (ppo.structuredContent as { match: { topic: string } | null }).match
+        ?.topic,
+    ).toBe("ios-ppo-product-page-optimization");
+
+    const play = await callTool("aso_knowledge_lookup", {
+      text: "Set up a free store listing experiment in Play Console to test icon variants.",
+    });
+    expect(
+      (play.structuredContent as { match: { topic: string } | null }).match
+        ?.topic,
+    ).toBe("play-store-listing-experiments");
+  });
 });
 
 describe("package contract guarantees", () => {
@@ -136,10 +176,15 @@ describe("package contract guarantees", () => {
   });
 
   it("corpus contains only primary-source URLs", () => {
+    // play.google.com added 2026-06 for the Play Console "store listing
+    // experiments" about-page — a first-party Google property and the
+    // canonical URL named in docs/research/2026-06-discoverability/
+    // research-store-conversion.md. Still primary-only: no vendor blogs.
     const allowedHosts = [
       "searchads.apple.com",
       "developer.apple.com",
       "support.google.com",
+      "play.google.com",
     ];
     for (const entry of ASO_KNOWLEDGE_BASE) {
       const url = new URL(entry.source.url);
