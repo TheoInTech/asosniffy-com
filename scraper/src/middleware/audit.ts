@@ -5,6 +5,7 @@ import {
   withRequestAudit,
   type RequestAudit,
 } from "../observability/audit.js";
+import { funnelStageFor, recordFunnelStage } from "../observability/funnel.js";
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -39,6 +40,16 @@ export const auditMiddleware = createMiddleware(async (c, next) => {
   if (attestation !== undefined) {
     audit.clientSurface = attestation.clientSurface;
     audit.clientVersion = attestation.clientVersion;
+  }
+
+  // Wave 0.4 — demand-funnel counter (quote_success / diagnose_402 /
+  // diagnose_paid by client surface). Hono resolves errors to a response via
+  // app.onError *before* the middleware chain unwinds, so c.res.status is the
+  // final status here even when the handler threw PaymentRequiredError.
+  // recordFunnelStage never throws.
+  const stage = funnelStageFor(route, c.res.status);
+  if (stage !== null) {
+    await recordFunnelStage(stage, attestation?.clientSurface ?? "anonymous");
   }
 
   // After the handler runs, drop a single structured log line summarizing

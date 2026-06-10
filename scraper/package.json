@@ -22,7 +22,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo 'lint: configured in Phase 02'",
-    "baseline:shapes": "tsx scripts/baseline-shapes.ts"
+    "baseline:shapes": "tsx scripts/baseline-shapes.ts",
+    "funnel:report": "tsx scripts/funnel-report.ts"
   },
   "dependencies": {
     "@browserbasehq/sdk": "^2.12.0",
