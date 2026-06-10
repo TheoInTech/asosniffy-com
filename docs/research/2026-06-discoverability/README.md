@@ -28,17 +28,18 @@ Output of a 13-agent research workflow (10 firecrawl research dimensions → 2 s
 | `research-keyword-methodology.md` | Where popularity/difficulty numbers come from; Oct 2025 ASA collapse; RespectASO open formula; the dead Apify actor's price point |
 | `research-ratings-reviews-lever.md` | Ratings/reviews as rank+CVR lever; velocity vs stock; reset mechanics; review-mining tool pricing |
 
-## Verification status (Wave 0 gates — see `critique.md` for full methods)
+## Verification status (Wave 0 gates — full verdicts in [`verification-verdicts.md`](./verification-verdicts.md))
 
-| # | Claim | Status |
+| # | Claim | Verdict (2026-06-10) |
 |---|---|---|
-| V1 | Screenshot-caption OCR indexed for iOS rank (single source: Appfigures) | ☐ unverified |
-| V2 | Play "Core Value" thresholds are published policy | ☐ unverified |
-| V3 | iOS territory→indexed-locales table ("US indexes 10") | ☐ unverified |
-| V4 | Observable-signal heuristic popularity validity | ☐ unverified |
-| V5 | LLM probe variance (share-of-voice methodology) | ☐ unverified |
-
-Verdicts land in `verification-verdicts.md` as they complete.
+| V1 | Screenshot-caption OCR indexed for iOS rank | ⚠️ **contested — reframed**: Apple reportedly denied OCR; only controlled test refuted broad indexing. Captions = conversion lever, `inferred`-at-best rank signal |
+| V2 | Play "Core Value" thresholds are published policy | ✅ **confirmed** — canonical Google URLs found (8% DAU/MAU, 5% user loss, 1.09%/0.47% crash/ANR) |
+| V3 | iOS territory→indexed-locales table ("US indexes 10") | ✅ partially — 3 vendors agree on US=10; multiplier is territory-specific (~2x most others); `inferred` provenance |
+| V4 | Observable-signal heuristic popularity validity | ☐ open — no pre-collapse ASA ground truth exists; validation design in verdicts doc, runs with Wave 1.3 |
+| V5 | LLM probe variance (share-of-voice methodology) | ☐ open — pilot needs API keys + ~$5; runs before Wave 2.1 pricing |
+| A1 | App Intents → Apple Intelligence discoverability | ✅ partially — substance primary-sourced; IndexedEntity is WWDC24 not 26; iOS-27 items are beta |
+| A2 | AppTweak = only mobile LLM-visibility player | ⚠️ refuted in part — LLM Pulse (€49/mo self-serve) exists; claim narrows to "only **per-request, agent-buyable** probe" |
+| A3 | No agent-payable ASO API anywhere | ⚠️ narrowed — x402 Play *raw data* exists ($0.01/call); the **ASO-diagnosis** and **iOS-data** lanes are still empty; Appfigures MCP did NOT add per-call billing |
 
 ## Provenance
 

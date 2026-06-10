@@ -1,0 +1,38 @@
+# Sniffy — agent-buyable ASO intelligence (x402)
+
+> App Store / Play Store optimization reports an AI agent can buy autonomously: no account, no API key, no subscription. The paid endpoint returns a real HTTP 402 with a machine-readable x402 offer; payment settles in USDC on Morph Mainnet (eip155:2818) at $0.05-$1.00 per report. Every report field carries a provenance label (live | cached | fixture | inferred).
+
+## Why per-request beats a subscription
+
+- Sniffy standard report: $0.20 per request, settled in seconds over x402; expert tier $1.00; quick scan $0.05.
+- Incumbent ASO data access starts at ~$166/mo (AppTweak API floor), $15-549/mo dashboards, or $30k+/yr contracts (Sensor Tower) - all requiring a human with a credit card.
+- An agent holding USDC completes the whole flow without a human: quote -> 402 offer -> sign (EIP-3009) -> report. As of 2026-06-10 no other agent-payable ASO diagnosis exists.
+
+## API (base: https://gosniffyscraper-production.up.railway.app)
+
+- GET /api/v1/aso/sample: free fixture report, full paid shape, always works - inspect before paying.
+- POST /api/v1/aso/quote: free - detects the app, returns a shallow-scan teaser + the priced offer. Send the X-Sniffy-Client header.
+- POST /api/v1/aso/diagnose: paid - HTTP 402 with the offer (PAYMENT-REQUIRED header, Base64 JSON); retry with PAYMENT-SIGNATURE for the full report + settlement receipt (PAYMENT-RESPONSE header).
+- GET /openapi.json: OpenAPI 3.0 contract generated from the live validation schemas.
+- GET /llms.txt: this file, served from the API origin too.
+
+## How to pay (x402 V2)
+
+1. POST /diagnose with app + keywords + country -> 402 with the offer.
+2. Sign an EIP-3009 transferWithAuthorization for the quoted USDC amount on Morph Mainnet (eip155:2818). Facilitator: https://morph-rails.morph.network/x402.
+3. Retry with the PAYMENT-SIGNATURE header. Payments are non-refundable - check the free quote first.
+
+## Install paths
+
+- Agent Skill: npx skills add TheoInTech/asosniffy-com (SKILL.md is the canonical API reference)
+- MCP server (sniffy_quote / sniffy_diagnose / sniffy_sample): @gosniffy/mcp
+- CLI: npx sniffy quote|diagnose|sample (@gosniffy/cli)
+- Typed TS SDK: @gosniffy/sdk (exports PaymentRequiredError for x402 interception)
+- Free ASO knowledge MCP (no payment): @gosniffy/aso-knowledge
+
+## Links
+
+- Web demo + report viewer: https://gosniffy.vercel.app
+- Guides: https://gosniffy.vercel.app/guides
+- Source (MIT): https://github.com/TheoInTech/asosniffy-com
+- SKILL.md: https://raw.githubusercontent.com/TheoInTech/asosniffy-com/main/SKILL.md

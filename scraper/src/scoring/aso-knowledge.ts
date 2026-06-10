@@ -28,7 +28,7 @@ export interface KnowledgeEntry {
 // Snapshot fingerprint for the knowledge corpus. Bumped manually any time
 // the corpus changes so SDK consumers and the public showcase can branch on
 // "is this report's citation block still current?".
-export const ASO_KNOWLEDGE_VERSION = "2026-05-1";
+export const ASO_KNOWLEDGE_VERSION = "2026-06-1";
 
 export const ASO_KNOWLEDGE_BASE: readonly KnowledgeEntry[] = [
   // ---------- Title ----------
@@ -106,7 +106,7 @@ export const ASO_KNOWLEDGE_BASE: readonly KnowledgeEntry[] = [
   {
     topic: "screenshot-captions-indexed",
     summary:
-      "Apple's semantic search reads the text rendered inside the first three screenshots (Apple's accessibility-ML pass). Screenshot caption copy is a ranking signal — not just a conversion signal.",
+      "Screenshot captions are the strongest creative conversion lever — most visitors decide from the first three screenshots without scrolling. Whether Apple ALSO indexes caption text for search ranking is contested: industry reports of caption-derived ranking after the June 2025 algorithm update were followed by reported denials from Apple, and independent controlled testing found no broad caption ranking. Write captions for conversion and listing consistency; do not count them as guaranteed keyword surface.",
     source: {
       name: "Apple Developer — App previews and screenshots",
       url: "https://developer.apple.com/app-store/product-page/",

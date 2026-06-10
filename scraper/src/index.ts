@@ -10,6 +10,7 @@ import { rateLimitPerIp } from "./middleware/rate-limit.js";
 import { costCircuitMiddleware } from "./middleware/cost-limit.js";
 import { handleError } from "./middleware/error-handler.js";
 import { healthRoute } from "./routes/health.js";
+import { metaRoute } from "./routes/meta.js";
 import { sampleRoute } from "./routes/sample.js";
 import { quoteRoute } from "./routes/quote.js";
 import { diagnoseRoute } from "./routes/diagnose.js";
@@ -107,6 +108,9 @@ export function createApp() {
   );
 
   app.route("/health", healthRoute);
+  // Agent-discovery surfaces (/openapi.json, /llms.txt) — static, cacheable,
+  // no provider calls, so no rate-limit guard needed beyond platform defaults.
+  app.route("/", metaRoute);
   app.route("/api/v1/aso/sample", sampleRoute);
   app.route("/api/v1/aso/quote", quoteRoute);
   app.route("/api/v1/aso/diagnose", diagnoseRoute);
