@@ -1,6 +1,6 @@
 {
   "name": "@gosniffy/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Typed TypeScript client for the Sniffy ASO API (x402-paywalled on Morph).",
   "license": "MIT",
   "type": "module",
