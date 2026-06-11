@@ -8,7 +8,10 @@ const PAYMENT_NOTE =
   "Settles on Morph Mainnet (eip155:2818) via x402. Each sniffy_diagnose call " +
   "charges `pricing.estimatedTotal` from the wallet configured as " +
   "SNIFFY_PRIVATE_KEY. Fund that wallet with only what you plan to spend; " +
-  "payments are non-refundable.";
+  "payments are non-refundable. IMPORTANT: each call is a SEPARATE payment — " +
+  "retrying sniffy_diagnose RE-PAYS. The full report is returned even if your " +
+  "client is behind the server, so do NOT blindly retry on a formatting or " +
+  "parse hiccup; inspect the returned result first.";
 
 const StoreEnum = z.enum(["ios", "android"]);
 const KeywordsList = z

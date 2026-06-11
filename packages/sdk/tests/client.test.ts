@@ -310,6 +310,35 @@ describe("createSniffy — diagnose", () => {
     expect(result.receipt.transactionHash).toMatch(/^0x/);
   });
 
+  it("NEVER discards a paid response on schema skew (the Tally production bug)", async () => {
+    // Server is ahead of this SDK's bundled schema: an unknown enum value in a
+    // keywordDiagnosis row + a whole new top-level section. Pre-fix this threw
+    // a ZodError AFTER payment settled → money lost. Now it must return intact.
+    const forwardServer = {
+      ...FIXTURE,
+      keywordDiagnosis: (FIXTURE.keywordDiagnosis as Array<Record<string, unknown>>).map(
+        (k) => ({ ...k, popularitySource: "future-source-2027" }),
+      ),
+      someBrandNewSection: { value: 42 },
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(forwardServer));
+    const onSchemaWarning = vi.fn();
+    const sniffy = createSniffy({
+      baseUrl: "http://test",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      onSchemaWarning,
+    });
+    const result = (await sniffy.diagnose(
+      { sniffId: "sniff_q1", store: "ios", app: "x", country: "US", keywords: ["habit tracker"] },
+      { autoPay: false },
+    )) as Record<string, unknown>;
+    // The paid data survives — unknown enum value and unknown section both kept.
+    const rows = result.keywordDiagnosis as Array<Record<string, unknown>>;
+    expect(rows[0]!.popularitySource).toBe("future-source-2027");
+    expect(result.someBrandNewSection).toEqual({ value: 42 });
+    expect(onSchemaWarning).toHaveBeenCalledTimes(1);
+  });
+
   it("throws PaymentRequiredError on 402 when autoPay=false", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(UNPAID_FIXTURE, 402));
     const sniffy = createSniffy({

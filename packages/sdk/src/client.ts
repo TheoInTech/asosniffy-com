@@ -12,6 +12,11 @@ import {
 import type { LocalAccount } from "viem";
 import { PaymentRequiredError } from "./errors.js";
 import { createPayingFetch, type PayingFetch } from "./x402.js";
+import {
+  parseTrusted,
+  defaultSchemaWarningSink,
+  type SchemaWarningSink,
+} from "./parse.js";
 import pkg from "../package.json" with { type: "json" };
 
 const DEFAULT_BASE_URL = "https://api.sniffy.io";
@@ -33,6 +38,11 @@ export interface CreateSniffyOptions {
   signer?: LocalAccount;
   fetchImpl?: typeof globalThis.fetch;
   clientId?: string;
+  // Called when a server response doesn't match this SDK's bundled schema
+  // (the SDK is behind the server). The response is still returned in full —
+  // this is a warning, not an error. Default writes to stderr via
+  // console.warn. MCP hosts can supply a custom sink to keep stdout clean.
+  onSchemaWarning?: SchemaWarningSink;
 }
 
 export interface DiagnoseOptions {
@@ -80,6 +90,7 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
   const baseFetch = options.fetchImpl ?? globalThis.fetch;
   const signer = options.signer;
   const clientId = options.clientId ?? DEFAULT_CLIENT_ID;
+  const warn = options.onSchemaWarning ?? defaultSchemaWarningSink;
 
   let payingFetch: PayingFetch | null = null;
   function getPayingFetch(): PayingFetch {
@@ -107,7 +118,7 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
       if (res.status !== 200) {
         await throwApiError(res, "quote request failed");
       }
-      return QuoteResponse.parse(await readJson(res));
+      return parseTrusted(QuoteResponse, await readJson(res), "quote", warn);
     },
 
     async sample() {
@@ -118,7 +129,7 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
       if (res.status !== 200) {
         await throwApiError(res, "sample request failed");
       }
-      return SampleResponse.parse(await readJson(res));
+      return parseTrusted(SampleResponse, await readJson(res), "sample", warn);
     },
 
     async diagnose(input, { autoPay = true } = {}) {
@@ -143,26 +154,36 @@ export function createSniffy(options: CreateSniffyOptions = {}): SniffyClient {
           // Wrapper attempted payment but server still returned 402 — surface
           // it as PaymentRequiredError so callers can inspect.
           throw new PaymentRequiredError(
-            DiagnoseUnpaidResponse.parse(await readJson(res)),
+            parseTrusted(
+              DiagnoseUnpaidResponse,
+              await readJson(res),
+              "diagnose-402",
+              warn,
+            ),
           );
         }
         if (res.status !== 200) {
           await throwApiError(res, "diagnose request failed");
         }
-        return DiagnosePaidResponse.parse(await readJson(res));
+        return parseTrusted(DiagnosePaidResponse, await readJson(res), "diagnose", warn);
       }
 
       // Manual path: single request, throw PaymentRequiredError on 402.
       const res = await baseFetch(url, init);
       if (res.status === 402) {
         throw new PaymentRequiredError(
-          DiagnoseUnpaidResponse.parse(await readJson(res)),
+          parseTrusted(
+            DiagnoseUnpaidResponse,
+            await readJson(res),
+            "diagnose-402",
+            warn,
+          ),
         );
       }
       if (res.status !== 200) {
         await throwApiError(res, "diagnose request failed");
       }
-      return DiagnosePaidResponse.parse(await readJson(res));
+      return parseTrusted(DiagnosePaidResponse, await readJson(res), "diagnose", warn);
     },
   };
 }

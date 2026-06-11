@@ -45,3 +45,12 @@ export type {
   SignerLike,
   SniffyClient,
 } from "./client.js";
+// Trust-the-server response handling: the SDK never throws away or strips a
+// server response on schema skew (the buyer may have paid for it). Supply a
+// custom sink via createSniffy({ onSchemaWarning }) to capture skew warnings.
+export {
+  parseTrusted,
+  defaultSchemaWarningSink,
+  type SchemaWarning,
+  type SchemaWarningSink,
+} from "./parse.js";
