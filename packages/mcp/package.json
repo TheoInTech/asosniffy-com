@@ -1,6 +1,6 @@
 {
   "name": "@gosniffy/mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Model Context Protocol server for the Sniffy ASO API. Exposes sniffy_quote, sniffy_diagnose, sniffy_sample over stdio.",
   "license": "MIT",
   "type": "module",

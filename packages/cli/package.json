@@ -1,6 +1,6 @@
 {
   "name": "@gosniffy/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Command-line client for the Sniffy ASO API. `npx sniffy quote|diagnose|sample`.",
   "license": "MIT",
   "type": "module",
