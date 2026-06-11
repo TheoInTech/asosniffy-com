@@ -18,7 +18,7 @@
     "competitors": "fixture",
     "recommendations": "fixture"
   },
-  "summary": "Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has two low-value slots that should be reclaimed.",
+  "summary": "Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has three low-value slots that should be reclaimed.",
   "keywordDiagnosis": [
     {
       "keyword": "habit tracker",
@@ -81,7 +81,7 @@
     },
     "keywords": {
       "score": 48,
-      "notes": "Two of ten slots spent on near-duplicates of words already in the subtitle."
+      "notes": "Three of seven slots spent on near-duplicates of words already in the subtitle or on auto-indexed terms."
     },
     "screenshots": {
       "score": 72,
@@ -106,10 +106,10 @@
     },
     {
       "rank": 2,
-      "action": "Reclaim two filler keyword slots.",
+      "action": "Reclaim three filler keyword slots.",
       "impact": "medium",
       "effort": "low",
-      "rationale": "Two slots duplicate words already in the title/subtitle and yield no additional rank coverage."
+      "rationale": "Two slots duplicate words already in the title/subtitle and 'app' is auto-indexed for every app — none of the three adds rank coverage."
     },
     {
       "rank": 3,
@@ -135,10 +135,10 @@
       "charLimit": 30
     },
     "keywordsField": {
-      "current": "habit,daily,routine,streak,morning,journal",
-      "recommended": "daily,routine,streak,morning,evening,checklist,journal,calendar",
-      "changeReason": "Adds competitor-coverage terms (evening, checklist, calendar) and drops tokens already in title/subtitle.",
-      "charCount": 64,
+      "current": "habit,daily,routine,streak,morning,journal,app",
+      "recommended": "daily,routine,streak,morning,evening,checklist,journal,calendar,productivity",
+      "changeReason": "Adds competitor-coverage terms (evening, checklist, calendar, productivity) and drops the auto-indexed 'app' token flagged by the mechanics lint.",
+      "charCount": 76,
       "charLimit": 100
     },
     "shortDescription": {
@@ -155,5 +155,222 @@
     "momentumLabel": "growing",
     "daysSinceFirstRelease": 412,
     "daysSinceLastRelease": 9
+  },
+  "metadataMechanics": {
+    "totalCharsWasted": 25,
+    "findings": [
+      {
+        "kind": "auto-indexed-word",
+        "field": "keywordsField",
+        "token": "app",
+        "detail": "\"app\" is indexed automatically for every app per Apple's keyword guidance (generic terms add no value) — remove it from the keywords field.",
+        "charsWasted": 4,
+        "ruleProvenance": "apple-documented"
+      },
+      {
+        "kind": "cross-field-duplicate",
+        "field": "keywordsField",
+        "token": "daily",
+        "detail": "\"daily\" already appears in subtitle; Apple documents that words repeated across name, subtitle, and keywords are duplicates — remove it from keywordsField.",
+        "charsWasted": 6,
+        "ruleProvenance": "apple-documented"
+      },
+      {
+        "kind": "cross-field-duplicate",
+        "field": "keywordsField",
+        "token": "routine",
+        "detail": "\"routine\" already appears in subtitle; Apple documents that words repeated across name, subtitle, and keywords are duplicates — remove it from keywordsField.",
+        "charsWasted": 8,
+        "ruleProvenance": "apple-documented"
+      },
+      {
+        "kind": "plural-duplicate",
+        "field": "title",
+        "token": "habits",
+        "detail": "\"habits\" is a plural variant of \"habit\" (keywordsField); Apple treats plurals as duplicates — keep only \"habit\".",
+        "charsWasted": 7,
+        "ruleProvenance": "apple-documented"
+      }
+    ],
+    "distinctIndexedTokens": 10,
+    "phrasePermutations": 90,
+    "phrasePermutationsIfFixed": 156,
+    "notes": [
+      "Token-combination model (words from title, subtitle, and the keywords field combine into search phrases within one locale) is community-tested (aso.dev); Apple does not publish permutation mechanics.",
+      "phrasePermutations is an illustrative upper bound — ordered two-token pairs of distinct indexed stems (n*(n-1)); not every pair is a plausible user query, and no rank outcome is implied.",
+      "phrasePermutationsIfFixed assumes wasted characters are repurposed as new distinct keywords of average length 7 plus a 1-char comma separator (8 chars per reclaimed keyword).",
+      "Plural detection uses naive English stemming only (trailing s/es, ies→y); non-English plural systems are not modeled."
+    ],
+    "keywordsFieldProvided": true,
+    "reviewSafety": [
+      {
+        "field": "keywordsField",
+        "term": "productivity",
+        "rule": "Category names are already indexed; using them as keywords wastes characters and reads as padding (Apple keyword guidance / 2.3.7)",
+        "severity": "warning",
+        "store": "ios"
+      }
+    ],
+    "provenance": "inferred"
+  },
+  "conversionAudit": {
+    "ratingEconomics": {
+      "ratingMultiplier": {
+        "low": 0.96,
+        "high": 0.96,
+        "source": "NP Digital 49-company study",
+        "year": 2026
+      },
+      "ratingBand": "top-cluster",
+      "bandNote": "Rating 4.50 is inside the 4.5+ band where vendor analyses report top-3 positions for competitive keywords cluster (AppFollow ASO ranking-factors guide, 2026). Community-tested claim, not store-documented policy.",
+      "categoryCvrBaseline": {
+        "low": 50.7,
+        "high": 68.7,
+        "source": "AppTweak H1 2024 (via Adapty)",
+        "year": 2024
+      },
+      "estimatedConversionIndex": {
+        "low": 48.7,
+        "high": 66,
+        "source": "Rating multiplier (NP Digital 49-company study) x category baseline (AppTweak H1 2024 (via Adapty))",
+        "year": 2026
+      },
+      "thinVolume": false
+    },
+    "ratingReset": {
+      "stance": "avoid",
+      "rationale": "Lifetime average 4.5 is at or above the 4.0 credibility threshold (community-tested, AppFollow 2026); a reset would erase the social proof of 1287 lifetime ratings for little displayed-number upside.",
+      "mechanics": "Apple-documented: App Store Connect lets you reset the summary rating when releasing a new version, applied per territory (written reviews persist and Apple advises using it sparingly); Android has no equivalent reset - Google Play's displayed rating is automatically weighted toward recent ratings (Google-documented)."
+    },
+    "experimentPlan": {
+      "feasible": true,
+      "daysToSignificance": { "low": 5, "high": 9 },
+      "assumptions": [
+        "[statistics] Two-proportion sample size: n per arm = 2*p*(1-p)*(z_alpha+z_beta)^2 / (p*MDE)^2 with z_alpha=1.645 (90% confidence, two-sided), z_beta=0.8416 (80% power), relative MDE=15%.",
+        "[benchmark] Baseline CVR 50.7%-68.7% (AppTweak H1 2024 (via Adapty), 2024).",
+        "[input] estDailyImpressions = 120; days = ceil(samples / impressions) per range end."
+      ],
+      "recommendation": "Run a 2-arm test (original + 1 treatment) changing only the first 1-3 screenshots (the #1 conversion element in large A/B corpora); expect roughly 5-9 days to 90% confidence at 120 impressions/day. Test one element at a time; icon is the evidence-backed second test, preview video third.",
+      "suggestedFirstTest": "screenshots",
+      "platformPath": "Apple Product Page Optimization (App Store Connect -> Product Page Optimization): free native A/B test of the default product page; up to 3 treatments vs the original, 90-day cap, results reported at 90% confidence; treatment assets pass App Review and alternate icons must ship in the binary."
+    },
+    "provenance": "inferred"
+  },
+  "aiVisibility": {
+    "targetSov": 0.55,
+    "sovBand": { "plusMinusPp": 8.1, "basis": "v5-pilot-2026-06" },
+    "shareOfVoice": [
+      {
+        "name": "Streakly",
+        "isTarget": false,
+        "mentions": 16,
+        "mentionRate": 0.8
+      },
+      {
+        "name": "Pawprint Habits",
+        "isTarget": true,
+        "mentions": 11,
+        "mentionRate": 0.55
+      },
+      {
+        "name": "RoutineLab",
+        "isTarget": false,
+        "mentions": 5,
+        "mentionRate": 0.25
+      }
+    ],
+    "promptTable": [
+      {
+        "templateIdx": 0,
+        "intent": "habit tracker",
+        "prompt": "What's the best iPhone app for habit tracker? Answer in 2-3 sentences.",
+        "mentionRate": 1
+      },
+      {
+        "templateIdx": 1,
+        "intent": "habit tracker",
+        "prompt": "Recommend a mobile app for habit tracker. Answer in 2-3 sentences.",
+        "mentionRate": 0.5
+      },
+      {
+        "templateIdx": 2,
+        "intent": "habit tracker",
+        "prompt": "What are the top 3 apps for habit tracker? One line each.",
+        "mentionRate": 1
+      },
+      {
+        "templateIdx": 4,
+        "intent": "habit tracker",
+        "prompt": "Which app do most people actually use to habit tracker? Answer in 2-3 sentences.",
+        "mentionRate": 0
+      },
+      {
+        "templateIdx": 8,
+        "intent": "habit tracker",
+        "prompt": "If you could only pick ONE app for habit tracker, which would it be and why? Two sentences.",
+        "mentionRate": 0
+      },
+      {
+        "templateIdx": 9,
+        "intent": "habit tracker",
+        "prompt": "Which habit tracker app has the best reputation among users? Answer in 2-3 sentences.",
+        "mentionRate": 0.5
+      }
+    ],
+    "deterministicMisses": [
+      {
+        "templateIdx": 4,
+        "intent": "habit tracker",
+        "prompt": "Which app do most people actually use to habit tracker? Answer in 2-3 sentences."
+      },
+      {
+        "templateIdx": 8,
+        "intent": "habit tracker",
+        "prompt": "If you could only pick ONE app for habit tracker, which would it be and why? Two sentences."
+      }
+    ],
+    "modelsUsed": ["gpt-5.4-mini"],
+    "promptSetVersion": "v5-10",
+    "totalCalls": 20,
+    "failedCalls": 0,
+    "provenance": "fixture"
+  },
+  "webDiscoverability": {
+    "url": "https://pawprinthabits.example",
+    "smartAppBanner": {
+      "present": true,
+      "appId": "1000000001",
+      "hasAppArgument": false
+    },
+    "appSchema": {
+      "present": true,
+      "type": "SoftwareApplication",
+      "missingRequiredFields": ["offers.price"],
+      "aggregateRatingValue": 4.6
+    },
+    "universalLinks": {
+      "present": true,
+      "valid": true,
+      "bundleIdListed": true
+    },
+    "androidAppLinks": { "present": false },
+    "aiCrawlerAccess": {
+      "robotsTxtPresent": true,
+      "gptBot": "allowed",
+      "perplexityBot": "allowed",
+      "googleExtended": "blocked"
+    },
+    "openGraph": {
+      "title": true,
+      "description": true,
+      "image": false
+    },
+    "ratingDrift": {
+      "schemaValue": 4.6,
+      "storeValue": 4.5,
+      "drift": 0.1
+    },
+    "checkedAt": "2026-05-17T09:45:00.000Z",
+    "provenance": "fixture"
   }
 }

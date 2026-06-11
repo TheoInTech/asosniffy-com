@@ -4,10 +4,14 @@ import Image from "next/image";
 import type { DiagnosePaidResponse } from "@sniffy/scraper/schemas";
 import { SpendTrail } from "@/components/SpendTrail";
 import type { ProtocolTraceEntry } from "@/lib/api/errors";
+import { AiVisibilityCard } from "./AiVisibility";
 import { CompetitorTrail } from "./CompetitorTrail";
+import { ConversionAuditCard } from "./ConversionAudit";
 import { KeywordDiagnosisTable } from "./KeywordDiagnosisTable";
 import { LocalizationAnalysis } from "./LocalizationAnalysis";
+import { MetadataMechanicsCard } from "./MetadataMechanics";
 import { MetadataScoreCard } from "./MetadataScore";
+import { WebDiscoverabilityCard } from "./WebDiscoverability";
 import { ReadyToPaste } from "./ReadyToPaste";
 import { Recommendations } from "./Recommendations";
 import { Regressions } from "./Regressions";
@@ -59,12 +63,24 @@ export function Report({
       {/* Phase 6 — target-app momentum (ratings-per-day + growing/steady/
           declining). Renders nothing when targetAppSignals is null. */}
       <TargetAppSignals report={report} />
+      {/* Wave 1 — rating economics + reset lever + experiment plan, all
+          inferred from public signals. Sits next to the momentum block so
+          the ratings story reads top-to-bottom. Renders nothing when
+          conversionAudit is null. */}
+      <ConversionAuditCard report={report} />
       <KeywordDiagnosisTable report={report} scope={scope} />
       <CompetitorTrail report={report} scope={scope} />
       {/* Phase 5 — multi-storefront localization gap analysis. Renders nothing
           when localizationAnalysis is null (LOCALIZATION_ENABLED=false). */}
       <LocalizationAnalysis report={report} />
       <MetadataScoreCard report={report} />
+      {/* Wave 1 — deterministic iOS indexing-mechanics lint, directly under
+          the score card it explains. Renders nothing on android runs. */}
+      <MetadataMechanicsCard report={report} />
+      {/* Wave 2 — the off-store pair: LLM share-of-voice + marketing-site
+          plumbing facts. Both render nothing when their flags are off. */}
+      <AiVisibilityCard report={report} />
+      <WebDiscoverabilityCard report={report} />
       <Recommendations report={report} />
       {/* Phase 3 — review-frequency + competitor-overlap keyword suggestions.
           Renders nothing when suggestedKeywords is empty. */}

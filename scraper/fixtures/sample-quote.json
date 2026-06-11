@@ -37,7 +37,23 @@
     "metadataLengths": [
       { "field": "title", "used": 15, "max": 30, "note": "indexed for search" },
       { "field": "subtitle", "used": 23, "max": 30, "note": "indexed for search; should not repeat title keywords" }
-    ]
+    ],
+    "ratingBandVerdict": {
+      "band": "top-cluster",
+      "note": "Rating 4.50 is inside the 4.5+ band where vendor analyses report top-3 positions for competitive keywords cluster (AppFollow ASO ranking-factors guide, 2026). Community-tested claim, not store-documented policy."
+    },
+    "aiMention": {
+      "mentioned": false,
+      "model": "gpt-5.4-mini",
+      "intent": "habit tracker",
+      "checkedAt": "2026-05-17T09:45:00.000Z",
+      "provenance": "fixture"
+    },
+    "webPlumbing": {
+      "smartAppBanner": true,
+      "appSchema": false,
+      "deepLinking": true
+    }
   },
   "savingsNote": {
     "message": "This sniff: $0.05 USDC. Typical ASO subscription: $59/month (or $589/year). Pay only when you sniff — no subscription, no seats, no card on file.",
