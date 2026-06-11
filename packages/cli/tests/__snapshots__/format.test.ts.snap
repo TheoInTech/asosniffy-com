@@ -2,7 +2,7 @@
 
 exports[`formatPaid (and formatSample, which wraps it) > renders all expected sections deterministically 1`] = `
 "Sniffy report — sniffId sniff_sample_001
-requestId req_sample_2026_05_mvp  ·  version 2026-06-mvp-5
+requestId req_sample_2026_05_mvp  ·  version 2026-06-mvp-6
 
 Summary
   Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has two low-value slots that should be reclaimed.
