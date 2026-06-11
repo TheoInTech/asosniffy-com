@@ -35,7 +35,7 @@ interface CommonOpts {
 const program = new Command()
   .name("sniffy")
   .description(
-    "Sniffy — pay-per-sniff ASO intelligence (x402 on Morph Hoodi). Quote/diagnose/sample.",
+    "Sniffy — pay-per-sniff ASO intelligence (x402 on Morph Mainnet). Quote/diagnose/sample.",
   )
   .version(pkg.version)
   .option("--base-url <url>", "Override the Sniffy API base URL", DEFAULT_BASE_URL)
@@ -191,7 +191,7 @@ program
   .action(async (app: string, opts: DiagnoseCmdOpts) => {
     const { baseUrl, json } = getCommonOpts();
     process.stderr.write(
-      `${chalk.yellow("⚠️  Testnet only — do not use a mainnet private key")}\n`,
+      `${chalk.yellow("⚠️  Pays real USDC on Morph Mainnet (eip155:2818) — non-refundable. Each run is a separate charge.")}\n`,
     );
     let signer;
     try {
@@ -230,7 +230,7 @@ program
             `  amount:  ${p.amount} on ${p.network}\n` +
             `  payTo:   ${p.payTo}\n` +
             `  asset:   ${p.asset}\n` +
-            `Fund the testnet wallet at https://faucet-hoodi.morph.network/ and retry.\n`,
+            `Fund the wallet (SNIFFY_PRIVATE_KEY) with USDC on Morph Mainnet and retry. Each retry is a new, non-refundable charge.\n`,
         );
         process.exit(2);
       }

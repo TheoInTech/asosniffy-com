@@ -1,0 +1,74 @@
+name: Release
+
+# Automated npm publish for the @gosniffy/* packages via changesets.
+#
+# Flow: a PR that adds a `.changeset/*.md` merges to main → this workflow opens
+# (or updates) a "Version Packages" PR that applies the version bumps + updates
+# CHANGELOGs. Merging THAT PR runs the workflow again with no pending
+# changesets, so changesets/action runs the `publish` command and publishes to
+# npm. This removes the manual `pnpm release` step that let the SDK go stale.
+#
+# One-time setup: add an `NPM_TOKEN` repo secret (an npm automation token with
+# publish rights to the @gosniffy scope). The default GITHUB_TOKEN handles the
+# version PR.
+
+on:
+  push:
+    branches: [main]
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Version & Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Changesets needs full history to compute version bumps.
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.3
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Build in dependency order so the publish step ships fresh dist/.
+      # @gosniffy/sdk bundles @sniffy/scraper's schemas (tsup noExternal), so
+      # scraper must build first; cli/mcp import the sdk. Harmless on the
+      # version-PR path (no publish happens there).
+      - name: Build publishable packages
+        run: |
+          pnpm --filter @sniffy/scraper run build
+          pnpm --filter @gosniffy/sdk run build
+          pnpm --filter @gosniffy/cli run build
+          pnpm --filter @gosniffy/mcp run build
+          pnpm --filter @gosniffy/aso-knowledge run build
+
+      - name: Create release PR or publish
+        uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
+          publish: pnpm release
+          commit: "chore: version packages"
+          title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

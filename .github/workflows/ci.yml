@@ -20,6 +20,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          # Full history so the SCHEMA_VERSION drift guard can diff against the
+          # PR base branch.
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -35,6 +39,14 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Fail fast if the response contract (SCHEMA_VERSION) moved without a
+      # changeset — the published @gosniffy/* packages bundle a snapshot of
+      # the schemas, so a bump without a republish decision is how a client
+      # goes stale (and, pre-fix, lost paid responses). PR-only: needs a base.
+      - name: SCHEMA_VERSION drift guard
+        if: github.event_name == 'pull_request'
+        run: bash scripts/check-schema-changeset.sh "origin/${{ github.base_ref }}"
 
       # landing/ imports `@sniffy/scraper/schemas` in 20+ files; that subpath
       # resolves to `scraper/dist/schemas/index.js` via the package's exports
