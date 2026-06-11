@@ -23,7 +23,7 @@ function buildPaidStub(appName: string): schemas.DiagnosePaidResponse {
   return {
     requestId: "req_test",
     sniffId: "sniff_test",
-    reportVersion: "2026-06-mvp-5",
+    reportVersion: "2026-06-mvp-6",
     receipt: {
       network: "eip155:2910",
       facilitator: "morph-official",

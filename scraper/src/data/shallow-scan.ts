@@ -16,6 +16,7 @@ import { toProviderError } from "../providers/_lib/errors.js";
 import { buildKeywordRefinement } from "./report-data.js";
 import { computeConversionIndex } from "../scoring/conversion-index.js";
 import { probeAiMention } from "../providers/llm-mention.js";
+import { fetchWebDiscoverability } from "../providers/web-audit.js";
 
 // Sprint A — character-usage caps for the free-tier metadata-length report.
 // iOS title/subtitle are indexed and capped at 30 chars each. Android title
@@ -152,6 +153,17 @@ export async function getShallowScan(
           country: input.country,
         })
       : Promise.resolve(null);
+  // Wave 2.2 teaser — three booleans from the weekly-cached web audit,
+  // raced at 4s so the free quote never waits on a slow marketing site.
+  // A timed-out fetch keeps running and lands in the cache, so the NEXT
+  // quote for this domain gets the booleans instantly. Flag-gated inside
+  // the provider (WEB_AUDIT_ENABLED).
+  const webPlumbingPromise = buildWebPlumbingTeaser({
+    sellerUrl: detect.appRecord?.sellerUrl ?? null,
+    bundleId: detect.appRecord?.bundleId ?? null,
+    store: input.store,
+    storeRating: baseRatings.average > 0 ? baseRatings.average : null,
+  });
 
   // Preview keyword only makes sense for iOS with a real appId we can search
   // for. Other paths: emit a degraded preview row (or fixture if allowed)
@@ -175,6 +187,7 @@ export async function getShallowScan(
         metadataLengths,
         ratingBandVerdict,
         aiMention: await aiMentionPromise,
+        webPlumbing: await webPlumbingPromise,
       },
       providerErrors,
     };
@@ -237,6 +250,7 @@ export async function getShallowScan(
         metadataLengths,
         ratingBandVerdict,
         aiMention: await aiMentionPromise,
+        webPlumbing: await webPlumbingPromise,
       },
       providerErrors,
     };
@@ -260,6 +274,7 @@ export async function getShallowScan(
       metadataLengths,
       ratingBandVerdict,
       aiMention: await aiMentionPromise,
+      webPlumbing: await webPlumbingPromise,
     },
     providerErrors,
   };
@@ -283,4 +298,39 @@ function buildRatingBandVerdict(input: {
   });
   if (result.ratingBand === null || result.bandNote === null) return null;
   return { band: result.ratingBand, note: result.bandNote };
+}
+
+// Wave 2.2 teaser — webPlumbing booleans. deepLinking maps per store:
+// AASA presence on iOS, assetlinks.json presence on Android. Full audit
+// detail (validity, field findings, AI-crawler access, rating drift) is
+// paid-only in webDiscoverability. The 4s race keeps the free quote
+// latency-bounded; the underlying fetch completes and caches regardless.
+async function buildWebPlumbingTeaser(input: {
+  sellerUrl: string | null;
+  bundleId: string | null;
+  store: Store;
+  storeRating: number | null;
+}): Promise<ShallowScan["webPlumbing"]> {
+  if (!input.sellerUrl) return null;
+  const audit = fetchWebDiscoverability({
+    url: input.sellerUrl,
+    bundleId: input.bundleId,
+    packageName: null,
+    storeRating: input.storeRating,
+  });
+  const timeout = new Promise<null>((resolve) => {
+    const t = setTimeout(() => resolve(null), 4000);
+    // Don't hold the process (or vitest) open for an abandoned race.
+    if (typeof t === "object" && "unref" in t) t.unref();
+  });
+  const result = await Promise.race([audit, timeout]);
+  if (!result) return null;
+  return {
+    smartAppBanner: result.smartAppBanner.present,
+    appSchema: result.appSchema.present,
+    deepLinking:
+      input.store === "ios"
+        ? result.universalLinks.present
+        : result.androidAppLinks.present,
+  };
 }

@@ -10,7 +10,7 @@ function buildPaidWithSentinels(): DiagnosePaidResponse {
   return {
     requestId: "req_SENTINEL_REQ",
     sniffId: "sniff_SENTINEL_SNIFF",
-    reportVersion: "2026-06-mvp-5",
+    reportVersion: "2026-06-mvp-6",
     receipt: {
       network: "eip155:2910",
       facilitator: "morph-official",

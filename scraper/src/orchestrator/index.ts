@@ -1,5 +1,6 @@
 import {
   SCHEMA_VERSION,
+  type AiVisibility,
   type AppIdentifier,
   type CompetitorTrailItem,
   type Confidence,
@@ -8,6 +9,7 @@ import {
   type CoverageProviderError,
   type DataProvenance,
   type MetadataMechanics,
+  type WebDiscoverability,
   type DiagnosePaidResponse,
   type DiagnoseTier,
   type ExpertAnalysis,
@@ -61,6 +63,8 @@ import {
   isRelevanceGateEnabled,
 } from "../scoring/embeddings.js";
 import { getKnowledgeForRecommendation } from "../scoring/aso-knowledge.js";
+import { runLlmProbe } from "../providers/llm-probe.js";
+import { fetchWebDiscoverability } from "../providers/web-audit.js";
 import { analyzeReviewSentiment } from "../scoring/review-sentiment.js";
 import { lookupLocalized } from "../providers/apple/multi-storefront.js";
 import {
@@ -315,6 +319,42 @@ export async function generateReportWithMeta(
       ? { reviewLanguageTokens: reviewLanguage.languageTokens }
       : {}),
   };
+
+  // ---------- Wave 2: off-store discovery (started BEFORE synthesis) ----------
+  // Both are independent of the synthesis output, so their network time
+  // overlaps the OpenAI synthesis call instead of adding to it. Both are
+  // flag-gated inside their providers and degrade to null, never throw.
+  //
+  // aiVisibility: quick tier skips it (COGS: ~$0.02/run belongs on the
+  // standard/expert price, per docs/research/2026-06-discoverability/cogs.md).
+  // Intents = the user's top 2 keywords; competitors = the same candidates
+  // the competitor trail analyzes (top 5, deduped by name downstream).
+  const aiVisibilityPromise: Promise<AiVisibility | null> =
+    input.tier === "quick" || !data.detectedApp.name
+      ? Promise.resolve(null)
+      : runLlmProbe({
+          appId: data.detect.appRecord?.id ?? data.detectedApp.id,
+          appName: data.detect.appRecord?.name ?? data.detectedApp.name,
+          intents: input.keywords.slice(0, 2),
+          competitors: data.competitors.slice(0, 5).map((c) => ({ name: c.name })),
+          store: input.store,
+          country: input.country,
+        });
+  // webDiscoverability: deterministic + free → all tiers. Needs a marketing
+  // URL from the listing; absent URL is an honest null, not an error.
+  const sellerUrl = data.detect.appRecord?.sellerUrl;
+  const webDiscoverabilityPromise: Promise<WebDiscoverability | null> =
+    sellerUrl
+      ? fetchWebDiscoverability({
+          url: sellerUrl,
+          bundleId: data.detect.appRecord?.bundleId ?? null,
+          packageName: data.detect.androidRecord?.packageName ?? null,
+          storeRating:
+            (data.detect.appRecord?.ratingsSummary.average ?? 0) > 0
+              ? data.detect.appRecord!.ratingsSummary.average
+              : null,
+        })
+      : Promise.resolve(null);
 
   // Sprint B — Quick tier short-circuits to the deterministic template path.
   // Skips the OpenAI request (no token cost, faster response) while still
@@ -615,6 +655,8 @@ export async function generateReportWithMeta(
       targetAppSignals,
       metadataMechanics,
       conversionAudit,
+      aiVisibility: await aiVisibilityPromise,
+      webDiscoverability: await webDiscoverabilityPromise,
       ...(expertAnalysis !== undefined ? { expertAnalysis } : {}),
     },
     providerErrors: data.providerErrors,

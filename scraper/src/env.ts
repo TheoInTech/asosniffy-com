@@ -238,6 +238,15 @@ const EnvSchema = z.object({
   // Wave 1 — free-quote AI-mention teaser bit (one cheap OpenAI call,
   // cached 7 days). Default off until flipped in Railway post-COGS-check.
   AI_MENTION_TEASER_ENABLED: BooleanFromString.default(false),
+  // Wave 2.1 — paid LLM share-of-voice probe (V5-calibrated: 10 prompts x
+  // 2 replicates per intent, ~$0.02/report measured). Default off until
+  // flipped in Railway.
+  LLM_PROBE_ENABLED: BooleanFromString.default(false),
+  // Wave 2.2 — web discoverability audit (4 bounded fetches of the
+  // detected marketing domain, deterministic parsing, cached weekly).
+  // Gates both the paid webDiscoverability section and the free-quote
+  // webPlumbing teaser booleans.
+  WEB_AUDIT_ENABLED: BooleanFromString.default(false),
   // Default storefront set per PLAN.md §5. Configurable per request via
   // the localization input; this env is the global default when no
   // request-level override is provided.

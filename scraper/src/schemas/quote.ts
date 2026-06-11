@@ -169,6 +169,20 @@ export const ShallowScan = z.object({
     })
     .nullable()
     .optional(),
+  // Wave 2.2 teaser — three web-plumbing booleans from the cached weekly
+  // web audit (WEB_AUDIT_ENABLED; raced at ~4s so the free quote never
+  // waits on a slow marketing site — a timeout warms the cache for the
+  // next quote instead). deepLinking maps per store: AASA presence on iOS,
+  // assetlinks.json on Android. The full audit (validity, field-level
+  // findings, AI-crawler access, rating drift) is paid-only.
+  webPlumbing: z
+    .object({
+      smartAppBanner: z.boolean(),
+      appSchema: z.boolean(),
+      deepLinking: z.boolean(),
+    })
+    .nullable()
+    .optional(),
   competitorPreview: CompetitorPreview.optional(),
   suggestedKeywordCountBand: z
     .object({
