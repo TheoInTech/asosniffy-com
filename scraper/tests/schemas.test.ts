@@ -10,6 +10,11 @@ import {
   SampleResponse,
   SCHEMA_VERSION,
 } from "../src/schemas/index.js";
+import { renderProbePrompt } from "../src/scoring/ai-visibility.js";
+import {
+  sampleQuote as sampleQuoteTs,
+  sampleReport as sampleReportTs,
+} from "../src/data/fixtures.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixturePath = (name: string) => resolve(here, "../fixtures", name);
@@ -154,5 +159,156 @@ describe("fixtures round-trip", () => {
   it("sample-report.json carries reportVersion matching SCHEMA_VERSION", () => {
     const payload = readFixture("sample-report.json") as { reportVersion: string };
     expect(payload.reportVersion).toBe(SCHEMA_VERSION);
+  });
+});
+
+// Wave 1+2 demo surface — the /sample fixtures must populate every new
+// report section with internally-consistent values, never schema-default
+// nulls. Arithmetic invariants mirror the producing modules so the demo
+// numbers could plausibly have come from a real run.
+describe("Wave 1+2 sample fixture sections", () => {
+  const report = () =>
+    DiagnosePaidResponse.parse(readFixture("sample-report.json"));
+  const quote = () => QuoteResponse.parse(readFixture("sample-quote.json"));
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+  const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
+
+  it("metadataMechanics is populated and arithmetically consistent", () => {
+    const mm = report().metadataMechanics;
+    expect(mm).not.toBeNull();
+    expect(mm!.provenance).toBe("inferred");
+    expect(mm!.keywordsFieldProvided).toBe(true);
+    expect(mm!.findings.length).toBeGreaterThanOrEqual(2);
+    expect(mm!.findings.length).toBeLessThanOrEqual(4);
+    const wasted = mm!.findings.reduce((sum, f) => sum + f.charsWasted, 0);
+    expect(mm!.totalCharsWasted).toBe(wasted);
+    expect(mm!.phrasePermutationsIfFixed).toBeGreaterThan(
+      mm!.phrasePermutations,
+    );
+    expect(mm!.reviewSafety).toHaveLength(1);
+    expect(mm!.reviewSafety[0]!.severity).toBe("warning");
+    expect(mm!.reviewSafety[0]!.store).toBe("ios");
+  });
+
+  it("conversionAudit ranges multiply through (index = multiplier x baseline)", () => {
+    const ca = report().conversionAudit;
+    expect(ca).not.toBeNull();
+    expect(ca!.provenance).toBe("inferred");
+    const { ratingMultiplier, categoryCvrBaseline, estimatedConversionIndex } =
+      ca!.ratingEconomics;
+    expect(ratingMultiplier).not.toBeNull();
+    expect(categoryCvrBaseline).not.toBeNull();
+    expect(estimatedConversionIndex).not.toBeNull();
+    expect(estimatedConversionIndex!.low).toBe(
+      round1(ratingMultiplier!.low * categoryCvrBaseline!.low),
+    );
+    expect(estimatedConversionIndex!.high).toBe(
+      round1(ratingMultiplier!.high * categoryCvrBaseline!.high),
+    );
+    // Fixture app sits at 4.5 stars — at/above the 4.0 credibility floor
+    // the reset advisor must say "avoid".
+    expect(ca!.ratingReset?.stance).toBe("avoid");
+    expect(ca!.experimentPlan.feasible).toBe(true);
+    expect(ca!.experimentPlan.daysToSignificance).not.toBeNull();
+    expect(ca!.experimentPlan.assumptions.length).toBeGreaterThanOrEqual(2);
+    expect(ca!.experimentPlan.suggestedFirstTest).toBe("screenshots");
+  });
+
+  it("aiVisibility mention arithmetic holds and prompts are real v5-10 renders", () => {
+    const parsed = report();
+    const ai = parsed.aiVisibility;
+    expect(ai).not.toBeNull();
+    expect(ai!.provenance).toBe("fixture");
+    expect(ai!.promptSetVersion).toBe("v5-10");
+    expect(ai!.modelsUsed).toEqual(["gpt-5.4-mini"]);
+    expect(ai!.totalCalls).toBe(20);
+    expect(ai!.failedCalls).toBe(0);
+    expect(ai!.sovBand).toEqual({ plusMinusPp: 8.1, basis: "v5-pilot-2026-06" });
+    for (const entry of ai!.shareOfVoice) {
+      expect(entry.mentionRate).toBe(round4(entry.mentions / ai!.totalCalls));
+    }
+    const target = ai!.shareOfVoice.find((e) => e.isTarget);
+    expect(target?.name).toBe("Pawprint Habits");
+    expect(ai!.targetSov).toBe(target!.mentionRate);
+    // Every non-target SOV entry must be a competitor from the trail.
+    const competitorNames = parsed.competitorTrail.map((c) => c.name);
+    for (const entry of ai!.shareOfVoice.filter((e) => !e.isTarget)) {
+      expect(competitorNames).toContain(entry.name);
+    }
+    // Prompt strings must be the calibrated v5-10 templates, verbatim.
+    for (const row of ai!.promptTable) {
+      expect(row.prompt).toBe(
+        renderProbePrompt(row.templateIdx, row.intent, "ios"),
+      );
+    }
+    expect(ai!.promptTable.length).toBeGreaterThanOrEqual(4);
+    expect(ai!.promptTable.length).toBeLessThanOrEqual(6);
+    expect(ai!.deterministicMisses.length).toBeGreaterThanOrEqual(1);
+    for (const miss of ai!.deterministicMisses) {
+      expect(miss.prompt).toBe(
+        renderProbePrompt(miss.templateIdx, miss.intent, "ios"),
+      );
+      const row = ai!.promptTable.find(
+        (r) => r.templateIdx === miss.templateIdx && r.intent === miss.intent,
+      );
+      expect(row?.mentionRate).toBe(0);
+    }
+  });
+
+  it("webDiscoverability tells a coherent fixture story on a fictional domain", () => {
+    const web = report().webDiscoverability;
+    expect(web).not.toBeNull();
+    expect(web!.provenance).toBe("fixture");
+    expect(web!.url).toMatch(/^https:\/\/[^/]+\.example(\/|$)/);
+    expect(web!.smartAppBanner.present).toBe(true);
+    expect(web!.smartAppBanner.hasAppArgument).toBe(false);
+    expect(web!.smartAppBanner.appId).toBe(quote().detectedApp.id);
+    expect(web!.universalLinks).toEqual({
+      present: true,
+      valid: true,
+      bundleIdListed: true,
+    });
+    expect(web!.androidAppLinks).toEqual({ present: false });
+    expect(web!.aiCrawlerAccess.robotsTxtPresent).toBe(true);
+    expect(web!.aiCrawlerAccess.gptBot).toBe("allowed");
+    expect(web!.aiCrawlerAccess.perplexityBot).toBe("allowed");
+    expect(web!.aiCrawlerAccess.googleExtended).toBe("blocked");
+    // ratingDrift mirrors assembleWebDiscoverability: schema − store,
+    // rounded to 2dp, sourced from the appSchema aggregateRating.
+    expect(web!.ratingDrift).not.toBeNull();
+    expect(web!.ratingDrift!.schemaValue).toBe(
+      web!.appSchema.aggregateRatingValue,
+    );
+    expect(web!.ratingDrift!.storeValue).toBe(
+      quote().shallowScan.ratingsSummary.average,
+    );
+    expect(web!.ratingDrift!.drift).toBe(
+      Math.round(
+        (web!.ratingDrift!.schemaValue - web!.ratingDrift!.storeValue) * 100,
+      ) / 100,
+    );
+  });
+
+  it("sample-quote shallowScan carries the Wave 1+2 teasers", () => {
+    const scan = quote().shallowScan;
+    // 4.5-star fixture average ⇒ top-cluster band (>= 4.5 threshold).
+    expect(scan.ratingBandVerdict?.band).toBe("top-cluster");
+    expect(scan.ratingBandVerdict?.note).toContain("4.5");
+    expect(scan.aiMention).not.toBeNull();
+    expect(scan.aiMention?.mentioned).toBe(false);
+    expect(scan.aiMention?.model).toBe("gpt-5.4-mini");
+    // Teaser intent = first fixture keyword.
+    expect(scan.aiMention?.intent).toBe(scan.previewKeyword.keyword);
+    expect(scan.aiMention?.provenance).toBe("fixture");
+    expect(scan.webPlumbing).toEqual({
+      smartAppBanner: true,
+      appSchema: false,
+      deepLinking: true,
+    });
+  });
+
+  it("TS fixture literals mirror the JSON twins (fixtures.ts sync discipline)", () => {
+    expect(sampleQuoteTs).toEqual(readFixture("sample-quote.json"));
+    expect(sampleReportTs).toEqual(readFixture("sample-report.json"));
   });
 });

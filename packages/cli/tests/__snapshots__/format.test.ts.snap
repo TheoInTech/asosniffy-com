@@ -5,7 +5,7 @@ exports[`formatPaid (and formatSample, which wraps it) > renders all expected se
 requestId req_sample_2026_05_mvp  ·  version 2026-06-mvp-6
 
 Summary
-  Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has two low-value slots that should be reclaimed.
+  Pawprint Habits ranks mid-pack for its highest-intent keyword and is leaking discovery to two competitors with stronger subtitles. The fastest unlock is a subtitle rewrite that pulls 'habit tracker' to the front; the keywords field has three low-value slots that should be reclaimed.
 
 Data provenance
   appMetadata                 ○ fixture
@@ -35,7 +35,7 @@ ASO Score Card                        Overall: 63/100
 
   Title (20%)               70/100   ███████░░░  Strong brand recall, but doesn't carry a category keyword.
   Subtitle (15%)            55/100   ██████░░░░  'Daily Routine & Streaks' uses one medium-intent term — leaves the highest-intent keyword on the table.
-  Keyword Field (20%)       48/100   █████░░░░░  Two of ten slots spent on near-duplicates of words already in the subtitle.
+  Keyword Field (20%)       48/100   █████░░░░░  Three of seven slots spent on near-duplicates of words already in the subtitle or on auto-indexed terms.
   Screenshots (10%)         72/100   ███████░░░  Description-density proxy — Sniffy doesn't extract screenshot caption text. Apple's semantic search does index captions; cross-check yours by hand.
   Ratings & Reviews (15%)   80/100   ████████░░  4.5★ across 1,200 ratings — strong social proof.
   Keyword Rankings (20%)    60/100   ██████░░░░  1 in top 10, 1 in 11-30, 0 in 31-50, 0 beyond / not found. Mid-pack — push for top-10 on the strongest keywords.
@@ -43,8 +43,8 @@ ASO Score Card                        Overall: 63/100
 Recommendations
   #1 Rewrite subtitle to lead with 'Habit Tracker'.   (high/low)
     Highest-intent keyword is currently in the keywords field where it competes for surface area. Moving it to the subtitle is a one-character-budget change.
-  #2 Reclaim two filler keyword slots.   (medium/low)
-    Two slots duplicate words already in the title/subtitle and yield no additional rank coverage.
+  #2 Reclaim three filler keyword slots.   (medium/low)
+    Two slots duplicate words already in the title/subtitle and 'app' is auto-indexed for every app — none of the three adds rank coverage.
   #3 Promote the streak feature to screenshot frame 1.   (medium/medium)
     Streakly's lead with streaks correlates with its higher conversion on shared keywords; first-frame promotion is the cheapest test.
 
@@ -55,9 +55,9 @@ Ready to paste
   subtitle                    Habit Tracker · Streaks & Routines (34/30)
     why         Promotes "habit tracker" (rank 11-30) into the subtitle, paired with a category cue.
     current     Track your daily routine
-  keywords                    daily,routine,streak,morning,evening,checklist,journal,calendar (64/100)
-    why         Adds competitor-coverage terms (evening, checklist, calendar) and drops tokens already in title/subtitle.
-    current     habit,daily,routine,streak,morning,journal
+  keywords                    daily,routine,streak,morning,evening,checklist,journal,calendar,productivity (76/100)
+    why         Adds competitor-coverage terms (evening, checklist, calendar, productivity) and drops the auto-indexed 'app' token flagged by the mechanics lint.
+    current     habit,daily,routine,streak,morning,journal,app
   short desc                  Pawprint Habits: habit tracker and streaks for daily routines that stick. (74/240)
     why         Leads with your top-intent keywords (habit tracker, streaks) instead of generic copy.
 

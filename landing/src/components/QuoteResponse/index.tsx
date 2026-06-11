@@ -4,6 +4,7 @@ import { CoverageHints } from "./CoverageHints";
 import { DetectedApp } from "./DetectedApp";
 import { PreviewKeywordCard } from "./PreviewKeyword";
 import { PricingBreakdown } from "./PricingBreakdown";
+import { ShallowTeasers } from "./ShallowTeasers";
 import { SniffIdChip } from "./SniffIdChip";
 
 interface Props {
@@ -38,6 +39,9 @@ export function QuoteResponseView({
         />
       ) : null}
       <PreviewKeywordCard value={quote.shallowScan.previewKeyword} />
+      {/* Wave 1 — free one-bit teasers (rating band, AI mention, web
+          plumbing). Renders nothing when all three fields are absent. */}
+      <ShallowTeasers shallowScan={quote.shallowScan} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <PricingBreakdown pricing={quote.pricing} />
