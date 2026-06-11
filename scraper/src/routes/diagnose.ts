@@ -9,6 +9,15 @@ import { validateBody } from "../middleware/validate-body.js";
 import { PaymentRequiredError } from "../errors.js";
 import { env } from "../env.js";
 import { computePricing } from "../payment/pricing.js";
+import {
+  currentEnabledFeatures,
+  projectedCogsCentsFor,
+  resolvePaidFeatures,
+} from "../payment/cogs.js";
+import {
+  setBudgetCents,
+  setRevenueCents,
+} from "../observability/cogs-ledger.js";
 import { buildPaymentRequirements } from "../payment/requirements.js";
 import { assembleReceipt } from "../payment/receipt.js";
 import {
@@ -57,15 +66,29 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
   const requestId = c.get("requestId");
 
   // 1) Compute pricing + payment requirements up front so we can use them as
-  //    the 402 body at any failure point. Sprint B — tier passes through to
-  //    the base-price selector in pricing.ts; omitting it preserves the
-  //    legacy $0.03 base for back-compat.
+  //    the 402 body at any failure point.
+  //
+  //    Cost-aware pricing: a missing tier NORMALIZES to "standard" (no more
+  //    underwater $0.03 legacy path that ran premium LLM work). The resolved
+  //    paid-feature set is derived from (tier defaults ∪ addons) ∩ enabled,
+  //    and that SAME set is threaded into generateReportWithMeta so the
+  //    orchestrator runs exactly what the price paid for (x402 is pay-first).
+  const tier = body.tier ?? "standard";
+  const enabledFeatures = currentEnabledFeatures();
   const pricing = computePricing({
     keywords: body.keywords,
     countries: [body.country],
     currency: "USDC",
-    ...(body.tier !== undefined ? { tier: body.tier } : {}),
+    tier,
+    ...(body.addons !== undefined ? { addons: body.addons } : {}),
+    enabledFeatures,
   });
+  // Record revenue + projected-COGS budget on the ledger so the end-of-request
+  // cogs_ledger log can compute margin. Budget = Σ projected COGS of the paid
+  // features (gross, pre-discount — the discount cuts revenue, not COGS).
+  const paidFeatures = resolvePaidFeatures(tier, body.addons, enabledFeatures);
+  setRevenueCents(estimatedTotalToCents(pricing.estimatedTotal));
+  setBudgetCents(projectedCogsCentsFor(paidFeatures));
 
   const unpaidBody: DiagnoseUnpaidResponse = buildPaymentRequirements({
     sniffId: body.sniffId,
@@ -123,7 +146,8 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
       country: body.country,
       keywords: body.keywords,
       allowFixtureFallback: false,
-      ...(body.tier !== undefined ? { tier: body.tier } : {}),
+      tier,
+      ...(body.addons !== undefined ? { addons: body.addons } : {}),
       // Wave 1 — paste-in calibration passthrough (see DiagnoseRequest).
       ...(body.currentKeywordsField !== undefined
         ? { currentKeywordsField: body.currentKeywordsField }
@@ -267,7 +291,8 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
       country: body.country,
       keywords: body.keywords,
       allowFixtureFallback: false,
-      ...(body.tier !== undefined ? { tier: body.tier } : {}),
+      tier,
+      ...(body.addons !== undefined ? { addons: body.addons } : {}),
       // Wave 1 — paste-in calibration passthrough (see DiagnoseRequest).
       ...(body.currentKeywordsField !== undefined
         ? { currentKeywordsField: body.currentKeywordsField }
@@ -442,3 +467,10 @@ diagnoseRoute.post("/", validateBody(DiagnoseRequest), async (c) => {
 
   return c.json(parsedPaid);
 });
+
+// Parse a fixed-2-decimal USD amount string ("0.40") to integer cents (40).
+// Mirrors parseCents in payment/pricing.ts; kept local to avoid exporting it.
+function estimatedTotalToCents(amount: string): number {
+  const [dollars, fraction = ""] = amount.split(".");
+  return Number(dollars ?? "0") * 100 + Number((fraction + "00").slice(0, 2));
+}

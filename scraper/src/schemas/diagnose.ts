@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  Addons,
   BenchmarkRange,
   CAIP2,
   Confidence,
@@ -53,6 +54,14 @@ export const DiagnoseRequest = z.object({
   //     planner from "missing data" to a real feasibility verdict.
   currentKeywordsField: z.string().max(100).optional(),
   ascDailyImpressions: z.number().positive().optional(),
+  // Cost-aware pricing (2026-06) — opt into premium, metered capabilities on
+  // any tier. Each true flag adds a priced line item to pricing.breakdown and
+  // permits the orchestrator to run that section (price == what runs, the
+  // structural fix for x402 pay-first). expert bundles all three for free in
+  // its base; standard bundles aiVisibility; quick bundles none. Omitting
+  // `addons` preserves the tier's default bundle. A flag is ignored (not
+  // priced, not run) when the server has that capability globally disabled.
+  addons: Addons.optional(),
 });
 export type DiagnoseRequest = z.infer<typeof DiagnoseRequest>;
 

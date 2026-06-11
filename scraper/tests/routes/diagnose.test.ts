@@ -60,7 +60,7 @@ interface HeaderOpts {
 
 function buildAuthHeader(opts: HeaderOpts = {}): string {
   const network = opts.network ?? "eip155:2910";
-  const value = opts.value ?? parseUnits("0.04", 18).toString();
+  const value = opts.value ?? parseUnits("0.21", 18).toString();
   const to = opts.to ?? MERCHANT;
   const offset = opts.validBeforeOffsetSec ?? 600;
   const validBefore = Math.floor(Date.now() / 1000) + offset;
@@ -129,7 +129,7 @@ describe("POST /api/v1/aso/diagnose — unpaid paths", () => {
     expect(parsed.payment.network).toBe("eip155:2910");
     expect(parsed.payment.x402Version).toBe(2);
     expect(parsed.payment.payTo).toBe(MERCHANT);
-    expect(parsed.payment.amount).toBe("0.04");
+    expect(parsed.payment.amount).toBe("0.21");
     expect(parsed.accepts.length).toBeGreaterThanOrEqual(1);
     expect(res.headers.get("X-Sniffy-Error-Code")).toBe("payment_required");
   });
@@ -336,7 +336,7 @@ describe("POST /api/v1/aso/diagnose — paid happy paths", () => {
       baseUrl: "https://test.example.com/x402",
       getSupported: vi.fn(),
     });
-    const value = parseUnits("0.04", 18).toString();
+    const value = parseUnits("0.21", 18).toString();
     const header = buildAuthHeader({ value });
     const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
     expect(res.status).toBe(200);
@@ -378,7 +378,7 @@ describe("POST /api/v1/aso/diagnose — paid happy paths", () => {
       baseUrl: "https://test.example.com/x402",
       getSupported: vi.fn(),
     });
-    const value = parseUnits("0.04", 18).toString();
+    const value = parseUnits("0.21", 18).toString();
     const header = buildAuthHeader({ value });
     const res = await postDiagnose(VALID_BODY, { "PAYMENT-SIGNATURE": header });
     expect(res.status).toBe(200);

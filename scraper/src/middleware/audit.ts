@@ -6,6 +6,18 @@ import {
   type RequestAudit,
 } from "../observability/audit.js";
 import { funnelStageFor, recordFunnelStage } from "../observability/funnel.js";
+import {
+  createCogsLedger,
+  summarizeCogs,
+  withCogsLedger,
+  type CogsLedger,
+} from "../observability/cogs-ledger.js";
+
+declare module "hono" {
+  interface ContextVariableMap {
+    cogsLedger: CogsLedger;
+  }
+}
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -26,9 +38,16 @@ export const auditMiddleware = createMiddleware(async (c, next) => {
   const route = `${c.req.method} ${c.req.path}`;
   const audit = createRequestAudit(requestId, route);
   c.set("audit", audit);
+  // Cost-aware pricing — per-request COGS ledger nested inside the audit
+  // scope. The route stamps revenue + budget; every LLM/vision call records
+  // its spend; we log margin below.
+  const cogsLedger = createCogsLedger(requestId, route);
+  c.set("cogsLedger", cogsLedger);
 
   await withRequestAudit(audit, async () => {
-    await next();
+    await withCogsLedger(cogsLedger, async () => {
+      await next();
+    });
   });
 
   // Promote the attestation parsed by the per-route origin-attestation
@@ -65,5 +84,20 @@ export const auditMiddleware = createMiddleware(async (c, next) => {
         ...summary,
       })}\n`,
     );
+    // Cost-aware pricing — one margin line per request. Only emitted when the
+    // request actually accrued COGS or set revenue (skips /sample, /health,
+    // and other no-spend routes so the log stays signal). overBudget=true is
+    // the alert: a section's actual cost exceeded its reserved projection.
+    const cogs = summarizeCogs(cogsLedger);
+    if (cogs.totalCogsCents > 0 || cogs.revenueCents !== null) {
+      process.stdout.write(
+        `${JSON.stringify({
+          ts: new Date().toISOString(),
+          level: cogs.overBudget ? "warn" : "info",
+          event: "cogs_ledger",
+          ...cogs,
+        })}\n`,
+      );
+    }
   }
 });

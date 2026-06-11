@@ -115,3 +115,17 @@ export const BenchmarkRange = z.object({
   year: z.number().int().min(2000).max(2100),
 });
 export type BenchmarkRange = z.infer<typeof BenchmarkRange>;
+
+// Cost-aware pricing — the caller-opt-in premium capabilities (à-la-carte).
+// Only these three are purchasable add-ons; aiSynthesis is bundled into the
+// standard/expert base, not separately buyable. Lives in shared.js because
+// both DiagnoseRequest and QuoteRequest reference it (quote can't import from
+// diagnose — diagnose imports AppIdentifier from quote). Keys mirror
+// PremiumFeature in payment/cogs.ts, the single source of truth for COGS +
+// price.
+export const Addons = z.object({
+  aiVisibility: z.boolean().optional(),
+  creativeVision: z.boolean().optional(),
+  localizationCopy: z.boolean().optional(),
+});
+export type Addons = z.infer<typeof Addons>;

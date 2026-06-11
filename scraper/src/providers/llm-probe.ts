@@ -2,6 +2,7 @@ import type OpenAI from "openai";
 import { env } from "../env.js";
 import { getOpenAiClient } from "../synthesis/openai-client.js";
 import { computeOpenAiCost } from "../synthesis/cost.js";
+import { recordCogs } from "../observability/cogs-ledger.js";
 import { withCache } from "../cache/wrapper.js";
 import { cacheKey } from "../cache/keys.js";
 import { detectNameMention } from "./llm-mention.js";
@@ -308,6 +309,18 @@ function logProbeCost(args: {
       costUsd,
     })}\n`,
   );
+  // Cost-aware pricing — record the probe spend against aiVisibility on the
+  // per-request COGS ledger. Multiple models collapse to one entry (the probe
+  // is one logical feature); the per-model split stays in the llm_probe log.
+  recordCogs({
+    feature: "aiVisibility",
+    provider: "openai-probe",
+    model: args.models.join("+"),
+    costUsd: costUsd ?? 0,
+    source: "live",
+    inputTokens,
+    outputTokens,
+  });
 }
 
 // ISO-8601 week label ("2026-W24") for the cache key — the roadmap's weekly

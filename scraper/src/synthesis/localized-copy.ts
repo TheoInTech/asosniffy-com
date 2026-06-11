@@ -3,6 +3,7 @@ import type OpenAI from "openai";
 import { env } from "../env.js";
 import { getOpenAiClient } from "./openai-client.js";
 import { computeOpenAiCost, logOpenAiCost } from "./cost.js";
+import { recordOpenAiCogs } from "../observability/cogs-ledger.js";
 import { APPLE_CAPS } from "../scoring/index.js";
 import type {
   LocalizationAnalysis,
@@ -201,6 +202,7 @@ export async function synthesizeLocalizedCopy(
       costUsd: cost.costUsd,
       fallbackReason: "localization_success",
     });
+    recordOpenAiCogs("localizationCopy", env.OPENAI_MODEL, cost);
 
     const out: LocalizedCopyByCountry = {};
     for (const entry of validated.data.locales) {
@@ -322,4 +324,5 @@ function logLocalizationFallback(
     costUsd: cost.costUsd,
     fallbackReason: `localization_${reason}`,
   });
+  recordOpenAiCogs("localizationCopy", env.OPENAI_MODEL, cost);
 }

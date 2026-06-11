@@ -37,6 +37,25 @@ const quoteShape = {
     .max(10)
     .optional()
     .describe("Optional competitor app IDs to anchor the keyword trail."),
+  // Cost-aware pricing — tier sets the base price + bundled features; omitting
+  // it defaults to standard ($0.20). On /quote, both tier and addons change
+  // the previewed price so it matches what /diagnose will charge.
+  tier: z
+    .enum(["quick", "standard", "expert"])
+    .optional()
+    .describe(
+      "Pricing tier (default standard $0.20). quick=$0.05 deterministic-only (no AI); standard bundles AI synthesis + AI-visibility probe; expert=$1.00 bundles everything incl. creative vision + localized copy.",
+    ),
+  addons: z
+    .object({
+      aiVisibility: z.boolean().optional(),
+      creativeVision: z.boolean().optional(),
+      localizationCopy: z.boolean().optional(),
+    })
+    .optional()
+    .describe(
+      "Opt into priced premium capabilities on any tier. Each adds a transparent line item to pricing.breakdown (aiVisibility +$0.10, creativeVision +$0.20, localizedCopy +$0.20). Pass the SAME value to sniffy_quote and sniffy_diagnose so the quote matches the charge.",
+    ),
 };
 
 const diagnoseShape = {

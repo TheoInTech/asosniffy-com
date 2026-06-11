@@ -107,7 +107,7 @@ describe("computePricing", () => {
     expect(pricing.estimatedTotal).toBe("0.04");
     expect(pricing.discounts).toEqual([
       {
-        label: "refresh-sniff (50% off, within 30 days)",
+        label: "refresh-sniff (50% off base, within 30 days)",
         amount: "0.04",
       },
     ]);
