@@ -64,11 +64,33 @@ program
     }
   });
 
+// Cost-aware pricing flags shared by quote + diagnose. Build the addons object
+// from the boolean flags; omit it entirely when no premium flag is set so the
+// tier's default bundle stands.
+function buildAddons(opts: QuoteCmdOpts):
+  | { aiVisibility?: boolean; creativeVision?: boolean; localizationCopy?: boolean }
+  | undefined {
+  const a: { aiVisibility?: boolean; creativeVision?: boolean; localizationCopy?: boolean } = {};
+  if (opts.aiVisibility) a.aiVisibility = true;
+  if (opts.vision) a.creativeVision = true;
+  if (opts.localize) a.localizationCopy = true;
+  return Object.keys(a).length > 0 ? a : undefined;
+}
+
+function tierOf(opts: QuoteCmdOpts) {
+  return opts.tier;
+}
+
+
 interface QuoteCmdOpts {
   keywords: string[];
   country: string;
   store: "ios" | "android";
   competitors?: string[];
+  tier?: "quick" | "standard" | "expert";
+  aiVisibility?: boolean;
+  vision?: boolean;
+  localize?: boolean;
 }
 
 program
@@ -96,6 +118,13 @@ program
     "Comma-separated competitor app IDs (optional)",
     parseList,
   )
+  .option(
+    "-t, --tier <tier>",
+    "Pricing tier: quick | standard | expert (default standard $0.20)",
+  )
+  .option("--ai-visibility", "Add the LLM share-of-voice probe (+$0.10)", false)
+  .option("--vision", "Add the creative screenshot audit (+$0.20)", false)
+  .option("--localize", "Add localized copy generation (+$0.20)", false)
   .action(async (app: string, opts: QuoteCmdOpts) => {
     const { baseUrl, json } = getCommonOpts();
     try {
@@ -108,6 +137,8 @@ program
         ...(opts.competitors !== undefined && opts.competitors.length > 0
           ? { competitors: opts.competitors }
           : {}),
+        ...(tierOf(opts) !== undefined ? { tier: tierOf(opts) } : {}),
+        ...(buildAddons(opts) !== undefined ? { addons: buildAddons(opts) } : {}),
       };
       const result = await sniffy.quote(input);
       if (json) {
@@ -150,6 +181,13 @@ program
     "Comma-separated competitor app IDs (optional)",
     parseList,
   )
+  .option(
+    "-t, --tier <tier>",
+    "Pricing tier: quick | standard | expert (default standard $0.20)",
+  )
+  .option("--ai-visibility", "Add the LLM share-of-voice probe (+$0.10)", false)
+  .option("--vision", "Add the creative screenshot audit (+$0.20)", false)
+  .option("--localize", "Add localized copy generation (+$0.20)", false)
   .action(async (app: string, opts: DiagnoseCmdOpts) => {
     const { baseUrl, json } = getCommonOpts();
     process.stderr.write(
@@ -175,6 +213,8 @@ program
         ...(opts.competitors !== undefined && opts.competitors.length > 0
           ? { competitors: opts.competitors }
           : {}),
+        ...(tierOf(opts) !== undefined ? { tier: tierOf(opts) } : {}),
+        ...(buildAddons(opts) !== undefined ? { addons: buildAddons(opts) } : {}),
       };
       const result = await sniffy.diagnose(input);
       if (json) {

@@ -55,16 +55,18 @@ Two product lines layered on top of the same API:
 
 ## 3. Unit economics
 
-### Variable cost per paid `/diagnose` call
+### Cost-aware pricing (2026-06): COGS is per-FEATURE, capped, and price-matched
 
-| Component | Cost | Notes |
-|---|---|---|
-| Apple iTunes Search API | $0 | Free, public, rate-limited |
-| App Store page sampling | $0 | Public scraping; amortized via Redis |
-| Android preview (when used) | $0 | Public Play Store sampling, preview-quality |
-| Redis read + write | < $0.0001 | Upstash or Railway Redis |
-| **OpenAI synthesis** | **$0.005–$0.020** | **Dominant variable cost** |
-| Morph x402 settlement | $0 (Hoodi) / negligible (mainnet) | Passed-through, not a Sniffy cost |
+The economics are now structural, not aspirational. Every paid LLM/vision capability is a **metered feature** whose price is sized so its *capped worst-case* COGS stays ≤ **30%** of the line it funds (`payment/cogs.ts` is the single source of truth; `tests/payment/economics-invariant.test.ts` asserts the inequality holds for every tier × add-on combination — the inversion the user hit ($0.18 vision on a $0.04 call) cannot recur). Because x402 is pay-first, the same resolver that sets the price also gates what the orchestrator runs — price == what runs.
+
+| Premium feature | Capped projected COGS | Charged via | Add-on price |
+|---|---|---|---|
+| AI synthesis | ~$0.02 | bundled in standard/expert base | — |
+| AI-visibility probe | ~$0.03 | bundled in standard/expert; add-on on quick | +$0.10 |
+| Localized copy (≤10 storefronts) | ~$0.05 | bundled in expert; else add-on | +$0.20 |
+| Creative vision (≤8 capped images) | ~$0.05 | bundled in expert; else add-on | +$0.20 |
+
+Deterministic value (mechanics linter, conversion/rating economics, web audit, keyword scoring, metadata score, competitor trail, localization gap) is **$0 COGS** — it's the bulk of the differentiation and carries the cheap tiers. Other per-call costs unchanged: iTunes/Play sampling $0, Redis <$0.0001, Morph settlement negligible. The **caps are load-bearing**: vision's ≤8 downscaled low-detail images on the cheap `VISION_MODEL` is what makes its projection honest (uncapped ~25 full-detail images on a full-tier model is exactly the $0.18 that triggered this redesign).
 
 ### Fixed costs
 
@@ -87,14 +89,20 @@ Two product lines layered on top of the same API:
 
 Target: **60–80% blended** at the $0.05–$0.50 band, well above sustainable. Cache hits drive this number up; OpenAI prompt size and model choice drive it down. See §6 for the metric to watch.
 
-### Unit-economics spreadsheet structure (for tracking post-launch)
+### Unit-economics data source (live): the `cogs_ledger` log line
+
+Margin is now observable per request — no spreadsheet guesswork. The audit middleware emits one `cogs_ledger` line per `/diagnose` (and any request that accrued COGS):
 
 ```
-columns: date, plan, calls, revenue_usd, openai_cost, redis_cost, cache_hits, cache_misses, gross_margin_pct
-rolling: 7-day average gross margin, 7-day cache hit ratio
-alerts:  gross_margin_pct < 50% (investigate prompt size or model choice)
-         cache_hit_ratio < 30% (investigate cache key strategy)
+{ "event": "cogs_ledger", "requestId": "...", "revenueCents": 20, "totalCogsCents": 1,
+  "marginCents": 19, "marginPct": 95, "budgetCents": 5, "overBudget": false,
+  "byFeature": { "aiSynthesis": 1 } }
 ```
+
+- `marginPct` is revenue − COGS over revenue, per call. `pnpm run funnel:report` (quote→402→paid) plus this line give the full picture.
+- `overBudget: true` (logged at `warn`) is the alert: a section's ACTUAL cost exceeded its reserved projection — investigate the cap or the model. With caps in place this should never fire.
+
+Rolling/alert targets (drive off the log drain): 7-day median `marginPct` ≥ 70%; any `overBudget` occurrence; cache hit ratio (the existing cache metrics) < 30%.
 
 ## 4. Customer segments
 

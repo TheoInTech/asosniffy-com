@@ -7,6 +7,7 @@ import {
 } from "../schemas/index.js";
 import { APPLE_CAPS } from "../scoring/index.js";
 import { env } from "../env.js";
+import { recordOpenAiCogs } from "../observability/cogs-ledger.js";
 import { getOpenAiClient } from "./openai-client.js";
 import {
   buildFullReportPrompt,
@@ -207,6 +208,7 @@ export async function synthesizeReportOpenAi(
       modelOutputTokens: cost.outputTokens,
       costUsd: cost.costUsd,
     });
+    recordOpenAiCogs("aiSynthesis", env.OPENAI_MODEL, cost);
 
     return {
       summary: validated.data.summary,
@@ -349,5 +351,6 @@ function fallbackWithTelemetry(args: FallbackArgs): SynthesisOutput {
     costUsd: cost.costUsd,
     fallbackReason: args.reason,
   });
+  recordOpenAiCogs("aiSynthesis", env.OPENAI_MODEL, cost);
   return synthesizeReportTemplate(args.input);
 }

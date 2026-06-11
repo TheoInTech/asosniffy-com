@@ -47,7 +47,7 @@ function buildAuthHeader(): string {
       authorization: {
         from: `0x${"11".repeat(20)}`,
         to: MERCHANT,
-        value: parseUnits("0.04", 18).toString(),
+        value: parseUnits("0.21", 18).toString(),
         validAfter: "0",
         validBefore: validBefore.toString(),
         nonce: `0x${"ab".repeat(32)}`,

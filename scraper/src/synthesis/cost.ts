@@ -54,6 +54,33 @@ export function computeOpenAiCost(input: CostInput): CostBreakdown {
   };
 }
 
+// Conservative upper bound on input tokens per LOW-detail, downscaled image
+// for the current cheap vision models (gpt-5.4-mini-class). The env caps
+// (VISION_IMAGE_DETAIL=low, VISION_MAX_IMAGE_PX) pin images into this regime
+// so per-image cost is bounded and flat. VERIFY against the chosen
+// VISION_MODEL's published image-token rule before flipping
+// VISION_CREATIVE_ENABLED — this is the number the creativeVision projected
+// COGS (payment/cogs.ts) is sized against.
+export const VISION_LOW_DETAIL_TOKENS_PER_IMAGE = 500;
+
+// Cost of one capped creative-vision pass. The image cap (≤8 via env) × the
+// per-image token bound is what makes the projected COGS honest — the direct
+// structural fix for the $0.18 measurement (uncapped ~25 full-detail images
+// on a full-tier model).
+export function computeVisionCost(input: {
+  model: string;
+  imageCount: number;
+  promptTokens: number;
+  outputTokens: number;
+}): CostBreakdown {
+  const imageTokens = input.imageCount * VISION_LOW_DETAIL_TOKENS_PER_IMAGE;
+  return computeOpenAiCost({
+    model: input.model,
+    inputTokens: input.promptTokens + imageTokens,
+    outputTokens: input.outputTokens,
+  });
+}
+
 export interface CostLogPayload {
   kind: "openai_cost";
   requestId: string;

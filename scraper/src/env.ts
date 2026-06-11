@@ -247,6 +247,27 @@ const EnvSchema = z.object({
   // Gates both the paid webDiscoverability section and the free-quote
   // webPlumbing teaser booleans.
   WEB_AUDIT_ENABLED: BooleanFromString.default(false),
+  // Cost-aware pricing — vision creative pass (Wave 1.2 feature, not yet
+  // built). The flag + caps land now so the pricing machinery treats vision
+  // as a budgeted, capped capability from day one. The caps are LOAD-BEARING
+  // for economics: they bound the projected COGS the `creativeVision` add-on
+  // price is sized against. Default off; flip only after a capped re-measure.
+  VISION_CREATIVE_ENABLED: BooleanFromString.default(false),
+  // Hard image cap = OWN(5) + COMPETITORS(3) × EACH(1) = 8 images. The direct
+  // fix for the $0.18 measurement (uncapped ~25 full-detail images).
+  VISION_MAX_OWN_IMAGES: z.coerce.number().int().min(1).max(10).default(5),
+  VISION_MAX_COMPETITORS: z.coerce.number().int().min(0).max(10).default(3),
+  VISION_COMPETITOR_IMAGES_EACH: z.coerce.number().int().min(0).max(3).default(1),
+  // Image-token controls: low detail + downscale bound input tokens/image.
+  VISION_IMAGE_DETAIL: z.enum(["low", "auto"]).default("low"),
+  VISION_MAX_IMAGE_PX: z.coerce.number().int().min(256).max(2048).default(768),
+  // Cheapest capable vision model. Confirm the exact id + per-image pricing
+  // (claude-api skill) before flipping VISION_CREATIVE_ENABLED.
+  VISION_MODEL: z.string().min(1).default("gpt-5.4-mini"),
+  // Cost-aware pricing — hard cap on storefronts sent to the localized-copy
+  // OpenAI call (its output tokens scale with storefront count). Bounds the
+  // `localizationCopy` projected COGS.
+  LOCALIZATION_MAX_STOREFRONTS: z.coerce.number().int().min(1).max(40).default(10),
   // Default storefront set per PLAN.md §5. Configurable per request via
   // the localization input; this env is the global default when no
   // request-level override is provided.

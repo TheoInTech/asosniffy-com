@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  Addons,
   Confidence,
   CountryCode,
   Coverage,
@@ -35,6 +36,10 @@ export const QuoteRequest = z.object({
   country: CountryCode,
   keywords: z.array(z.string().min(1)).min(1).max(10),
   tier: QuoteTier.optional(),
+  // Cost-aware pricing — preview the price WITH premium add-ons so the quote
+  // matches the /diagnose 402 exactly (mirrors DiagnoseRequest.addons). The
+  // shape is intentionally identical; pass the same value to both endpoints.
+  addons: Addons.optional(),
 });
 export type QuoteRequest = z.infer<typeof QuoteRequest>;
 

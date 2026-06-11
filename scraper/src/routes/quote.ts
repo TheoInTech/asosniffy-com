@@ -9,6 +9,7 @@ import { getDetectedApp } from "../data/detect.js";
 import { getShallowScan } from "../data/shallow-scan.js";
 import { buildCoverage } from "../data/coverage.js";
 import { buildSavingsNote, computePricing } from "../payment/pricing.js";
+import { currentEnabledFeatures } from "../payment/cogs.js";
 import { hasRecentDiagnose } from "../wallet/refresh-sniff.js";
 import { newSniffId } from "../utils/ids.js";
 
@@ -51,12 +52,17 @@ quoteRoute.post("/", validateBody(QuoteRequest), async (c) => {
     appId: detect.appRecord?.id ?? detect.detectedApp.id,
   });
 
+  // Mirror the /diagnose pricing exactly (normalized tier + addons + the same
+  // enabled set) so the quoted price equals the 402 amount the buyer will
+  // sign — a mismatch fails settle's amount check.
   const pricing = computePricing({
     keywords: body.keywords,
     countries: [body.country],
     currency: "USDC",
     refreshDiscount,
-    ...(body.tier !== undefined ? { tier: body.tier } : {}),
+    tier: body.tier ?? "standard",
+    ...(body.addons !== undefined ? { addons: body.addons } : {}),
+    enabledFeatures: currentEnabledFeatures(),
   });
 
   const coverage = buildCoverage({

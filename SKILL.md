@@ -75,17 +75,27 @@ Optional **paste-in calibration fields** (additive, 2026-06): `currentKeywordsFi
 - `webDiscoverability` (all tiers): deterministic hygiene audit of your marketing site — Smart App Banner (+app-argument), SoftwareApplication JSON-LD missing-required-fields, universal links (AASA) / Android App Links validity and whether YOUR app is listed, AI-crawler robots access (GPTBot/Perplexity/Google-Extended), OpenGraph, and schema-vs-store rating drift. Facts only; missing files are findings, not errors.
 - Free `/quote` gains `shallowScan.webPlumbing` — three booleans (smartAppBanner / appSchema / deepLinking) from the same weekly cache.
 
-#### Pricing tiers
+#### Pricing tiers and add-ons (cost-aware)
 
-The `tier` field is **optional**. Omitting it preserves the legacy hackathon base ($0.03) for back-compat with pre-tier SDK / CLI / MCP consumers. When set, base price changes per tier (per-keyword, per-additional-country, and competitor add-ons layer on top of the tier base unchanged):
+The `tier` field is **optional but now defaults to `standard` ($0.20)** when omitted. *(Breaking change, 2026-06: previously a missing tier billed a $0.03 legacy base — but that base silently ran premium LLM work at a loss, so it's retired. Pass `tier: "quick"` for the cheapest deterministic call. The quote/402 always shows the price before you pay.)* Each tier's base price covers a fixed bundle of capabilities whose cost it's sized to carry (every paid LLM/vision feature keeps COGS ≤ 30% of price):
 
-| Tier | Base | Recommended for |
+| Tier | Base | Bundled |
 |---|---|---|
-| `quick` | $0.05 | Rank buckets + 6-factor metadata score — fast structural diagnostic. Template-only synthesis, no AI call, no `readyToPaste` copy. |
-| `standard` | $0.20 | Full diagnose with AI synthesis + `readyToPaste` copy. Closest to the legacy default feature set. |
-| `expert` | $1.00 | Standard + Apple Search Ads popularity overlay confirmation, review-sentiment mining over fetched review bodies, and (future) screenshot caption analysis. Adds the `expertAnalysis` block to the response. |
+| `quick` | $0.05 | Deterministic only — rank buckets, metadata score, mechanics linter, conversion/rating economics, web audit, keyword scoring. Template synthesis, no LLM, no `readyToPaste`. |
+| `standard` | $0.20 | quick + AI synthesis (recommendations + `readyToPaste`) + the AI-visibility probe. |
+| `expert` | $1.00 | standard + localized copy generation + creative screenshot audit (vision) — everything bundled. |
 
-Refresh-sniff discount (50% off, within 30 days for the same `(store, country, appId)` tuple) applies *after* the tier total — surfaced in the `pricing.discounts[]` line item, separate from the gross `breakdown`. Agents and UIs render both numbers.
+**Metered add-ons** (`addons` on `/quote` and `/diagnose`, all optional booleans): opt into a premium capability on *any* tier. Each adds a transparent `pricing.breakdown[]` line, priced so its capped COGS stays ≤30% of the line:
+
+| Add-on key | Adds | Bundled-free in |
+|---|---|---|
+| `aiVisibility` | +$0.10 — LLM share-of-voice probe | standard, expert |
+| `localizationCopy` | +$0.20 — localized copy generation | expert |
+| `creativeVision` | +$0.20 — creative screenshot audit | expert |
+
+So `quick` + `{ "addons": { "aiVisibility": true } }` = $0.05 + $0.10. **Pass the same `addons` to `/quote` and `/diagnose`** — the quote price must equal the 402 amount you sign, or settlement fails an amount check. An add-on whose capability the server has globally disabled is neither priced nor run.
+
+Refresh-sniff discount (50% off the *base + per-unit* lines, within 30 days for the same `(store, country, appId)` tuple) applies *after* the total — premium add-on lines are never discounted (they're already at minimum margin). Surfaced in `pricing.discounts[]`.
 
 Anonymous comparison framing (also shipped as `savingsNote` on every `/quote`): even Expert × 10 audits/year is **$10**, still 169× cheaper than a typical ASO Pro Annual subscription. Built for the actual ASO usage curve — launch burst, quarterly refresh, "why am I not ranking" diagnostic — not constant use.
 

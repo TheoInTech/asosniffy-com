@@ -1,10 +1,12 @@
 import { env } from "../env.js";
 import type {
+  Addons,
   DiagnoseTier,
   Pricing,
   PricingBreakdownItem,
   SavingsNote,
 } from "../schemas/index.js";
+import { featureLineItems, type PremiumFeature } from "./cogs.js";
 
 function networkSlug(caip2: string): string {
   if (caip2 === "eip155:2818") return "morph-mainnet";
@@ -191,10 +193,19 @@ export interface ComputePricingInput {
   // surfaced as a positive-amount line item under pricing.discounts. Set by
   // the route layer when it observes a recent /diagnose for the same tuple.
   refreshDiscount?: boolean;
-  // Sprint B — diagnose tier. Optional opt-in; omitting it preserves the
-  // legacy $0.03 base for back-compat. See baseCentsFor() / baseLabelFor()
-  // and the DiagnoseTier enum in schemas/diagnose.ts.
+  // Diagnose tier. As of the cost-aware-pricing change the routes NORMALIZE a
+  // missing tier to "standard" before calling computePricing, so callers
+  // always pass an explicit tier here. baseCentsFor still maps undefined to
+  // the legacy $0.03 base for any internal caller that hasn't normalized.
   tier?: DiagnoseTier;
+  // Cost-aware pricing — premium capabilities the caller opted into. Each one
+  // BEYOND the tier's bundled set adds a non-discountable line item. Must be
+  // threaded identically by /quote and /diagnose or the quoted price won't
+  // match the 402 amount (settle's amount check fails).
+  addons?: Addons;
+  // The globally-enabled feature set (from env kill-switches). featureLineItems
+  // intersects with this so a server-disabled add-on is never priced.
+  enabledFeatures?: ReadonlySet<PremiumFeature>;
 }
 
 // Format an integer cents value as a fixed-2-decimal string ("50" -> "0.50").
@@ -248,26 +259,45 @@ export function computePricing(input: ComputePricingInput): Pricing {
     });
   }
 
-  // Re-sum from the strings so the on-the-wire amount and the breakdown
-  // never disagree. parseFloat would risk 0.1+0.2 drift; we go through cents.
-  let grossCents = 0n;
+  // Everything above is the DISCOUNTABLE subtotal (base + per-unit add-ons),
+  // which carries fat margin. Re-sum from the strings so the on-the-wire
+  // amount and the breakdown never disagree (parseFloat would risk drift).
+  let discountableCents = 0n;
   for (const item of breakdown) {
-    grossCents += parseCents(item.amount);
+    discountableCents += parseCents(item.amount);
+  }
+
+  // Premium feature add-on lines are priced at cost-plus-minimum-margin and
+  // are NEVER discounted — a refresh discount on them would erode below the
+  // 30%-COGS floor. Appended after the discountable subtotal is computed.
+  const premiumLines =
+    input.tier !== undefined
+      ? featureLineItems(
+          input.tier,
+          input.addons,
+          input.enabledFeatures ?? new Set<PremiumFeature>(),
+        )
+      : [];
+  let premiumCents = 0n;
+  for (const item of premiumLines) {
+    breakdown.push(item);
+    premiumCents += parseCents(item.amount);
   }
 
   const discounts: PricingBreakdownItem[] = [];
-  let netCents = grossCents;
+  let netCents = discountableCents + premiumCents;
 
   if (input.refreshDiscount) {
-    // Integer cents math. Floor division falls naturally out of bigint /.
+    // Discount applies to the DISCOUNTABLE subtotal only (integer floor div).
     const discountCents =
-      (grossCents * REFRESH_DISCOUNT_NUMERATOR) / REFRESH_DISCOUNT_DENOMINATOR;
+      (discountableCents * REFRESH_DISCOUNT_NUMERATOR) /
+      REFRESH_DISCOUNT_DENOMINATOR;
     if (discountCents > 0n) {
       discounts.push({
-        label: "refresh-sniff (50% off, within 30 days)",
+        label: "refresh-sniff (50% off base, within 30 days)",
         amount: formatCents(discountCents),
       });
-      netCents = grossCents - discountCents;
+      netCents = discountableCents - discountCents + premiumCents;
     }
   }
 

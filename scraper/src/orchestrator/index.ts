@@ -1,5 +1,6 @@
 import {
   SCHEMA_VERSION,
+  type Addons,
   type AiVisibility,
   type AppIdentifier,
   type CompetitorTrailItem,
@@ -65,6 +66,12 @@ import {
 import { getKnowledgeForRecommendation } from "../scoring/aso-knowledge.js";
 import { runLlmProbe } from "../providers/llm-probe.js";
 import { fetchWebDiscoverability } from "../providers/web-audit.js";
+import {
+  currentEnabledFeatures,
+  makeCogsGate,
+  projectedCogsCentsFor,
+  resolvePaidFeatures,
+} from "../payment/cogs.js";
 import { analyzeReviewSentiment } from "../scoring/review-sentiment.js";
 import { lookupLocalized } from "../providers/apple/multi-storefront.js";
 import {
@@ -129,6 +136,11 @@ export interface GenerateReportInput {
   // absence degrades the dependent sections to honest nulls/notes.
   currentKeywordsField?: string;
   ascDailyImpressions?: number;
+  // Cost-aware pricing — the premium add-ons the caller paid for. The
+  // orchestrator resolves (tier defaults ∪ addons) ∩ enabled into a COGS
+  // gate that decides which premium sections actually run, so it can never
+  // run a feature the price didn't cover (x402 pay-first).
+  addons?: Addons;
 }
 
 // Lean handle to the detected app's listing identity, surfaced for
@@ -325,12 +337,24 @@ export async function generateReportWithMeta(
   // overlaps the OpenAI synthesis call instead of adding to it. Both are
   // flag-gated inside their providers and degrade to null, never throw.
   //
-  // aiVisibility: quick tier skips it (COGS: ~$0.02/run belongs on the
-  // standard/expert price, per docs/research/2026-06-discoverability/cogs.md).
-  // Intents = the user's top 2 keywords; competitors = the same candidates
-  // the competitor trail analyzes (top 5, deduped by name downstream).
+  // Cost-aware COGS gate (single source of truth shared with pricing.ts).
+  // tier normalizes to "standard" for direct callers (/sample, tests) the
+  // same way the routes normalize it. The gate decides which premium
+  // sections run: a feature runs iff it's in paidFeatures AND there's
+  // projected-budget headroom. A skipped section returns its honest null.
+  const cogsTier: DiagnoseTier = input.tier ?? "standard";
+  const enabledFeatures = currentEnabledFeatures();
+  const paidFeatures = resolvePaidFeatures(cogsTier, input.addons, enabledFeatures);
+  const cogsGate = makeCogsGate({
+    paidFeatures,
+    budgetCents: projectedCogsCentsFor(paidFeatures),
+  });
+
+  // aiVisibility runs only when paid for (standard/expert bundle it; quick can
+  // opt in via addons). Intents = the user's top 2 keywords; competitors =
+  // the same candidates the competitor trail analyzes (top 5).
   const aiVisibilityPromise: Promise<AiVisibility | null> =
-    input.tier === "quick" || !data.detectedApp.name
+    !cogsGate.allow("aiVisibility") || !data.detectedApp.name
       ? Promise.resolve(null)
       : runLlmProbe({
           appId: data.detect.appRecord?.id ?? data.detectedApp.id,
@@ -363,7 +387,7 @@ export async function generateReportWithMeta(
   // synthesis fallback. Standard / Expert (and omitted/legacy callers) run
   // the full AI synthesis.
   const synthesis: SynthesisOutput =
-    input.tier === "quick"
+    !cogsGate.allow("aiSynthesis")
       ? synthesizeReportTemplate(synthesisInput)
       : await synthesizeReportOpenAi(synthesisInput, {
           requestId: input.requestId,
@@ -406,12 +430,21 @@ export async function generateReportWithMeta(
   // but the Android scoring path uses a different record shape and we
   // ship Android parity in a follow-up. LOCALIZATION_ENABLED gates the
   // whole feature; allowFixtureFallback skips it to keep /sample fast.
+  // Cost-aware: localized-copy generation is a paid feature (expert bundles
+  // it; standard/quick opt in via addons.localizationCopy). The storefront
+  // gap ANALYSIS is deterministic + cheap and runs whenever LOCALIZATION_ENABLED;
+  // the COGS gate governs only the expensive OpenAI COPY step (collectLocalized
+  // below). Storefronts are hard-capped so the localizationCopy projection holds.
+  const localizationCopyAllowed = cogsGate.allow("localizationCopy");
   let localizationAnalysis = await collectLocalization({
     enabled: env.LOCALIZATION_ENABLED && !input.allowFixtureFallback,
     store: input.store,
     requestCountry: input.country,
     appId: detectedAppId,
-    targetCountries: env.LOCALIZATION_STOREFRONTS,
+    targetCountries: env.LOCALIZATION_STOREFRONTS.slice(
+      0,
+      env.LOCALIZATION_MAX_STOREFRONTS,
+    ),
   });
 
   // ---------- Phase C: localized translated copy (OpenAI-gated) ----------
@@ -421,6 +454,7 @@ export async function generateReportWithMeta(
   // card so the value is still visible to the buyer. Skipped entirely for
   // fixture/sample paths and when localization itself is degraded.
   if (
+    localizationCopyAllowed &&
     localizationAnalysis &&
     localizationAnalysis.unlocalizedCount > 0 &&
     !input.allowFixtureFallback &&
@@ -429,6 +463,10 @@ export async function generateReportWithMeta(
   ) {
     const mismatched = localizationAnalysis.storefronts
       .filter((s) => s.localized === false)
+      // Hard cap the storefronts sent to the OpenAI copy call — its output
+      // tokens scale with this count, and the cap is what keeps the
+      // localizationCopy projected COGS honest.
+      .slice(0, env.LOCALIZATION_MAX_STOREFRONTS)
       .map((s) => ({
         country: s.country,
         expectedLanguages: s.expectedLanguages,
